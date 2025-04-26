@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: postgres_db
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: acme
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - acme-network
+
+  backend:
+    build: ./backend
+    container_name: acme_backend
+    ports:
+      - '3000:3000'
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - postgres
+    networks:
+      - acme-network
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/acme
+
+volumes:
+  postgres_data:
+
+networks:
+  acme-network:
+    driver: bridge
