@@ -1,0 +1,92 @@
+{
+  "name": "music-licensing-workflow",
+  "version": "1.0.0",
+  "description": "ACME BROS PICTURES music licensing workflow system - Fullstack application",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "install:all": "npm install && npm run install:backend && npm run install:frontend",
+    "install:backend": "cd backend && npm install",
+    "install:frontend": "cd frontend && npm install",
+    
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "cd backend && npm run start:dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    
+    "build": "npm run build:backend ",
+    "build:backend": "cd backend && npm run build",
+    
+    "start": "concurrently \"npm run start:backend\" \"npm run start:frontend\"",
+    "start:backend": "cd backend && npm run start:prod",
+    "start:frontend": "cd frontend && npm run start",
+    
+    "test": "npm run test:backend && npm run test:frontend",
+    "test:backend": "cd backend && npm run test",
+    "test:frontend": "cd frontend && npm run test",
+    
+    "lint": "npm run lint:backend && npm run lint:frontend",
+    "lint:backend": "cd backend && npm run lint",
+    "lint:frontend": "cd frontend && npm run lint",
+    
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "docker:build": "docker-compose build",
+    
+    "db:seed": "cd backend && npm run seed",
+    "db:migrate": "cd backend && npm run migration:run",
+    
+    "clean": "npm run clean:backend && npm run clean:frontend",
+    "clean:backend": "cd backend && rm -rf node_modules dist",
+    "clean:frontend": "cd frontend && rm -rf node_modules .next dist",
+    
+    "postinstall": "husky install || true"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0",
+    "husky": "^8.0.3",
+    "lint-staged": "^14.0.1"
+  },
+  "lint-staged": {
+    "backend/**/*.{ts,js}": [
+      "cd backend && npm run lint:fix",
+      "cd backend && npm run format"
+    ],
+    "frontend/**/*.{ts,tsx,js,jsx}": [
+      "cd frontend && npm run lint:fix",
+      "cd frontend && npm run format"
+    ]
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged",
+      "pre-push": "npm run test"
+    }
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "keywords": [
+    "music-licensing",
+    "workflow",
+    "nestjs",
+    "react",
+    "typescript",
+    "postgresql",
+    "websockets"
+  ],
+  "author": "ACME BROS PICTURES",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/your-username/fullstack-engineer-music-licensing-workflow-challenge.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/fullstack-engineer-music-licensing-workflow-challenge/issues"
+  },
+  "homepage": "https://github.com/your-username/fullstack-engineer-music-licensing-workflow-challenge#readme"
+}
