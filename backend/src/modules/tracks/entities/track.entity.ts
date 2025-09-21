@@ -1,53 +1,64 @@
+import { Field, Float, ID, ObjectType } from '@nestjs/graphql';
 import {
-  Entity,
-  PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
-  UpdateDateColumn,
-  ManyToOne,
-  OneToMany,
+  Entity,
   JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 import { Scene } from '../../scenes/entities/scene.entity';
 import { Song } from '../../songs/entities/song.entity';
-import { LicenseStatus } from '../../licenses/entities/license-status.entity';
 
+@ObjectType()
 @Entity('tracks')
 export class Track {
+  @Field(() => ID)
   @PrimaryGeneratedColumn()
   id: number;
 
+  @Field()
   @Column({ type: 'varchar', length: 255 })
   name: string;
 
+  @Field(() => Float)
   @Column({ type: 'decimal', precision: 10, scale: 3 })
   startTimeSeconds: number;
 
+  @Field(() => Float)
   @Column({ type: 'decimal', precision: 10, scale: 3 })
   endTimeSeconds: number;
 
+  @Field({ nullable: true })
   @Column({ type: 'text', nullable: true })
   notes: string;
 
+  //scene id
+  @Field(() => ID)
+  @Column({ type: 'int', name: 'scene_id' })
+  sceneId: number;
+
+  @Field(() => Scene)
   @ManyToOne(() => Scene, (scene) => scene.tracks, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'scene_id' })
+  @JoinColumn({ name: 'scene_id', foreignKeyConstraintName: 'fk_tracks_scene_id' })
   scene: Scene;
 
-  //current License Status
-  @ManyToOne(() => LicenseStatus, (licenseStatus) => licenseStatus.track, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'current_license_status_id' })
-  currentLicenseStatus: LicenseStatus;
+  //song id
+  @Field(() => ID)
+  @Column({ type: 'int', name: 'song_id' })
+  songId: number;
 
+  @Field(() => Song)
   @ManyToOne(() => Song, (song) => song.tracks, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'song_id' })
+  @JoinColumn({ name: 'song_id', foreignKeyConstraintName: 'fk_tracks_song_id' })
   song: Song;
 
-  @OneToMany(() => LicenseStatus, (licenseStatus) => licenseStatus.track, { cascade: true })
-  licenseStatusesHistory: LicenseStatus[];
-
+  @Field()
   @CreateDateColumn()
   createdAt: Date;
 
+  @Field()
   @UpdateDateColumn()
   updatedAt: Date;
 }

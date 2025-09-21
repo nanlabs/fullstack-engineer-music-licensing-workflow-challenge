@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Test - Music Licensing</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .connected {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .message {
+            background-color: #e2e3e5;
+            border: 1px solid #d6d8db;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        #messages {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            margin: 10px 0;
+        }
+        .input-group {
+            margin: 10px 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎵 Music Licensing WebSocket Test</h1>
+        
+        <div id="connectionStatus" class="status disconnected">
+            ❌ Disconnected
+        </div>
+        
+        <div>
+            <h3>Actions</h3>
+            <button id="connectBtn" onclick="connect()">Connect</button>
+            <button id="disconnectBtn" onclick="disconnect()" disabled>Disconnect</button>
+            <button onclick="clearMessages()">Clear Messages</button>
+        </div>
+
+        <div>
+            <h3>Test Events</h3>
+            <div class="input-group">
+                <label for="movieId">Movie ID:</label>
+                <input type="text" id="movieId" value="1" placeholder="Enter movie ID">
+            </div>
+            <button onclick="joinMovieRoom()">Join Movie Room</button>
+            <button onclick="leaveMovieRoom()">Leave Movie Room</button>
+        </div>
+        
+        <div>
+            <h3>Messages</h3>
+            <div id="messages"></div>
+        </div>
+
+        <div>
+            <h3>Instructions</h3>
+            <p>1. Start your NestJS backend server</p>
+            <p>2. Click "Connect" to connect to the WebSocket</p>
+            <p>3. Use the REST API or GraphQL to create tracks or update license statuses</p>
+            <p>4. Watch for real-time updates in the messages section</p>
+            <p>5. You can join specific movie rooms to receive targeted updates</p>
+        </div>
+
+        <div>
+            <h3>Expected Events</h3>
+            <ul>
+                <li><code>licenseStatusUpdate</code> - When license status changes</li>
+                <li><code>trackCreated</code> - When new tracks are created</li>
+                <li><code>movieStatisticsUpdate</code> - When movie statistics are updated</li>
+            </ul>
+        </div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.7.0/socket.io.min.js"></script>
+    <script>
+        let socket = null;
+        const messagesDiv = document.getElementById('messages');
+        const statusDiv = document.getElementById('connectionStatus');
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+
+        function addMessage(type, data) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message';
+            messageDiv.textContent = `[${new Date().toLocaleTimeString()}] ${type}: ${JSON.stringify(data, null, 2)}`;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function updateStatus(connected) {
+            if (connected) {
+                statusDiv.className = 'status connected';
+                statusDiv.textContent = '✅ Connected';
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = false;
+            } else {
+                statusDiv.className = 'status disconnected';
+                statusDiv.textContent = '❌ Disconnected';
+                connectBtn.disabled = false;
+                disconnectBtn.disabled = true;
+            }
+        }
+
+        function connect() {
+            if (socket) {
+                socket.disconnect();
+            }
+
+            addMessage('INFO', 'Attempting to connect to WebSocket...');
+            
+            // Connect to the WebSocket server
+            socket = io('http://localhost:3001', {
+                cors: {
+                    origin: "*",
+                    methods: ["GET", "POST"]
+                }
+            });
+
+            socket.on('connect', () => {
+                addMessage('CONNECTED', { id: socket.id });
+                updateStatus(true);
+            });
+
+            socket.on('disconnect', (reason) => {
+                addMessage('DISCONNECTED', { reason });
+                updateStatus(false);
+            });
+
+            socket.on('connect_error', (error) => {
+                addMessage('CONNECTION_ERROR', { error: error.message });
+                updateStatus(false);
+            });
+
+            // Listen for license status updates
+            socket.on('licenseStatusUpdate', (data) => {
+                addMessage('LICENSE_STATUS_UPDATE', data);
+            });
+
+            // Listen for track creation events
+            socket.on('trackCreated', (data) => {
+                addMessage('TRACK_CREATED', data);
+            });
+
+            // Listen for movie statistics updates
+            socket.on('movieStatisticsUpdate', (data) => {
+                addMessage('MOVIE_STATISTICS_UPDATE', data);
+            });
+
+            // Listen for any other events
+            socket.onAny((eventName, ...args) => {
+                if (!['connect', 'disconnect', 'connect_error', 'licenseStatusUpdate', 'trackCreated', 'movieStatisticsUpdate'].includes(eventName)) {
+                    addMessage('UNKNOWN_EVENT', { event: eventName, data: args });
+                }
+            });
+        }
+
+        function disconnect() {
+            if (socket) {
+                socket.disconnect();
+                socket = null;
+            }
+            updateStatus(false);
+        }
+
+        function joinMovieRoom() {
+            const movieId = document.getElementById('movieId').value;
+            if (!socket || !movieId) {
+                addMessage('ERROR', 'Socket not connected or movie ID missing');
+                return;
+            }
+            
+            // Note: This would need to be implemented on the server side
+            // For now, just log the attempt
+            addMessage('INFO', `Attempting to join movie room: ${movieId}`);
+        }
+
+        function leaveMovieRoom() {
+            const movieId = document.getElementById('movieId').value;
+            if (!socket || !movieId) {
+                addMessage('ERROR', 'Socket not connected or movie ID missing');
+                return;
+            }
+            
+            // Note: This would need to be implemented on the server side
+            // For now, just log the attempt
+            addMessage('INFO', `Attempting to leave movie room: ${movieId}`);
+        }
+
+        function clearMessages() {
+            messagesDiv.innerHTML = '';
+        }
+
+        // Auto-connect on page load
+        window.onload = function() {
+            addMessage('INFO', 'Page loaded. Ready to connect to WebSocket.');
+        };
+    </script>
+</body>
+</html>

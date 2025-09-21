@@ -1,10 +1,10 @@
 import { DataSource } from 'typeorm';
+import { LicenseStatusEnum } from '../../common/enums/license-status.enum';
+import { LicenseStatus } from '../../modules/licenses/entities/license-status.entity';
 import { Movie } from '../../modules/movies/entities/movie.entity';
 import { Scene } from '../../modules/scenes/entities/scene.entity';
 import { Song } from '../../modules/songs/entities/song.entity';
 import { Track } from '../../modules/tracks/entities/track.entity';
-import { LicenseStatus } from '../../modules/licenses/entities/license-status.entity';
-import { LicenseStatusEnum } from '../../common/enums/license-status.enum';
 
 export async function seedSampleData(dataSource: DataSource) {
   console.log('🌱 Seeding sample data...');
@@ -43,8 +43,6 @@ export async function seedSampleData(dataSource: DataSource) {
       releaseYear: 2023,
       genre: 'Orchestral',
       durationSeconds: 180,
-      rightsHolder: 'Adventure Music Inc.',
-      contactEmail: 'licensing@adventuremusic.com',
     },
     {
       title: 'Heartbeat',
@@ -53,8 +51,6 @@ export async function seedSampleData(dataSource: DataSource) {
       releaseYear: 2023,
       genre: 'Pop',
       durationSeconds: 210,
-      rightsHolder: 'Romance Records',
-      contactEmail: 'rights@romancerecords.com',
     },
     {
       title: 'City Lights',
@@ -63,8 +59,6 @@ export async function seedSampleData(dataSource: DataSource) {
       releaseYear: 2022,
       genre: 'Electronic',
       durationSeconds: 165,
-      rightsHolder: 'City Music Publishing',
-      contactEmail: 'licensing@citymusic.com',
     },
     {
       title: 'Thunder Storm',
@@ -73,8 +67,6 @@ export async function seedSampleData(dataSource: DataSource) {
       releaseYear: 2023,
       genre: 'Ambient',
       durationSeconds: 240,
-      rightsHolder: 'Nature Sounds Ltd.',
-      contactEmail: 'info@naturesounds.com',
     },
   ]);
 
@@ -128,7 +120,6 @@ export async function seedSampleData(dataSource: DataSource) {
       name: 'Opening Theme',
       startTimeSeconds: 10,
       endTimeSeconds: 70,
-      volume: 0.8,
       sceneId: adventureScenes[0].id,
       songId: songs[0].id,
     },
@@ -136,7 +127,6 @@ export async function seedSampleData(dataSource: DataSource) {
       name: 'Discovery Music',
       startTimeSeconds: 50,
       endTimeSeconds: 180,
-      volume: 0.6,
       sceneId: adventureScenes[1].id,
       songId: songs[0].id,
     },
@@ -144,7 +134,6 @@ export async function seedSampleData(dataSource: DataSource) {
       name: 'Battle Tension',
       startTimeSeconds: 120,
       endTimeSeconds: 240,
-      volume: 0.9,
       sceneId: adventureScenes[2].id,
       songId: songs[3].id,
     },
@@ -153,7 +142,6 @@ export async function seedSampleData(dataSource: DataSource) {
       name: 'Cafe Ambiance',
       startTimeSeconds: 30,
       endTimeSeconds: 160,
-      volume: 0.4,
       sceneId: cityScenes[0].id,
       songId: songs[1].id,
     },
@@ -161,102 +149,82 @@ export async function seedSampleData(dataSource: DataSource) {
       name: 'City View',
       startTimeSeconds: 20,
       endTimeSeconds: 140,
-      volume: 0.7,
       sceneId: cityScenes[1].id,
       songId: songs[2].id,
     },
   ]);
 
-  // Sample license statuses with varied states
-  await dataSource.getRepository(LicenseStatus).save([
+  // Sample license statuses with varied states (now for songs)
+  const licenseStatuses = await dataSource.getRepository(LicenseStatus).save([
     // Epic Journey - Approved
     {
       status: LicenseStatusEnum.PENDING,
-      notes: 'Initial license request submitted',
-      updatedBy: 'John Producer',
-      trackId: tracks[0].id,
+      songId: songs[0].id,
     },
     {
       status: LicenseStatusEnum.IN_REVIEW,
-      notes: 'Under review by rights holder',
-      updatedBy: 'Jane Rights Manager',
-      trackId: tracks[0].id,
+      songId: songs[0].id,
     },
     {
       status: LicenseStatusEnum.APPROVED,
-      notes: 'License approved with standard terms',
-      updatedBy: 'Jane Rights Manager',
-      licenseFee: 2500.0,
-      licenseStartDate: new Date('2024-01-01'),
-      licenseEndDate: new Date('2024-12-31'),
-      contractDetails: 'Standard sync license for theatrical release',
-      trackId: tracks[0].id,
+      songId: songs[0].id,
     },
 
-    // Discovery Music - In Negotiation
+    // Heartbeat - In Negotiation
     {
       status: LicenseStatusEnum.PENDING,
-      notes: 'License request for epic scene',
-      updatedBy: 'John Producer',
-      trackId: tracks[1].id,
+      songId: songs[1].id,
     },
     {
       status: LicenseStatusEnum.IN_REVIEW,
-      notes: 'Reviewing usage context',
-      updatedBy: 'Adventure Music Rights',
-      trackId: tracks[1].id,
+      songId: songs[1].id,
     },
     {
       status: LicenseStatusEnum.NEGOTIATING,
-      notes: 'Negotiating fee for extended usage',
-      updatedBy: 'John Producer',
-      licenseFee: 3000.0,
-      trackId: tracks[1].id,
+      songId: songs[1].id,
     },
 
-    // Battle Tension - Rejected
+    // City Lights - Rejected
     {
       status: LicenseStatusEnum.PENDING,
-      notes: 'Request for high-intensity scene',
-      updatedBy: 'John Producer',
-      trackId: tracks[2].id,
+      songId: songs[2].id,
     },
     {
       status: LicenseStatusEnum.REJECTED,
-      notes: 'Rights holder declined due to exclusivity agreement',
-      updatedBy: 'Nature Sounds Rights',
-      trackId: tracks[2].id,
+      songId: songs[2].id,
     },
 
-    // Cafe Ambiance - In Review
+    // Thunder Storm - In Review
     {
       status: LicenseStatusEnum.PENDING,
-      notes: 'Background music for romantic scene',
-      updatedBy: 'Jane Director',
-      trackId: tracks[3].id,
+      songId: songs[3].id,
     },
     {
       status: LicenseStatusEnum.IN_REVIEW,
-      notes: 'Reviewing terms for romantic drama usage',
-      updatedBy: 'Romance Records',
-      trackId: tracks[3].id,
-    },
-
-    // City View - Just submitted
-    {
-      status: LicenseStatusEnum.PENDING,
-      notes: 'Recently submitted license request',
-      updatedBy: 'Jane Director',
-      trackId: tracks[4].id,
+      songId: songs[3].id,
     },
   ]);
+
+  // Update songs with their current license status (most recent status for each song)
+  const songUpdates = [
+    { songId: songs[0].id, currentLicenseStatusId: licenseStatuses[2].id }, // APPROVED
+    { songId: songs[1].id, currentLicenseStatusId: licenseStatuses[5].id }, // NEGOTIATING
+    { songId: songs[2].id, currentLicenseStatusId: licenseStatuses[7].id }, // REJECTED
+    { songId: songs[3].id, currentLicenseStatusId: licenseStatuses[9].id }, // IN_REVIEW
+  ];
+
+  for (const update of songUpdates) {
+    await dataSource
+      .getRepository(Song)
+      .update({ id: update.songId }, { currentLicenseStatusId: update.currentLicenseStatusId });
+  }
 
   console.log('✅ Sample data seeded successfully!');
   console.log(`📽️  Created ${movies.length} movies`);
   console.log(`🎬 Created ${adventureScenes.length + cityScenes.length} scenes`);
   console.log(`🎵 Created ${songs.length} songs`);
   console.log(`🎼 Created ${tracks.length} tracks`);
-  console.log('🔄 Created license status history for all tracks');
+  console.log('🔄 Created license status history for all songs');
 }
 
 // CLI runner

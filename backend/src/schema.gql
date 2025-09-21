@@ -1,0 +1,167 @@
+# ------------------------------------------------------
+# THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+# ------------------------------------------------------
+
+input CreateMovieInput {
+  description: String
+  director: String
+  releaseYear: Int
+  status: String
+  title: String!
+}
+
+input CreateSceneInput {
+  description: String
+  durationSeconds: Int
+  movieId: Int!
+  name: String!
+  notes: String
+  sceneNumber: Int!
+}
+
+input CreateSongInput {
+  album: String
+  artist: String!
+  contactEmail: String
+  durationSeconds: Int
+  genre: String
+  notes: String
+  releaseYear: Int
+  rightsHolder: String
+  title: String!
+}
+
+input CreateTrackInput {
+  endTimeSeconds: Float!
+  name: String!
+  notes: String
+  sceneId: Int!
+  songId: Int!
+  startTimeSeconds: Float!
+}
+
+"""
+A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
+"""
+scalar DateTime
+
+type LicenseStatus {
+  createdAt: DateTime!
+  id: ID!
+  song: Song!
+  songId: ID!
+  status: LicenseStatusEnum!
+}
+
+"""Status of a license request"""
+enum LicenseStatusEnum {
+  APPROVED
+  EXPIRED
+  IN_REVIEW
+  NEGOTIATING
+  PENDING
+  REJECTED
+}
+
+type Movie {
+  createdAt: DateTime!
+  description: String
+  director: String
+  id: ID!
+  releaseYear: Int
+  scenes: [Scene!]
+  status: String!
+  title: String!
+  updatedAt: DateTime!
+}
+
+type Mutation {
+  createMovie(createMovieInput: CreateMovieInput!): Movie!
+  createScene(createSceneInput: CreateSceneInput!): Scene!
+  createSong(createSongInput: CreateSongInput!): Song!
+  createTrack(createTrackInput: CreateTrackInput!): Track!
+  removeSong(id: ID!): Boolean!
+  removeTrack(id: ID!): Boolean!
+  updateMovie(id: ID!, updateMovieInput: UpdateMovieInput!): Movie!
+  updateSongLicenseStatus(songId: ID!, updateLicenseStatusInput: UpdateLicenseStatusInput!): LicenseStatus!
+  updateSongLicenseStatusByTrack(trackId: ID!, updateLicenseStatusInput: UpdateLicenseStatusInput!): LicenseStatus!
+}
+
+type Query {
+  currentLicenseStatus(songId: ID!): LicenseStatus
+  licenseHistory(songId: ID!): [LicenseStatus!]!
+  licenseStatistics: String!
+  movie(id: ID!): Movie!
+  movies: [Movie!]!
+  scene(id: ID!): Scene!
+  scenes: [Scene!]!
+  scenesByMovie(movieId: Int!): [Scene!]!
+  song(id: ID!): Song!
+  songs: [Song!]!
+  track(id: ID!): Track!
+  tracks(movieId: Int, sceneId: Int): [Track!]!
+  tracksByMovie(movieId: Int!): [Track!]!
+  tracksByScene(sceneId: Int!): [Track!]!
+}
+
+type Scene {
+  createdAt: DateTime!
+  description: String
+  durationSeconds: Int
+  id: ID!
+  movie: Movie!
+  movieId: ID!
+  name: String!
+  notes: String
+  sceneNumber: Int!
+  tracks: [Track!]
+  updatedAt: DateTime!
+}
+
+type Song {
+  album: String
+  artist: String!
+  createdAt: DateTime!
+  currentLicenseStatus: LicenseStatus
+  currentLicenseStatusId: ID
+  durationSeconds: Int
+  genre: String
+  id: ID!
+  licenseStatusesHistory: [LicenseStatus!]
+  releaseYear: Int
+  title: String!
+  tracks: [Track!]
+  updatedAt: DateTime!
+}
+
+type Track {
+  createdAt: DateTime!
+  endTimeSeconds: Float!
+  id: ID!
+  name: String!
+  notes: String
+  scene: Scene!
+  sceneId: ID!
+  song: Song!
+  songId: ID!
+  startTimeSeconds: Float!
+  updatedAt: DateTime!
+}
+
+input UpdateLicenseStatusInput {
+  contractDetails: String
+  licenseEndDate: String
+  licenseFee: Float
+  licenseStartDate: String
+  notes: String
+  status: LicenseStatusEnum!
+  updatedBy: String
+}
+
+input UpdateMovieInput {
+  description: String
+  director: String
+  releaseYear: Int
+  status: String
+  title: String
+}
