@@ -25,7 +25,14 @@ export class ScenesRepository {
   async findById(id: number): Promise<Scene | null> {
     return await this.sceneRepository.findOne({
       where: { id },
-      relations: ['movie', 'tracks', 'tracks.song', 'tracks.licenseStatusesHistory'],
+      relations: {
+        movie: true,
+        tracks: {
+          song: {
+            currentLicenseStatus: true,
+          },
+        },
+      },
     });
   }
 
@@ -42,7 +49,14 @@ export class ScenesRepository {
           id: movieId,
         },
       },
-      relations: ['tracks', 'tracks.song', 'tracks.licenseStatusesHistory'],
+      relations: {
+        tracks: {
+          song: {
+            currentLicenseStatus: true,
+          },
+        },
+      },
+
       order: { sceneNumber: 'ASC' },
     });
   }
