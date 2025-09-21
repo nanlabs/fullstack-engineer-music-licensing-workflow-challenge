@@ -118,7 +118,6 @@ describe('LicensesService', () => {
       licensesRepository.findBySongId.mockResolvedValue([mockLicenseStatus]);
       licensesRepository.create.mockResolvedValue(newLicenseStatus);
       licensesRepository.updateSongCurrentLicenseStatus.mockResolvedValue(undefined);
-      licenseUpdateGateway.emitLicenseStatusUpdate.mockImplementation(() => {});
 
       // Act
       const result = await service.updateSongLicenseStatus(1, mockUpdateLicenseStatusDto);
@@ -359,28 +358,6 @@ describe('LicensesService', () => {
       await expect(service.getCurrentLicenseStatus(999)).rejects.toThrow(
         new NotFoundException('Song with ID 999 not found'),
       );
-    });
-  });
-
-  describe('getStatusStatistics', () => {
-    it('should return status statistics', async () => {
-      // Arrange
-      const mockStats = {
-        pending: 5,
-        in_review: 3,
-        negotiating: 2,
-        approved: 10,
-        rejected: 1,
-        expired: 0,
-      };
-      licensesRepository.getStatusStatistics.mockResolvedValue(mockStats);
-
-      // Act
-      const result = await service.getStatusStatistics();
-
-      // Assert
-      expect(licensesRepository.getStatusStatistics).toHaveBeenCalled();
-      expect(result).toEqual(mockStats);
     });
   });
 });

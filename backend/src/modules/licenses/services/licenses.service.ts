@@ -25,7 +25,6 @@ export class LicensesService {
     private readonly songsService: SongsService,
     @Inject(forwardRef(() => TracksService))
     private readonly tracksService: TracksService,
-    @Inject(LicenseUpdateGateway)
     private readonly licenseUpdateGateway: LicenseUpdateGateway,
   ) {}
 
@@ -54,23 +53,31 @@ export class LicensesService {
     };
 
     const savedLicenseStatus = await this.licensesRepository.create(createLicenseStatusDto, song);
-    console.log('savedLicenseStatus', savedLicenseStatus);
 
     if (!savedLicenseStatus) {
       throw new Error('Failed to create license status');
     }
 
-    // Update song's current license status ID
+    // Update song's current license status reference
     await this.licensesRepository.updateSongCurrentLicenseStatus(songId, savedLicenseStatus.id);
 
     // Emit real-time update
     try {
-      this.licenseUpdateGateway.emitLicenseStatusUpdate({
-        songId,
-        newStatus: savedLicenseStatus,
-      });
+      this.logger.log(`Attempting to emit WebSocket event for song ${songId}`);
+      this.logger.log(`Gateway instance: ${!!this.licenseUpdateGateway}`);
+
+      if (this.licenseUpdateGateway) {
+        this.licenseUpdateGateway.emitLicenseStatusUpdate({
+          songId,
+          newStatus: savedLicenseStatus,
+        });
+        this.logger.log(`WebSocket emission completed for song ${songId}`);
+      } else {
+        this.logger.warn('LicenseUpdateGateway not available, skipping WebSocket emission');
+      }
     } catch (error) {
-      this.logger.warn('Failed to emit license update via WebSocket:', error.message);
+      this.logger.error('Failed to emit license update via WebSocket:', error.message);
+      this.logger.error('Error stack:', error.stack);
     }
 
     return savedLicenseStatus;
@@ -160,7 +167,19 @@ export class LicensesService {
     return await this.updateSongLicenseStatus(track.songId, updateLicenseStatusDto);
   }
 
-  async getStatusStatistics(): Promise<any> {
-    return await this.licensesRepository.getStatusStatistics();
+  async getCurrentLicenseStatusByTrack(trackId: number): Promise<LicenseStatus | null> {
+    // Business rule: Track must exist
+    const track = await this.tracksService.findOne(trackId);
+    if (!track) {
+      throw new NotFoundException(`Track with ID ${trackId} not found`);
+    }
+
+    // Business rule: Track must have an associated song
+    if (!track.songId) {
+      throw new BadRequestException(`Track with ID ${trackId} has no associated song`);
+    }
+
+    // Delegate to getCurrentLicenseStatus method
+    return await this.getCurrentLicenseStatus(track.songId);
   }
 }

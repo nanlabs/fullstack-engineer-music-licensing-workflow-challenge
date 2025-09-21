@@ -21,11 +21,6 @@ export class LicensesResolver {
     return await this.licensesService.getCurrentLicenseStatus(songId);
   }
 
-  @Query(() => String, { name: 'licenseStatistics' })
-  async getStatistics(): Promise<any> {
-    return await this.licensesService.getStatusStatistics();
-  }
-
   @Mutation(() => LicenseStatus)
   async updateSongLicenseStatus(
     @Args('songId', { type: () => ID }) songId: number,

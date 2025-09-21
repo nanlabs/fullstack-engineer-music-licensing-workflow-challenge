@@ -74,10 +74,18 @@ export class LicensesController {
     );
   }
 
-  @Get('statistics')
-  @ApiOperation({ summary: 'Get overall licensing statistics' })
-  @ApiResponse({ status: 200, description: 'Statistics retrieved successfully' })
-  async getStatistics(): Promise<any> {
-    return await this.licensesService.getStatusStatistics();
+  @Get('tracks/:trackId/song/current')
+  @ApiOperation({ summary: 'Get current license status of a song by track ID' })
+  @ApiParam({ name: 'trackId', description: 'Track ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Current license status retrieved successfully via track',
+    type: LicenseStatus,
+  })
+  @ApiResponse({ status: 404, description: 'Track not found or track has no associated song' })
+  async getCurrentLicenseStatusByTrack(
+    @Param('trackId', ParseIntPipe) trackId: number,
+  ): Promise<LicenseStatus | null> {
+    return await this.licensesService.getCurrentLicenseStatusByTrack(trackId);
   }
 }
