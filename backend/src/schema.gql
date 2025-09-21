@@ -90,7 +90,6 @@ type Mutation {
 type Query {
   currentLicenseStatus(songId: ID!): LicenseStatus
   licenseHistory(songId: ID!): [LicenseStatus!]!
-  licenseStatistics: String!
   movie(id: ID!): Movie!
   movies: [Movie!]!
   scene(id: ID!): Scene!

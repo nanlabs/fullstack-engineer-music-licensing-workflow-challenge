@@ -21,69 +21,93 @@ export class LicenseUpdateGateway
   server: Server;
 
   private logger = new Logger('LicenseUpdateGateway');
+  private isReady = false;
 
-  afterInit(_server: Server) {
-    this.logger.log('WebSocket Gateway initialized');
+  afterInit(server: Server) {
+    this.server = server;
+
+    // Pequeño delay para asegurar inicialización completa
+    setTimeout(() => {
+      this.isReady = true;
+      this.logger.log('WebSocket Gateway fully initialized and ready');
+    }, 100);
   }
 
   handleConnection(client: Socket) {
-    this.logger.log(`Client connected: ${client.id}`);
+    this.logger.log(
+      `Client connected: ${client.id}. Total clients: ${this.server?.engine?.clientsCount || 0}`,
+    );
   }
 
   handleDisconnect(client: Socket) {
-    this.logger.log(`Client disconnected: ${client.id}`);
+    this.logger.log(
+      `Client disconnected: ${client.id}. Total clients: ${this.server?.engine?.clientsCount || 0}`,
+    );
   }
 
-  // Emit license status update to all connected clients
-  emitLicenseStatusUpdate(data: { songId: number; newStatus: any; updatedBy?: string }) {
+  async emitLicenseStatusUpdate(data: { songId: number; newStatus: any; updatedBy?: string }) {
     try {
+      // Si no está listo, esperar un poco
+      if (!this.isReady || !this.server) {
+        this.logger.warn('WebSocket server not ready yet, waiting...');
+        await this.waitForReady();
+      }
+
       if (!this.server) {
-        this.logger.warn('WebSocket server not initialized, skipping emission');
+        this.logger.error('WebSocket server still not available after waiting');
         return;
       }
+
+      const clientCount = this.server.engine.clientsCount || 0;
       this.server.emit('licenseStatusUpdate', data);
-      this.logger.log(`Emitted license status update for song ${data.songId}`);
+
+      this.logger.log(
+        `Emitted license status update for song ${data.songId} to ${clientCount} clients`,
+      );
+
+      if (clientCount === 0) {
+        this.logger.warn('No clients connected to receive the update');
+      }
     } catch (error) {
       this.logger.error('Error emitting license status update:', error);
     }
   }
 
-  // Emit track creation to all connected clients
+  private async waitForReady(maxWait = 5000): Promise<void> {
+    const startTime = Date.now();
+
+    while (!this.isReady && Date.now() - startTime < maxWait) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+
+    if (!this.isReady) {
+      throw new Error('WebSocket server failed to initialize within timeout');
+    }
+  }
+
+  // Resto de tus métodos...
   emitTrackCreated(data: { track: any; sceneId: string; movieId: string }) {
-    if (!this.server) {
-      this.logger.warn('WebSocket server not initialized, skipping emission');
+    if (!this.isReady || !this.server) {
+      this.logger.warn('WebSocket server not ready, skipping track creation emission');
       return;
     }
     this.server.emit('trackCreated', data);
     this.logger.log(`Emitted track created for scene ${data.sceneId}`);
   }
 
-  // Emit movie statistics update
-  emitMovieStatisticsUpdate(data: { movieId: string; statistics: any }) {
-    if (!this.server) {
-      this.logger.warn('WebSocket server not initialized, skipping emission');
-      return;
-    }
-    this.server.emit('movieStatisticsUpdate', data);
-    this.logger.log(`Emitted statistics update for movie ${data.movieId}`);
-  }
-
-  // Join a specific movie room for targeted updates
   joinMovieRoom(client: Socket, movieId: string) {
     client.join(`movie-${movieId}`);
     this.logger.log(`Client ${client.id} joined movie room: ${movieId}`);
   }
 
-  // Leave a specific movie room
   leaveMovieRoom(client: Socket, movieId: string) {
     client.leave(`movie-${movieId}`);
     this.logger.log(`Client ${client.id} left movie room: ${movieId}`);
   }
 
-  // Emit to specific movie room
   emitToMovieRoom(movieId: string, event: string, data: any) {
-    if (!this.server) {
-      this.logger.warn('WebSocket server not initialized, skipping emission');
+    if (!this.isReady || !this.server) {
+      this.logger.warn('WebSocket server not ready, skipping room emission');
       return;
     }
     this.server.to(`movie-${movieId}`).emit(event, data);

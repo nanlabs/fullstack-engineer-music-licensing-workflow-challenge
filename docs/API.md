@@ -78,7 +78,6 @@ ws://localhost:3001/license-updates
 
 - `licenseStatusUpdate` - Emitted when a track's license status changes
 - `trackCreated` - Emitted when a new track is created
-- `movieStatisticsUpdate` - Emitted when movie statistics change
 
 ## Error Handling
 
