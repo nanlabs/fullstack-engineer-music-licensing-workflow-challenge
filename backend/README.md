@@ -137,7 +137,7 @@ REJECTED ←────┴───────────┴─────�
 
 ### Key Features
 
-1. **Track Creation**: Automatically initializes with PENDING license status
+1. **Song Creation**: Automatically initializes with PENDING license status
 2. **Workflow Validation**: Enforces valid state transitions
 3. **Real-time Updates**: WebSocket notifications for status changes
 4. **Search**: Find songs by title, artist, or album
