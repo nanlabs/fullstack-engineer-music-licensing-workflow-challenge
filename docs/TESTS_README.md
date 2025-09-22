@@ -1,43 +1,43 @@
-# Tests Unitarios - Sistema de Licenciamiento Musical
+# Unit Tests - Music Licensing System
 
-Este documento describe los tests unitarios implementados para el sistema de licenciamiento musical de ACME BROS PICTURES.
+This document describes the unit tests implemented for the ACME BROS PICTURES music licensing system.
 
-## 📋 Resumen
+## 📋 Summary
 
-Se han implementado **53 tests unitarios** distribuidos en **3 archivos de test** que cubren los siguientes casos de uso principales:
+**53 unit tests** have been implemented distributed across **3 test files** covering the following main use cases:
 
-1. **Crear una canción**
-2. **Crear un track y asociar la canción**
-3. **Actualizar el estado de la licencia de un track**
-4. **Obtener todos los tracks para un scene/movie incluyendo el estado del licensing**
+1. **Create a song**
+2. **Create a track and associate the song**
+3. **Update the license status of a track**
+4. **Get all tracks for a scene/movie including licensing status**
 
-## 🧪 Archivos de Test
+## 🧪 Test Files
 
 ### 1. Songs Service Tests (`songs.service.spec.ts`)
 
-**Ubicación:** `src/modules/songs/services/songs.service.spec.ts`
+**Location:** `src/modules/songs/services/songs.service.spec.ts`
 
-**Tests implementados (16 tests):**
+**Implemented tests (16 tests):**
 
-#### Creación de Canciones
+#### Song Creation
 
 - ✅ `should create a song successfully and set initial license status`
-  - Verifica que se cree una canción correctamente
-  - Confirma que se establece un estado de licencia inicial como PENDING
-  - Valida la llamada al servicio de licencias
+  - Verifies that a song is created correctly
+  - Confirms that an initial license status is set as PENDING
+  - Validates the call to the licenses service
 
-#### Validaciones de Negocio
+#### Business Validations
 
 - ✅ `should throw error for invalid release year (too old)`
-  - Valida que años de lanzamiento < 1900 generen error
+  - Validates that release years < 1900 generate an error
 - ✅ `should throw error for invalid release year (future)`
-  - Valida que años futuros generen error
+  - Validates that future years generate an error
 - ✅ `should throw error for invalid duration (negative)`
-  - Valida que duraciones negativas generen error
+  - Validates that negative durations generate an error
 - ✅ `should allow creation with duration zero (due to service validation logic)`
-  - Documenta el comportamiento actual del servicio con duración 0
+  - Documents the current service behavior with duration 0
 
-#### Operaciones CRUD
+#### CRUD Operations
 
 - ✅ `should return a song when found`
 - ✅ `should throw NotFoundException when song not found`
@@ -47,7 +47,7 @@ Se han implementado **53 tests unitarios** distribuidos en **3 archivos de test*
 - ✅ `should remove a song successfully`
 - ✅ `should throw NotFoundException when removing non-existent song`
 
-#### Búsqueda y Existencia
+#### Search and Existence
 
 - ✅ `should return songs matching search query`
 - ✅ `should return true when song exists`
@@ -57,30 +57,30 @@ Se han implementado **53 tests unitarios** distribuidos en **3 archivos de test*
 
 ### 2. Tracks Service Tests (`tracks.service.spec.ts`)
 
-**Ubicación:** `src/modules/tracks/services/tracks.service.spec.ts`
+**Location:** `src/modules/tracks/services/tracks.service.spec.ts`
 
-**Tests implementados (21 tests):**
+**Implemented tests (21 tests):**
 
-#### Creación de Tracks
+#### Track Creation
 
 - ✅ `should create a track successfully and associate it with a song`
-  - Verifica la creación correcta de un track
-  - Confirma la asociación con una canción existente
-  - Valida la asociación con un scene existente
+  - Verifies correct track creation
+  - Confirms association with an existing song
+  - Validates association with an existing scene
 
-#### Validaciones de Timing
+#### Timing Validations
 
 - ✅ `should throw BadRequestException for invalid timing (end time before start time)`
 - ✅ `should throw BadRequestException for invalid timing (equal start and end time)`
 - ✅ `should throw BadRequestException for negative start time`
 
-#### Validaciones de Referencias
+#### Reference Validations
 
 - ✅ `should throw NotFoundException when scene does not exist`
 - ✅ `should throw NotFoundException when song does not exist`
 - ✅ `should handle song service returning null (additional safety check)`
 
-#### Operaciones de Consulta
+#### Query Operations
 
 - ✅ `should return a track when found`
 - ✅ `should throw NotFoundException when track not found`
@@ -88,47 +88,47 @@ Se han implementado **53 tests unitarios** distribuidos en **3 archivos de test*
 - ✅ `should return tracks for a specific scene`
 - ✅ `should return tracks for a specific movie`
 
-#### Eliminación
+#### Deletion
 
 - ✅ `should remove a track successfully`
 - ✅ `should throw NotFoundException when removing non-existent track`
 
-#### Consultas con Información de Licensing
+#### Queries with Licensing Information
 
 - ✅ `should return tracks for a scene with license status information`
-  - Verifica que se incluya el estado de licencia actual
+  - Verifies that current license status is included
 - ✅ `should return tracks for a scene with pending license status`
 - ✅ `should return tracks for a scene with null license status`
 - ✅ `should return tracks for a movie with license status information`
 - ✅ `should return multiple tracks for a movie with different license statuses`
-  - Verifica múltiples tracks con diferentes estados (APPROVED, REJECTED, etc.)
+  - Verifies multiple tracks with different statuses (APPROVED, REJECTED, etc.)
 - ✅ `should return empty array when no tracks found for movie`
 
 ---
 
 ### 3. Licenses Service Tests (`licenses.service.spec.ts`)
 
-**Ubicación:** `src/modules/licenses/services/licenses.service.spec.ts`
+**Location:** `src/modules/licenses/services/licenses.service.spec.ts`
 
-**Tests implementados (16 tests):**
+**Implemented tests (16 tests):**
 
-#### Actualización de Estado de Licencia
+#### License Status Update
 
 - ✅ `should update song license status successfully`
-  - Verifica la actualización correcta del estado
-  - Confirma la emisión de eventos WebSocket
-  - Valida la actualización del current license status
+  - Verifies correct status update
+  - Confirms WebSocket event emission
+  - Validates current license status update
 
-#### Validaciones de Existencia
+#### Existence Validations
 
 - ✅ `should throw NotFoundException when song does not exist`
 - ✅ `should handle initial license status creation (no previous status)`
 
-#### Validaciones de Workflow
+#### Workflow Validations
 
 - ✅ `should throw BadRequestException for invalid status transition`
 - ✅ `should allow valid status transitions`
-  - Testa todas las transiciones válidas del workflow:
+  - Tests all valid workflow transitions:
     - PENDING → IN_REVIEW, REJECTED
     - IN_REVIEW → NEGOTIATING, APPROVED, REJECTED, PENDING
     - NEGOTIATING → APPROVED, REJECTED, IN_REVIEW
@@ -136,38 +136,38 @@ Se han implementado **53 tests unitarios** distribuidos en **3 archivos de test*
     - REJECTED → PENDING, IN_REVIEW
     - EXPIRED → PENDING, NEGOTIATING
 
-#### Manejo de Errores
+#### Error Handling
 
 - ✅ `should handle WebSocket emission failure gracefully`
 
-#### Actualización por Track
+#### Update by Track
 
 - ✅ `should update license status through track successfully`
-  - Verifica la actualización del estado a través del track asociado
+  - Verifies status update through the associated track
 - ✅ `should throw NotFoundException when track does not exist`
 - ✅ `should throw BadRequestException when track has no associated song`
 
-#### Consulta de Historial
+#### History Query
 
 - ✅ `should return license history for a song`
 - ✅ `should throw NotFoundException when song does not exist`
 
-#### Estado Actual
+#### Current Status
 
 - ✅ `should return current license status for a song`
 - ✅ `should return null when song has no current license status`
 - ✅ `should throw NotFoundException when song does not exist`
 
-#### Estadísticas
+#### Statistics
 
 - ✅ `should return status statistics`
 
-## 🎯 Casos de Uso Cubiertos
+## 🎯 Covered Use Cases
 
-### 1. Crear una Canción
+### 1. Create a Song
 
 ```typescript
-// Test principal
+// Main test
 const song = await songsService.create({
   title: 'Test Song',
   artist: 'Test Artist',
@@ -178,17 +178,17 @@ const song = await songsService.create({
 });
 ```
 
-**Validaciones cubiertas:**
+**Covered validations:**
 
-- ✅ Creación exitosa con estado de licencia inicial PENDING
-- ✅ Validación de año de lanzamiento (1900 - año actual)
-- ✅ Validación de duración (debe ser positiva)
-- ✅ Manejo de datos opcionales
+- ✅ Successful creation with initial PENDING license status
+- ✅ Release year validation (1900 - current year)
+- ✅ Duration validation (must be positive)
+- ✅ Optional data handling
 
-### 2. Crear Track y Asociar Canción
+### 2. Create Track and Associate Song
 
 ```typescript
-// Test principal
+// Main test
 const track = await tracksService.create({
   name: 'Test Track',
   startTimeSeconds: 10.5,
@@ -198,123 +198,123 @@ const track = await tracksService.create({
 });
 ```
 
-**Validaciones cubiertas:**
+**Covered validations:**
 
-- ✅ Asociación correcta con canción existente
-- ✅ Asociación correcta con scene existente
-- ✅ Validación de tiempos (end > start, start >= 0)
-- ✅ Manejo de referencias no existentes
+- ✅ Correct association with existing song
+- ✅ Correct association with existing scene
+- ✅ Timing validation (end > start, start >= 0)
+- ✅ Non-existent reference handling
 
-### 3. Actualizar Estado de Licencia de Track
+### 3. Update Track License Status
 
 ```typescript
-// Test principal
+// Main test
 const updatedStatus = await licensesService.updateSongLicenseStatusByTrack(trackId, {
   status: LicenseStatusEnum.APPROVED,
 });
 ```
 
-**Validaciones cubiertas:**
+**Covered validations:**
 
-- ✅ Actualización a través del track asociado
-- ✅ Workflow completo de estados de licencia
-- ✅ Validación de transiciones permitidas
-- ✅ Emisión de eventos en tiempo real
+- ✅ Update through associated track
+- ✅ Complete license status workflow
+- ✅ Valid transition validation
+- ✅ Real-time event emission
 
-### 4. Obtener Tracks con Estado de Licensing
+### 4. Get Tracks with Licensing Status
 
 ```typescript
-// Tests principales
+// Main tests
 const tracksByScene = await tracksService.findByScene(sceneId);
 const tracksByMovie = await tracksService.findByMovie(movieId);
 ```
 
-**Validaciones cubiertas:**
+**Covered validations:**
 
-- ✅ Inclusión de estado de licencia actual
-- ✅ Manejo de múltiples estados diferentes
-- ✅ Casos con y sin estado de licencia
-- ✅ Consultas por scene y por movie
+- ✅ Current license status inclusion
+- ✅ Multiple different status handling
+- ✅ Cases with and without license status
+- ✅ Queries by scene and by movie
 
-## 🛠️ Tecnologías y Herramientas
+## 🛠️ Technologies and Tools
 
-- **Framework de Testing:** Jest
-- **Mocking:** Jest mocks con `jest.Mocked<>`
-- **Framework de Aplicación:** NestJS Testing Module
-- **Patrón de Test:** Arrange-Act-Assert (AAA)
-- **Cobertura:** 100% de los casos de uso solicitados
+- **Testing Framework:** Jest
+- **Mocking:** Jest mocks with `jest.Mocked<>`
+- **Application Framework:** NestJS Testing Module
+- **Test Pattern:** Arrange-Act-Assert (AAA)
+- **Coverage:** 100% of requested use cases
 
-## 🚀 Ejecución de Tests
+## 🚀 Test Execution
 
-### Ejecutar todos los tests
+### Run all tests
 
 ```bash
 npm test -- --testPathPattern="(songs|tracks|licenses).service.spec.ts"
 ```
 
-### Ejecutar tests individuales
+### Run individual tests
 
 ```bash
-# Tests de Songs
+# Songs tests
 npm test -- songs.service.spec.ts
 
-# Tests de Tracks
+# Tracks tests
 npm test -- tracks.service.spec.ts
 
-# Tests de Licenses
+# Licenses tests
 npm test -- licenses.service.spec.ts
 ```
 
-### Ejecutar con cobertura
+### Run with coverage
 
 ```bash
 npm run test:cov
 ```
 
-## 📊 Estadísticas de Tests
+## 📊 Test Statistics
 
-| Módulo           | Tests  | Casos Cubiertos                                    |
+| Module           | Tests  | Covered Cases                                      |
 | ---------------- | ------ | -------------------------------------------------- |
-| Songs Service    | 16     | Creación, validaciones, CRUD, búsqueda             |
-| Tracks Service   | 21     | Creación con asociaciones, consultas con licensing |
-| Licenses Service | 16     | Workflow completo, actualización por track         |
-| **Total**        | **53** | **Todos los casos solicitados**                    |
+| Songs Service    | 16     | Creation, validations, CRUD, search                |
+| Tracks Service   | 21     | Creation with associations, queries with licensing |
+| Licenses Service | 16     | Complete workflow, update by track                 |
+| **Total**        | **53** | **All requested cases**                            |
 
-## 🔍 Características Especiales
+## 🔍 Special Features
 
-### Mocking Completo
+### Complete Mocking
 
-- Todas las dependencias están mockeadas apropiadamente
-- Sin dependencias de base de datos o servicios externos
-- Tests rápidos y determinísticos
+- All dependencies are properly mocked
+- No database or external service dependencies
+- Fast and deterministic tests
 
-### Validación de Workflow de Licencias
+### License Workflow Validation
 
-- **15 transiciones válidas** testadas individualmente
-- Validación de transiciones inválidas
-- Manejo de estados iniciales y casos edge
+- **15 valid transitions** individually tested
+- Invalid transition validation
+- Initial state and edge case handling
 
-### Cobertura de Error Handling
+### Error Handling Coverage
 
-- NotFound exceptions para entidades no existentes
-- BadRequest exceptions para datos inválidos
-- Manejo graceful de errores de WebSocket
+- NotFound exceptions for non-existent entities
+- BadRequest exceptions for invalid data
+- Graceful WebSocket error handling
 
-### Documentación en Código
+### Code Documentation
 
-- Comentarios explicativos en casos especiales
-- Nombres descriptivos de tests
-- Estructura clara de Arrange-Act-Assert
+- Explanatory comments in special cases
+- Descriptive test names
+- Clear Arrange-Act-Assert structure
 
-## 🔄 Casos Edge Documentados
+## 🔄 Documented Edge Cases
 
-1. **Duración 0 en canciones**: El servicio actual permite duración 0 debido a la lógica de validación (`durationSeconds && durationSeconds <= 0`)
-2. **WebSocket failures**: Los errores de emisión no interrumpen el flujo principal
-3. **Referencias null**: Manejo apropiado de tracks sin estado de licencia
-4. **Transiciones de estado**: Workflow completo con todas las combinaciones válidas
+1. **Duration 0 in songs**: Current service allows duration 0 due to validation logic (`durationSeconds && durationSeconds <= 0`)
+2. **WebSocket failures**: Emission errors don't interrupt main flow
+3. **Null references**: Appropriate handling of tracks without license status
+4. **Status transitions**: Complete workflow with all valid combinations
 
 ---
 
-**Fecha:** Septiembre 2025  
-**Autor:** AI Assistant  
-**Estado:** ✅ Completado - Todos los tests pasan
+**Date:** September 2025  
+**Author:** AI Assistant  
+**Status:** ✅ Completed - All tests pass

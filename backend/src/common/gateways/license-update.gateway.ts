@@ -26,7 +26,7 @@ export class LicenseUpdateGateway
   afterInit(server: Server) {
     this.server = server;
 
-    // Pequeño delay para asegurar inicialización completa
+    // Small delay to ensure complete initialization
     setTimeout(() => {
       this.isReady = true;
       this.logger.log('WebSocket Gateway fully initialized and ready');
@@ -47,7 +47,7 @@ export class LicenseUpdateGateway
 
   async emitLicenseStatusUpdate(data: { songId: number; newStatus: any; updatedBy?: string }) {
     try {
-      // Si no está listo, esperar un poco
+      // If not ready, wait a bit
       if (!this.isReady || !this.server) {
         this.logger.warn('WebSocket server not ready yet, waiting...');
         await this.waitForReady();
@@ -85,7 +85,7 @@ export class LicenseUpdateGateway
     }
   }
 
-  // Resto de tus métodos...
+  // Rest of your methods...
   emitTrackCreated(data: { track: any; sceneId: string; movieId: string }) {
     if (!this.isReady || !this.server) {
       this.logger.warn('WebSocket server not ready, skipping track creation emission');

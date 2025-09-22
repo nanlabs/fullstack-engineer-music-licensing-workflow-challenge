@@ -1,14 +1,14 @@
 # API REST + GraphQL - Music Licensing Workflow
 
-Este proyecto ahora soporta tanto **REST API** como **GraphQL API** para acceder a todos los recursos del sistema de licenciamiento musical.
+This project now supports both **REST API** and **GraphQL API** to access all resources in the music licensing system.
 
-## 🚀 Cómo Ejecutar
+## 🚀 How to Run
 
 ```bash
 npm run start:dev
 ```
 
-Una vez ejecutado, tendrás acceso a:
+Once running, you'll have access to:
 
 - **REST API**: `http://localhost:3000`
 - **GraphQL Playground**: `http://localhost:3000/graphql`
@@ -16,57 +16,57 @@ Una vez ejecutado, tendrás acceso a:
 
 ## 📋 REST API
 
-### Endpoints Principales
+### Main Endpoints
 
 #### Movies
 
-- `GET /movies` - Obtener todas las películas
-- `GET /movies/:id` - Obtener película por ID
-- `POST /movies` - Crear nueva película
-- `PATCH /movies/:id` - Actualizar película
+- `GET /movies` - Get all movies
+- `GET /movies/:id` - Get movie by ID
+- `POST /movies` - Create new movie
+- `PATCH /movies/:id` - Update movie
 
 #### Scenes
 
-- `GET /scenes` - Obtener todas las escenas
-- `GET /scenes/:id` - Obtener escena por ID
-- `GET /scenes?movieId=:id` - Obtener escenas por película
-- `POST /scenes` - Crear nueva escena
-- `PATCH /scenes/:id` - Actualizar escena
+- `GET /scenes` - Get all scenes
+- `GET /scenes/:id` - Get scene by ID
+- `GET /scenes?movieId=:id` - Get scenes by movie
+- `POST /scenes` - Create new scene
+- `PATCH /scenes/:id` - Update scene
 
 #### Songs
 
-- `GET /songs` - Obtener todas las canciones
-- `GET /songs/:id` - Obtener canción por ID
-- `GET /songs?q=:query` - Buscar canciones por título, artista o álbum
-- `POST /songs` - Crear nueva canción
-- `PATCH /songs/:id` - Actualizar canción
-- `DELETE /songs/:id` - Eliminar canción
+- `GET /songs` - Get all songs
+- `GET /songs/:id` - Get song by ID
+- `GET /songs?q=:query` - Search songs by title, artist or album
+- `POST /songs` - Create new song
+- `PATCH /songs/:id` - Update song
+- `DELETE /songs/:id` - Delete song
 
 #### Tracks
 
-- `GET /tracks` - Obtener todos los tracks
-- `GET /tracks/:id` - Obtener track por ID
-- `GET /tracks?sceneId=:id` - Filtrar tracks por escena
-- `GET /tracks?movieId=:id` - Filtrar tracks por película
-- `POST /tracks` - Crear nuevo track
-- `DELETE /tracks/:id` - Eliminar track
+- `GET /tracks` - Get all tracks
+- `GET /tracks/:id` - Get track by ID
+- `GET /tracks?sceneId=:id` - Filter tracks by scene
+- `GET /tracks?movieId=:id` - Filter tracks by movie
+- `POST /tracks` - Create new track
+- `DELETE /tracks/:id` - Delete track
 
 #### Licenses
 
-- `POST /licenses/songs/:songId/status` - Actualizar estado de licencia de una canción
-- `GET /licenses/songs/:songId/history` - Obtener historial de licencias de una canción
-- `GET /licenses/songs/:songId/current` - Obtener estado actual de licencia de una canción
-- `POST /licenses/tracks/:trackId/song/status` - Actualizar estado de licencia de canción por track
-- `GET /licenses/tracks/:trackId/song/current` - Obtener estado actual de licencia de canción por track
+- `POST /licenses/songs/:songId/status` - Update license status of a song
+- `GET /licenses/songs/:songId/history` - Get license history of a song
+- `GET /licenses/songs/:songId/current` - Get current license status of a song
+- `POST /licenses/tracks/:trackId/song/status` - Update license status of song by track
+- `GET /licenses/tracks/:trackId/song/current` - Get current license status of song by track
 
 ## 🔍 GraphQL API
 
-### Queries Disponibles
+### Available Queries
 
 #### Movies
 
 ```graphql
-# Obtener todas las películas
+# Get all movies
 query {
   movies {
     id
@@ -83,7 +83,7 @@ query {
   }
 }
 
-# Obtener película específica
+# Get specific movie
 query {
   movie(id: "1") {
     id
@@ -104,12 +104,12 @@ query {
   }
 }
 
-# Obtener estadísticas de película
+# Get movie statistics
 query {
   movieWithStats(id: "1") {
     id
     title
-    # Incluye estadísticas de licencias
+    # Includes license statistics
   }
 }
 ```
@@ -117,7 +117,7 @@ query {
 #### Scenes
 
 ```graphql
-# Obtener todas las escenas
+# Get all scenes
 query {
   scenes {
     id
@@ -131,7 +131,7 @@ query {
   }
 }
 
-# Obtener escenas por película
+# Get scenes by movie
 query {
   scenesByMovie(movieId: 1) {
     id
@@ -148,7 +148,7 @@ query {
 #### Songs
 
 ```graphql
-# Obtener todas las canciones
+# Get all songs
 query {
   songs {
     id
@@ -169,7 +169,7 @@ query {
 #### Tracks
 
 ```graphql
-# Obtener todos los tracks
+# Get all tracks
 query {
   tracks {
     id
@@ -195,7 +195,7 @@ query {
   }
 }
 
-# Obtener tracks por escena
+# Get tracks by scene
 query {
   tracksByScene(sceneId: 1) {
     id
@@ -205,7 +205,7 @@ query {
   }
 }
 
-# Obtener tracks por película
+# Get tracks by movie
 query {
   tracksByMovie(movieId: 1) {
     id
@@ -220,7 +220,7 @@ query {
 #### Licenses
 
 ```graphql
-# Obtener historial de licencias
+# Get license history
 query {
   licenseHistory(songId: "1") {
     id
@@ -234,7 +234,7 @@ query {
   }
 }
 
-# Obtener estado actual de licencia
+# Get current license status
 query {
   currentLicenseStatus(songId: "1") {
     id
@@ -245,17 +245,17 @@ query {
 }
 ```
 
-### Mutations Disponibles
+### Available Mutations
 
 #### Movies
 
 ```graphql
-# Crear película
+# Create movie
 mutation {
   createMovie(
     createMovieInput: {
-      title: "Nueva Película"
-      description: "Descripción de la película"
+      title: "New Movie"
+      description: "Movie description"
       director: "Director"
       releaseYear: 2024
       status: "development"
@@ -267,16 +267,16 @@ mutation {
   }
 }
 
-# Actualizar película
+# Update movie
 mutation {
-  updateMovie(id: "1", updateMovieInput: { title: "Título Actualizado", status: "production" }) {
+  updateMovie(id: "1", updateMovieInput: { title: "Updated Title", status: "production" }) {
     id
     title
     status
   }
 }
 
-# Eliminar película
+# Delete movie
 mutation {
   removeMovie(id: "1")
 }
@@ -285,12 +285,12 @@ mutation {
 #### Scenes
 
 ```graphql
-# Crear escena
+# Create scene
 mutation {
   createScene(
     createSceneInput: {
-      name: "Escena de Apertura"
-      description: "Primera escena de la película"
+      name: "Opening Scene"
+      description: "First scene of the movie"
       sceneNumber: 1
       durationSeconds: 300
       movieId: 1
@@ -306,13 +306,13 @@ mutation {
 #### Songs
 
 ```graphql
-# Crear canción
+# Create song
 mutation {
   createSong(
     createSongInput: {
-      title: "Nueva Canción"
-      artist: "Artista"
-      album: "Álbum"
+      title: "New Song"
+      artist: "Artist"
+      album: "Album"
       releaseYear: 2023
       genre: "Rock"
       durationSeconds: 240
@@ -328,14 +328,14 @@ mutation {
 #### Tracks
 
 ```graphql
-# Crear track
+# Create track
 mutation {
   createTrack(
     createTrackInput: {
-      name: "Track de Fondo"
+      name: "Background Track"
       startTimeSeconds: 10.5
       endTimeSeconds: 45.2
-      notes: "Música de fondo para la escena"
+      notes: "Background music for the scene"
       sceneId: 1
       songId: 1
     }
@@ -351,7 +351,7 @@ mutation {
 #### Licenses
 
 ```graphql
-# Actualizar estado de licencia de una canción
+# Update song license status
 mutation {
   updateSongLicenseStatus(songId: "1", updateLicenseStatusInput: { status: APPROVED }) {
     id
@@ -360,13 +360,13 @@ mutation {
   }
 }
 
-# Actualizar estado de licencia de canción por track
+# Update song license status by track
 mutation {
   updateSongLicenseStatusByTrack(
     trackId: "1"
     updateLicenseStatusInput: {
       status: APPROVED
-      notes: "Licencia aprobada"
+      notes: "License approved"
       updatedBy: "Admin"
       licenseFee: 500.00
       licenseStartDate: "2024-01-01T00:00:00Z"
@@ -381,21 +381,21 @@ mutation {
 }
 ```
 
-## 🎯 Estados de Licencia Disponibles
+## 🎯 Available License Statuses
 
-- `PENDING` - Pendiente
-- `IN_REVIEW` - En revisión
-- `NEGOTIATING` - Negociando
-- `APPROVED` - Aprobado
-- `REJECTED` - Rechazado
-- `EXPIRED` - Expirado
+- `PENDING` - Pending
+- `IN_REVIEW` - In review
+- `NEGOTIATING` - Negotiating
+- `APPROVED` - Approved
+- `REJECTED` - Rejected
+- `EXPIRED` - Expired
 
 ## 🔄 WebSocket Updates
 
-El sistema también incluye actualizaciones en tiempo real vía WebSocket para cambios de estado de licencias:
+The system also includes real-time updates via WebSocket for license status changes:
 
 ```javascript
-// Cliente JavaScript
+// JavaScript client
 const socket = io('http://localhost:3000');
 
 socket.on('licenseStatusUpdated', (data) => {
@@ -403,43 +403,43 @@ socket.on('licenseStatusUpdated', (data) => {
 });
 ```
 
-## ⚡ Ventajas de la Implementación Dual
+## ⚡ Advantages of Dual Implementation
 
 ### REST API
 
-- ✅ Familiar para la mayoría de desarrolladores
-- ✅ Cacheable con HTTP
-- ✅ Excelente para operaciones CRUD simples
-- ✅ Compatibilidad con herramientas existentes
+- ✅ Familiar to most developers
+- ✅ Cacheable with HTTP
+- ✅ Excellent for simple CRUD operations
+- ✅ Compatibility with existing tools
 
 ### GraphQL API
 
-- ✅ Single endpoint para todas las operaciones
-- ✅ Queries flexibles - solicita solo los datos que necesitas
-- ✅ Tipado fuerte con introspección
-- ✅ Excelente para relaciones complejas entre entidades
-- ✅ Playground integrado para testing
-- ✅ Ideal para aplicaciones frontend modernas
+- ✅ Single endpoint for all operations
+- ✅ Flexible queries - request only the data you need
+- ✅ Strong typing with introspection
+- ✅ Excellent for complex relationships between entities
+- ✅ Integrated playground for testing
+- ✅ Ideal for modern frontend applications
 
-## 🛠️ Herramientas de Desarrollo
+## 🛠️ Development Tools
 
 1. **GraphQL Playground**: `http://localhost:3000/graphql`
 
-   - Explorar schema
-   - Ejecutar queries y mutations
-   - Ver documentación auto-generada
+   - Explore schema
+   - Execute queries and mutations
+   - View auto-generated documentation
 
 2. **Swagger UI**: `http://localhost:3000/api`
-   - Documentación REST API completa
-   - Testing de endpoints
-   - Ejemplos de requests/responses
+   - Complete REST API documentation
+   - Endpoint testing
+   - Request/response examples
 
-## 📚 Ejemplos de Uso
+## 📚 Usage Examples
 
-### Caso de Uso 1: Frontend React/Vue con GraphQL
+### Use Case 1: React/Vue Frontend with GraphQL
 
 ```javascript
-// Usar Apollo Client o similar
+// Use Apollo Client or similar
 const GET_MOVIE_WITH_TRACKS = gql`
   query GetMovieWithTracks($id: ID!) {
     movie(id: $id) {
@@ -462,26 +462,26 @@ const GET_MOVIE_WITH_TRACKS = gql`
 `;
 ```
 
-### Caso de Uso 2: Integración REST para Sistemas Legacy
+### Use Case 2: REST Integration for Legacy Systems
 
 ```bash
-# Actualizar estado de licencia de una canción
+# Update song license status
 curl -X POST http://localhost:3000/licenses/songs/1/status \
   -H "Content-Type: application/json" \
   -d '{
     "status": "approved",
-    "notes": "Licencia aprobada",
+    "notes": "License approved",
     "licenseFee": 500.00
   }'
 
-# Actualizar estado de licencia de canción por track
+# Update song license status by track
 curl -X POST http://localhost:3000/licenses/tracks/1/song/status \
   -H "Content-Type: application/json" \
   -d '{
     "status": "approved",
-    "notes": "Licencia aprobada",
+    "notes": "License approved",
     "licenseFee": 500.00
   }'
 ```
 
-Esta implementación te permite usar la API que mejor se adapte a tus necesidades específicas, manteniendo la flexibilidad y compatibilidad con diferentes tipos de clientes.
+This implementation allows you to use the API that best fits your specific needs, maintaining flexibility and compatibility with different types of clients.
