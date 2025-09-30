@@ -1,132 +1,197 @@
-# 🚀 Fullstack Engineer Challenge – Music Licensing Workflow
+# Music Licensing Workflow - Backend
 
-Welcome to the **Fullstack Engineer Challenge!** 🎸🎬  
-In this challenge, you'll help the fictional company **ACME BROS PICTURES** build a system to manage the **music licensing process** for their movies.
+Backend system built with NestJS to handle music licensing operations for the fictional company ACME BROS PICTURES.
 
-## 🎯 Context
 
-Each movie scene can contain **multiple music tracks**, and each track requires licensing. The licensing process involves back-and-forth negotiations with rights holders (artists or labels), which makes tracking each license's progress essential.
+### Main Entities
+- Movie
+- Scene
+- Track
+- Song
+- License
 
-Your task is to create a simple system to:
+### Tech Stack Decisions
 
-- Manage **tracks** for each movie scene.
-- Associate a **song** to each track, specifying its start and end time.
-- Track the **licensing status** of each song via a stateful workflow.
-- Provide a way for other users to **immediately see updates** in licensing status (real-time or near real-time visibility).
+**Framework** NestJS + TypeScript: Static typing (type safety), 
+**Database** PostgreSQL: ACID compliance, complex queries, enum support, production-ready
+**ORM** TypeORM: Strong TypeScript integration, migration system, relationship management, provides type safety
+**API Style** REST + GraphQL: REST for CRUD operations, GraphQL subscriptions for real-time updates
+**Real-time** GraphQL Subscriptions: great for real-time license status updates
+**Containerization** Docker containers: portability, easy deploys, simplified dependency management
+**Caching** Redis Performance optimization, job queue processing
 
-## 📌 Requirements
+## Licensing State Machine
 
-### ⚙️ Tech Stack
+The app implements a strict state machine for license management:
 
-> ⚡ **Must Include** - Use the following technologies, aligned with our tech stack:
-
-- **Backend:** You can use any stack you're comfortable with, but we recommend using any of the following:
-  - TypeScript + NestJS (you can use Fastify or Koa if you prefer)
-  - Python + FastAPI (you can use Flask or Django if you prefer)
-  - Go + Fiber (you can use Gin or Echo if you prefer)
-- **API:** REST and/or GraphQL (you choose, and justify your choice if you only use one)
-- **Frontend:** React (using any framework such as Next.js, Remix, or bare metal with Vite)
-- **Database:** PostgreSQL (primary), MongoDB (optional if needed)
-- **Containerization:** Docker (required)
-- **Bonus:** Kafka, Redis, ArgoCD, Kubernetes (if you want to go further)
-
-### 📦 Deliverables
-
-> 📥 **Your submission must be a Pull Request that includes:**
-
-- A **backend** exposing the required APIs.
-- A **data model** to manage:
-  - Movies, scenes, tracks, songs, and their licensing states.
-- Endpoints or queries/mutations to:
-  - Create a track and associate a song.
-  - Update the licensing state of a track.
-  - Query all tracks for a given scene/movie, including licensing status.
-- A **frontend built with React** to:
-  - Visualize the movie scenes and associated tracks.
-  - Show licensing status.
-  - Allow status updates (basic UI).
-- Suggest a real-time implementation using WebSockets, GraphQL Subscriptions, or Server-Sent Events.
-- Docker setup to run the entire app locally.
-- A `README.md` with:
-  - Setup instructions
-  - Tech decisions and tradeoffs
-  - If applicable, your reasoning for using REST, GraphQL, or both
-
-> [!TIP]
-> Use the `docs` folder to store any additional documentation or diagrams that help explain your solution.
-> Mention any assumptions or constraints in your `README.md`.
-
-### 📂 Folder Suggestions
-
-You can organize your project like this (suggested but not mandatory):
-
-```txt
-/
-├── .github/
-│   ├── workflows/
-│   └── PULL_REQUEST_TEMPLATE.md
-├── docs/
-├── backend/
-│   ├── src/
-│   ├── test/
-│   └── Dockerfile
-├── frontend/
-│   ├── src/
-│   ├── public/
-│   └── Dockerfile
-├── compose.yml
-├── .env.example
-├── README.md
-├── .prettierrc.js
-├── eslint.config.mjs
-└── . . .
+```
+PENDING → IN_REVIEW → NEGOTIATING → APPROVED
+    ↓         ↓            ↓           ↓
+REJECTED  REJECTED    REJECTED    EXPIRED
 ```
 
-## 🌟 Nice to Have
+**Business Rules:**
+- Forward progression allowed at any stage
+- Rejection possible from any active state
+- Expiration only from approved status
+- No backward transitions
 
-> 💡 **Bonus Points For:**
+## Setup Guide
 
-- Automated testing and CI pipeline using GitHub Actions.
-- Unit or integration tests for API or key logic.
-- Use of MongoDB for unstructured metadata (if justified).
-- Real-time suggestion implemented (e.g., via GraphQL subscriptions or WebSockets).
-- Basic usage of **Kafka or Redis** (e.g., async event messaging).
-- Usage of ArgoCD or Kubernetes (not expected, but definitely cool).
+### Prerequisites
+- Docker & Docker Compose
+- Node.js 18+ (for local development)
+- npm/yarn
 
-> [!TIP]
-> Looking for inspiration or additional ideas to earn extra points? Check out our **[Awesome NaNLABS repository](https://github.com/nanlabs/awesome-nan)** for reference projects and best practices! 🚀
+### Environment Setup
 
-## 🧪 Submission Guidelines
+**Note**: The backend runs locally for development, while supporting services (PostgreSQL, Redis, Adminer) run in Docker containers.
 
-> 📌 **Follow these steps to submit your solution:**
+1. **Clone and configure environment:**
+```bash
+git clone <repository-url>
+cd music-licensing-workflow-backend
+cp .env.example .env
+```
 
-1. **Fork this repository.**
-2. **Create a feature branch** for your implementation.
-3. **Commit your changes** with meaningful commit messages.
-4. **Open a Pull Request** following the provided template.
-5. **Our team will review** and provide feedback.
+2. **Install dependencies:**
+```bash
+npm install
+```
 
-## ✅ Evaluation Criteria
+3. **Start Docker services** (PostgreSQL, Redis, Adminer):
+```bash
+docker-compose up -d
+```
 
-> 🔍 **What we'll be looking at:**
+4. **Seed database with test data:**
+```bash
+npm run seed
+```
 
-- Ability to **work across the stack** (NestJS, PostgreSQL, React/Next.js/. . .).
-- Clean, modular and maintainable code with proper Git usage.
-- A good understanding of **data modeling and workflow management**.
-- Clear written communication in your README.
-- Ability to **propose real-time solutions**, even if not implemented.
+5. **Start backend development server** (runs locally, not in Docker):
+```bash
+npm run start:dev
+```
 
-## 💬 Final Notes
+### Available Services
+- **Backend API**: http://localhost:3000
+- **GraphQL Playground**: http://localhost:3000/graphql
+- **PostgreSQL Database Admin**: http://localhost:8081 (Adminer)
+- **Swagger Documentation**: http://localhost:3000/api/docs
+- **Redis**: localhost:6379 (for caching and job queues)
 
-> [!TIP]
-> This challenge is designed to be flexible!
+### Database Access (Adminer)
+- **System**: PostgreSQL
+- **Server**: postgres
+- **Username**: postgres
+- **Password**: postgres
+- **Database**: music_licensing
 
-Here are some tips to help you succeed:
+## API Endpoints
 
-- If you feel confident on the backend but less on the frontend, focus there—but try to show some basic UI.
-- Likewise, if you're stronger on the frontend, make sure your backend has clean structure and endpoints.
-- Time-box it: we don’t expect perfection. We want to see **how you think and solve problems**.
+### REST API
+```
+GET    /movies                           # Get all movies
+GET    /movies/:id                       # Get a single movie
+GET    /scenes                           # Get all scenes
+GET    /scenes?movieId={id}              # Get scenes of a specific movie
+GET    /tracks                           # Get all tracks
+GET    /tracks?sceneId={id}              # Get tracks of a specific scene
+GET    /songs                            # Get all songs
+GET    /songs?search={query}             # Search songs by title/artist
+GET    /licenses                         # Get all licenses
+GET    /licenses/workflow-summary        # Get license counts by status
+PATCH  /licenses/:id/status              # Update license status
+```
 
-## 🏁 Good luck and have fun building
+### GraphQL Subscriptions
 
-If you have any questions, feel free to reach out.
+This is an example to subscribe for changes on a specific combination of trackId + status. Then, if and when the specified trackId changes to the specified Status, a message will be published.
+
+```graphql
+subscription {
+  licenseStatusChanged(trackId: "uuid", status: PENDING) {
+    licenseId
+    trackId
+    oldStatus
+    newStatus
+    notes
+    changedAt
+    trackName
+    songTitle
+    songArtist
+    movieTitle
+    sceneName
+  }
+}
+```
+
+## Testing
+
+### Running Tests
+```bash
+# Unit tests
+npm run test
+
+# Test coverage
+npm run test:cov
+
+# Watch mode
+npm run test:watch
+```
+
+### Test Strategy
+- **Unit Tests**: Service layer business logic, validation, license state transitions
+
+### Redis Integration
+
+The system leverages Redis (together with the Bull package) for performance optimization in 2 ways:
+
+1. For the key endpoint /licenses/workflow-summary redis caching is implemented for 5 minutes. Without this, the endpoint would normally run a GROUP BY query every time it was called, now, it serves cached data instantly.
+2. Licensing status changes Job Queue: email notifications get processed in the background by EmailProcessor (asynchronously)
+
+
+#### Job Queue System
+- **Email Notifications**: Background processing for license status changes
+- **Retry Logic**: Exponential backoff with 3 attempts
+- **Bulk Operations**: Efficient batch email processing
+
+## Development
+
+### Database Schema Management
+- Entities use decorators for clean, declarative schema definition and simplicity/maintainability
+- Migrations provide version control for database changes
+- Seeding script for quick development data
+
+### Real-time Architecture
+- GraphQL subscriptions
+- Event-driven license status updates
+- Optimized subscription - can be filtered by track and or status
+- Subscriptions contain rich event data (eliminates the need for additional API calls to get info about the song/track for example)
+
+## Key Features
+
+### Workflow Management
+- Strict state machine enforcement
+- Automatic timestamp tracking
+- Validation of specified business rules
+
+### Security
+- Input validation on all endpoints
+- SQL injection prevention (parameterized queries)
+- CORS configuration
+
+### Scalability
+- Redis caching for improved performance
+- Background job processing with Bull queues
+- Database connection pooling
+- Horizontal scaling capability
+
+## What could be some possible improvements for the future:
+
+- **Authentication & Authorization**: User roles and permissions
+- **Document Management**: Contract and agreement uploads
+- **Advanced Analytics**: Licensing performance metrics
+- **Enhanced Notifications**: Real email integration (SendGrid, AWS SES)
+- **Redis Clustering**: Distributed caching for high availability (having more than one Redis node, if the master one dies, a replica becomes the new master. Ideal for a production environment where uptime is crucial.)

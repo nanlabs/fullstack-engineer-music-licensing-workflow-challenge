@@ -1,0 +1,802 @@
+{
+	"info": {
+		"_postman_id": "b57e35b4-7adf-48d3-9694-1aff5e966030",
+		"name": "Music Licensing App - API",
+		"description": "Complete API collection for the Music Licensing Workflow backend. Includes all CRUD operations for movies, scenes, songs, tracks, and licenses with real-time subscription testing.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "48690682",
+		"_collection_link": "https://roman-budde99-2544539.postman.co/workspace/9147c0d4-5700-4933-8304-64e0c2250554/collection/48690682-b57e35b4-7adf-48d3-9694-1aff5e966030?action=share&source=collection_link&creator=48690682"
+	},
+	"item": [
+		{
+			"name": "Health & Info",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/health",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"health"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "API Root",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								""
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Movies",
+			"item": [
+				{
+					"name": "Get All Movies",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/movies",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"movies"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Movie by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/movies/680930d2-fd5a-4bd0-abb4-0bf9abcd36dc",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"movies",
+								"680930d2-fd5a-4bd0-abb4-0bf9abcd36dc"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Movie",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"The Matrix\",\n  \"description\": \"A computer hacker learns about the true nature of reality\",\n  \"director\": \"The Wachowskis\",\n  \"producer\": \"Joel Silver\",\n  \"releaseDate\": \"1999-03-31\",\n  \"status\": \"released\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/movies",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"movies"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Movie",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"description\": \"Updated description for the movie\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/movies/680930d2-fd5a-4bd0-abb4-0bf9abcd36dc",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"movies",
+								"680930d2-fd5a-4bd0-abb4-0bf9abcd36dc"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Movie",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/movies/680930d2-fd5a-4bd0-abb4-0bf9abcd36dc",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"movies",
+								"680930d2-fd5a-4bd0-abb4-0bf9abcd36dc"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Scenes",
+			"item": [
+				{
+					"name": "Get All Scenes",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/scenes",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"scenes"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Scene by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/scenes/ebc30f35-af6e-4c9c-8c59-6bbe421fbb8b",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"scenes",
+								"ebc30f35-af6e-4c9c-8c59-6bbe421fbb8b"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Scene",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Neo's Awakening\",\n  \"description\": \"Neo discovers the truth about the Matrix\",\n  \"sceneNumber\": 15,\n  \"startTimestamp\": 2400,\n  \"endTimestamp\": 2700,\n  \"movieId\": \"680930d2-fd5a-4bd0-abb4-0bf9abcd36dc\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/scenes",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"scenes"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Scene",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"description\": \"Updated scene description\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/scenes/ebc30f35-af6e-4c9c-8c59-6bbe421fbb8b",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"scenes",
+								"ebc30f35-af6e-4c9c-8c59-6bbe421fbb8b"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Scene",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/scenes/ebc30f35-af6e-4c9c-8c59-6bbe421fbb8b",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"scenes",
+								"ebc30f35-af6e-4c9c-8c59-6bbe421fbb8b"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Songs",
+			"item": [
+				{
+					"name": "Get All Songs",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/songs",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"songs"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Song by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/songs/bd251f86-56c4-46a0-9387-d87b14687970",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"songs",
+								"bd251f86-56c4-46a0-9387-d87b14687970"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Song",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Clubbed to Death\",\n  \"artist\": \"Rob Dougan\",\n  \"duration\": 423,\n  \"rightsHolder\": \"Cheeky Records\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/songs",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"songs"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Song",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"duration\": 425\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/songs/bd251f86-56c4-46a0-9387-d87b14687970",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"songs",
+								"bd251f86-56c4-46a0-9387-d87b14687970"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Song",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/songs/bd251f86-56c4-46a0-9387-d87b14687970",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"songs",
+								"bd251f86-56c4-46a0-9387-d87b14687970"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Tracks",
+			"item": [
+				{
+					"name": "Get All Tracks",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/tracks",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"tracks"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Track by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/tracks/dd279dd7-fbb6-4db5-8655-c41ce3073fd3",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"tracks",
+								"dd279dd7-fbb6-4db5-8655-c41ce3073fd3"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Track",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Neo vs Agent Smith\",\n  \"startTime\": 120,\n  \"endTime\": 300,\n  \"volume\": \"0.90\",\n  \"notes\": \"Epic fight scene background music\",\n  \"sceneId\": \"ebc30f35-af6e-4c9c-8c59-6bbe421fbb8b\",\n  \"songId\": \"bd251f86-56c4-46a0-9387-d87b14687970\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/tracks",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"tracks"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Track",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"volume\": \"0.85\",\n  \"notes\": \"Updated volume for better audio balance\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/tracks/dd279dd7-fbb6-4db5-8655-c41ce3073fd3",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"tracks",
+								"dd279dd7-fbb6-4db5-8655-c41ce3073fd3"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Track",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/tracks/dd279dd7-fbb6-4db5-8655-c41ce3073fd3",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"tracks",
+								"dd279dd7-fbb6-4db5-8655-c41ce3073fd3"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Licenses",
+			"item": [
+				{
+					"name": "Get All Licenses",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/licenses",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"licenses"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get License by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/licenses/c7074b04-ceef-47df-bcd7-449df6e7dc7c",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"licenses",
+								"c7074b04-ceef-47df-bcd7-449df6e7dc7c"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Workflow Summary",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/licenses/workflow-summary",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"licenses",
+								"workflow-summary"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create License",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"trackId\": \"dd279dd7-fbb6-4db5-8655-c41ce3073fd3\",\n  \"status\": \"pending\",\n  \"licenseFee\": \"5000.00\",\n  \"currency\": \"USD\",\n  \"notes\": \"New license request for epic battle scene\",\n  \"contactPerson\": \"John Matrix\",\n  \"contactEmail\": \"john@matrix-music.com\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/licenses",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"licenses"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update License",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"licenseFee\": \"5500.00\",\n  \"notes\": \"Updated license fee after negotiation\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/licenses/c7074b04-ceef-47df-bcd7-449df6e7dc7c",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"licenses",
+								"c7074b04-ceef-47df-bcd7-449df6e7dc7c"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update License Status to In Review(Triggers Subscription)",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"status\": \"in_review\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/licenses/c7074b04-ceef-47df-bcd7-449df6e7dc7c/status",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"licenses",
+								"c7074b04-ceef-47df-bcd7-449df6e7dc7c",
+								"status"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update License Status to Pending (Triggers Subscription)",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"status\": \"in_review\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/licenses/c7074b04-ceef-47df-bcd7-449df6e7dc7c/status",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"licenses",
+								"c7074b04-ceef-47df-bcd7-449df6e7dc7c",
+								"status"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Status to Negotiating (Triggers Subscription)",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"status\": \"negotiating\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/licenses/c7074b04-ceef-47df-bcd7-449df6e7dc7c/status",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"licenses",
+								"c7074b04-ceef-47df-bcd7-449df6e7dc7c",
+								"status"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Status to Approved (Triggers Subscription)",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"status\": \"approved\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/licenses/c7074b04-ceef-47df-bcd7-449df6e7dc7c/status",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"licenses",
+								"c7074b04-ceef-47df-bcd7-449df6e7dc7c",
+								"status"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Status to Rejected (Triggers Subscription)",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"status\": \"rejected\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/licenses/c7074b04-ceef-47df-bcd7-449df6e7dc7c/status",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"licenses",
+								"c7074b04-ceef-47df-bcd7-449df6e7dc7c",
+								"status"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete License",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/licenses/c7074b04-ceef-47df-bcd7-449df6e7dc7c",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"licenses",
+								"c7074b04-ceef-47df-bcd7-449df6e7dc7c"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "GraphQL Testing",
+			"item": [
+				{
+					"name": "GraphQL Hello Query",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"query\": \"query { hello }\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/graphql",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"graphql"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:3000",
+			"type": "string"
+		}
+	]
+}
