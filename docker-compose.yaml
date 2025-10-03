@@ -1,0 +1,36 @@
+services:
+  api-track-licensing:
+    build: ./
+    container_name: api-track-licensing
+    env_file: .env
+    working_dir: /usr/app
+    ports:
+      - $NODE_LOCAL_PORT:$NODE_DOCKER_PORT
+    networks:
+      - challenge-network
+    restart: always
+    depends_on:
+      - postgresdb
+
+  postgresdb:
+    image: postgres:16
+    env_file: .env
+    volumes:
+      - ./.postgres:/var/lib/postgresql/data
+      - ./database:/docker-entrypoint-initdb.d
+    restart: on-failure
+    ports:
+      - $POSTGRES_LOCAL_PORT:$POSTGRES_DOCKER_PORT
+    environment:
+      POSTGRES_DB: $POSTGRES_DB
+      POSTGRES_USER: $POSTGRES_USER
+      POSTGRES_PASSWORD: $POSTGRES_PASSWORD
+    networks:
+      - challenge-network
+
+
+networks:
+  challenge-network:
+
+volumes:
+  data:

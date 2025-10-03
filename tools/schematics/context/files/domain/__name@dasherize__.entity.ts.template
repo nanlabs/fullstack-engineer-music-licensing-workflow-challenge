@@ -1,0 +1,4 @@
+import { BaseEntity } from '@/src/app/database/entities/base.entity'
+
+export class <%= classify(name) %> extends BaseEntity {
+}

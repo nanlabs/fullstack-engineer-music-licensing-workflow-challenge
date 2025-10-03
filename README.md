@@ -1,132 +1,218 @@
-# 🚀 Fullstack Engineer Challenge – Music Licensing Workflow
+# Movie Track Licensing API
 
-Welcome to the **Fullstack Engineer Challenge!** 🎸🎬  
-In this challenge, you'll help the fictional company **ACME BROS PICTURES** build a system to manage the **music licensing process** for their movies.
+API for managing track licensing. Built with NestJS, TypeORM, and PostgreSQL.
 
-## 🎯 Context
+[Changelog](https://github.com/holubba/fullstack-engineer-music-licensing-workflow-challenge/blob/main/CHANGELOG.md)
 
-Each movie scene can contain **multiple music tracks**, and each track requires licensing. The licensing process involves back-and-forth negotiations with rights holders (artists or labels), which makes tracking each license's progress essential.
+## Setup Instructions
 
-Your task is to create a simple system to:
+### Prerequisites
 
-- Manage **tracks** for each movie scene.
-- Associate a **song** to each track, specifying its start and end time.
-- Track the **licensing status** of each song via a stateful workflow.
-- Provide a way for other users to **immediately see updates** in licensing status (real-time or near real-time visibility).
+- Docker installed
+- Environment variables configured (see `.env.example`)
 
-## 📌 Requirements
+### Installation
 
-### ⚙️ Tech Stack
-
-> ⚡ **Must Include** - Use the following technologies, aligned with our tech stack:
-
-- **Backend:** You can use any stack you're comfortable with, but we recommend using any of the following:
-  - TypeScript + NestJS (you can use Fastify or Koa if you prefer)
-  - Python + FastAPI (you can use Flask or Django if you prefer)
-  - Go + Fiber (you can use Gin or Echo if you prefer)
-- **API:** REST and/or GraphQL (you choose, and justify your choice if you only use one)
-- **Frontend:** React (using any framework such as Next.js, Remix, or bare metal with Vite)
-- **Database:** PostgreSQL (primary), MongoDB (optional if needed)
-- **Containerization:** Docker (required)
-- **Bonus:** Kafka, Redis, ArgoCD, Kubernetes (if you want to go further)
-
-### 📦 Deliverables
-
-> 📥 **Your submission must be a Pull Request that includes:**
-
-- A **backend** exposing the required APIs.
-- A **data model** to manage:
-  - Movies, scenes, tracks, songs, and their licensing states.
-- Endpoints or queries/mutations to:
-  - Create a track and associate a song.
-  - Update the licensing state of a track.
-  - Query all tracks for a given scene/movie, including licensing status.
-- A **frontend built with React** to:
-  - Visualize the movie scenes and associated tracks.
-  - Show licensing status.
-  - Allow status updates (basic UI).
-- Suggest a real-time implementation using WebSockets, GraphQL Subscriptions, or Server-Sent Events.
-- Docker setup to run the entire app locally.
-- A `README.md` with:
-  - Setup instructions
-  - Tech decisions and tradeoffs
-  - If applicable, your reasoning for using REST, GraphQL, or both
-
-> [!TIP]
-> Use the `docs` folder to store any additional documentation or diagrams that help explain your solution.
-> Mention any assumptions or constraints in your `README.md`.
-
-### 📂 Folder Suggestions
-
-You can organize your project like this (suggested but not mandatory):
-
-```txt
-/
-├── .github/
-│   ├── workflows/
-│   └── PULL_REQUEST_TEMPLATE.md
-├── docs/
-├── backend/
-│   ├── src/
-│   ├── test/
-│   └── Dockerfile
-├── frontend/
-│   ├── src/
-│   ├── public/
-│   └── Dockerfile
-├── compose.yml
-├── .env.example
-├── README.md
-├── .prettierrc.js
-├── eslint.config.mjs
-└── . . .
+```bash
+git clone https://github.com/holubba/fullstack-engineer-music-licensing-workflow-challenge
+cd fullstack-engineer-music-licensing-workflow-challenge
+cp env.example ./.env
+docker-compose up -d --build
 ```
 
-## 🌟 Nice to Have
+### Running test suite
 
-> 💡 **Bonus Points For:**
+- Install dependencies first (`npm i`) if you haven't.
 
-- Automated testing and CI pipeline using GitHub Actions.
-- Unit or integration tests for API or key logic.
-- Use of MongoDB for unstructured metadata (if justified).
-- Real-time suggestion implemented (e.g., via GraphQL subscriptions or WebSockets).
-- Basic usage of **Kafka or Redis** (e.g., async event messaging).
-- Usage of ArgoCD or Kubernetes (not expected, but definitely cool).
+```bash
+npm run test:e2e
+```
 
-> [!TIP]
-> Looking for inspiration or additional ideas to earn extra points? Check out our **[Awesome NaNLABS repository](https://github.com/nanlabs/awesome-nan)** for reference projects and best practices! 🚀
+Tests are made following some guidelines seen in: <https://github.com/goldbergyoni/nodejs-testing-best-practices>
 
-## 🧪 Submission Guidelines
+---
 
-> 📌 **Follow these steps to submit your solution:**
+## Tech Requirements
 
-1. **Fork this repository.**
-2. **Create a feature branch** for your implementation.
-3. **Commit your changes** with meaningful commit messages.
-4. **Open a Pull Request** following the provided template.
-5. **Our team will review** and provide feedback.
+- **Backend:** You can use any stack you're comfortable with, but we recommend using any of the following:
+  - [x] TypeScript + NestJS (you can use Fastify or Koa if you prefer)
+  - [ ] Python + FastAPI (you can use Flask or Django if you prefer)
+  - [ ] Go + Fiber (you can use Gin or Echo if you prefer)
 
-## ✅ Evaluation Criteria
+- **Containerization:**
+  - [x] Docker (required)
 
-> 🔍 **What we'll be looking at:**
+---
 
-- Ability to **work across the stack** (NestJS, PostgreSQL, React/Next.js/. . .).
-- Clean, modular and maintainable code with proper Git usage.
-- A good understanding of **data modeling and workflow management**.
-- Clear written communication in your README.
-- Ability to **propose real-time solutions**, even if not implemented.
+## Deliverables
 
-## 💬 Final Notes
+- [x] A **backend** exposing the required APIs.
+- [x] A **data model** to manage:
+  - Movies, scenes, tracks, songs, and their licensing states.
 
-> [!TIP]
-> This challenge is designed to be flexible!
+- Endpoints or queries/mutations to:
+  - [x] Create a track and associate a song.
+  - [x] Update the licensing state of a track.
+  - [x] Query all tracks for a given scene/movie, including licensing status.
 
-Here are some tips to help you succeed:
+- [x] Suggest a real-time implementation using WebSockets, GraphQL Subscriptions, or Server-Sent Events. -[x] Docker setup to run the entire app locally.
+- [x] A `README.md` with:
+  - [x] Setup instructions
+  - [x] Tech decisions and tradeoffs
+  - [x] If applicable, your reasoning for using REST, GraphQL, or both
 
-- If you feel confident on the backend but less on the frontend, focus there—but try to show some basic UI.
-- Likewise, if you're stronger on the frontend, make sure your backend has clean structure and endpoints.
-- Time-box it: we don’t expect perfection. We want to see **how you think and solve problems**.
+---
 
-## 🏁 Good luck and have fun building
+## Assumptions
 
-If you have any questions, feel free to reach out.
+- Scenes don't require timestamps, it would be easy to implement but it would overcomplicate the challenge taking more time implementing basically the same logic that I already implemented with the tracks timestamps.
+
+- CRUD operations for each entity were not required explicitly, so I didn't implement them. It would just take more time and they would basically prove nothing. The required endpoints are all implemented and tested.
+
+---
+
+## Extras
+
+- I included a Swagger instance on <http://localhost:PORT/docs> since I wasn't required to make a frontend, but I wanted to make sure that whoever is reading this was going to be able to spin up the project in docker and be able to interact with it without a frontend.
+
+- I included a license-history feature that lets you track each change in licenses status for better traceablity.
+
+- Added a script to automatically create a changelog and bump the tags version, as well as the package-json version with git-cliff and a basic shell script.
+
+- Added Lefthook to keep git commit linted. It also runs the linter and the tests on push to prevent broken releases.
+
+---
+
+## Tech decisions and tradeoffs
+
+- At some point I considered using postgres intervals for the timestamps but TypeORM is really buggy when interacting with intervals so I ultimately decided to ditch the idea and store timestamps as seconds.
+
+- I decided to implement the entire challenge in NestJS because it was mentioned in the invitation email as the tech stack and I already had a somehow scaffolded project that I could use to save time. If I had more time available would implement this with DrizzleORM because i prefer it over TypeORM. TypeORM is considered abandonedware by today standards and its not a good package.
+
+- I implemented e2e tests with testcontainers to test the core logic of the application, this makes it a bit slow (each test suite has to spin up a temporal container and migrate the db). If I had more time I would just test it against a single db saving up time and resources, but since the app isnt that big its not a big deal.
+
+- I chose to implement a SSE endpoint for the sake of simplicity and because I considered that a Websocket was too much for just updating licenses status. It returns the updated license and its documented in Swagger.
+
+- I chose to only implement REST endpoint again for the sake of simplicity and also because I could make a good documentation with OpenAPI standards.
+
+---
+
+## Features
+
+- Music licensing workflow
+- SSE endpoint to update licenses status in real time
+- Automatic API documentation with Swagger
+- PostgreSQL containerized with Docker
+- Initial database population via SQL scripts
+
+---
+
+## Technologies
+
+- Node.js / TypeScript
+- NestJS (Fastify adapter)
+- TypeORM
+- PostgreSQL 16
+- Docker / Docker Compose
+- Swagger (`@nestjs/swagger`) for API documentation
+
+---
+
+## Endpoints
+
+### Health
+
+- **GET** `/api/health`  
+  Health Check
+
+### Movies
+
+- **GET** `/api/movies/{id}`  
+  Retrieves a movie with its details by ID
+
+- **GET** `/api/movies`  
+  Retrieves all movies
+
+### Tracks
+
+- **POST** `/api/tracks`  
+  Creates a track and associates it to a song
+
+### Licenses
+
+- **GET** `/api/licenses/status/stream`  
+  Subscribe to license status changes (Swagger Try Out is not supported)
+
+- **PATCH** `/api/licenses/{id}/status`  
+  Update License Status
+
+---
+
+## Tests coverage
+
+```
+----------------------------------------------------|---------|----------|---------|---------|-------------------
+File                                                | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s
+----------------------------------------------------|---------|----------|---------|---------|-------------------
+All files                                           |   99.47 |      100 |    98.3 |   99.47 |
+ license-history/domain                             |     100 |      100 |     100 |     100 |
+  license-history.repository.ts                     |     100 |      100 |     100 |     100 |
+ license-history/repositories                       |     100 |      100 |     100 |     100 |
+  license-history.module.ts                         |     100 |      100 |     100 |     100 |
+  license-history.repository.ts                     |     100 |      100 |     100 |     100 |
+ licenses/application                               |     100 |      100 |     100 |     100 |
+  licenses.module.ts                                |     100 |      100 |     100 |     100 |
+  licenses.service.ts                               |     100 |      100 |     100 |     100 |
+ licenses/domain                                    |     100 |      100 |     100 |     100 |
+  licenses.repository.ts                            |     100 |      100 |     100 |     100 |
+ licenses/infrastructure/controllers                |    94.8 |      100 |      75 |    94.8 |
+  licenses.controller.ts                            |    94.8 |      100 |      75 |    94.8 | 98-101
+ licenses/infrastructure/controllers/dtos/requests  |     100 |      100 |     100 |     100 |
+  update-license-params.requests.dto.ts             |     100 |      100 |     100 |     100 |
+  update-license-status.dto.ts                      |     100 |      100 |     100 |     100 |
+ licenses/infrastructure/controllers/dtos/responses |     100 |      100 |     100 |     100 |
+  update-license.dto.ts                             |     100 |      100 |     100 |     100 |
+ licenses/infrastructure/repositories               |     100 |      100 |     100 |     100 |
+  licenses.module.ts                                |     100 |      100 |     100 |     100 |
+  licenses.repository.ts                            |     100 |      100 |     100 |     100 |
+ movies/application                                 |     100 |      100 |     100 |     100 |
+  movies.module.ts                                  |     100 |      100 |     100 |     100 |
+  movies.service.ts                                 |     100 |      100 |     100 |     100 |
+ movies/domain                                      |     100 |      100 |     100 |     100 |
+  movies.repository.ts                              |     100 |      100 |     100 |     100 |
+ movies/infrastructure/controllers                  |     100 |      100 |     100 |     100 |
+  movies.controller.ts                              |     100 |      100 |     100 |     100 |
+ movies/infrastructure/controllers/dtos/requests    |     100 |      100 |     100 |     100 |
+  get-movie-by-id.dto.ts                            |     100 |      100 |     100 |     100 |
+ movies/infrastructure/controllers/dtos/responses   |     100 |      100 |     100 |     100 |
+  get-movies.response.dto.ts                        |     100 |      100 |     100 |     100 |
+  movie-by-id.dto.ts                                |     100 |      100 |     100 |     100 |
+ movies/infrastructure/repositories                 |     100 |      100 |     100 |     100 |
+  movies.module.ts                                  |     100 |      100 |     100 |     100 |
+  movies.repository.ts                              |     100 |      100 |     100 |     100 |
+ scenes/domain                                      |     100 |      100 |     100 |     100 |
+  scenes.repository.ts                              |     100 |      100 |     100 |     100 |
+ scenes/infrastructure/repositories                 |     100 |      100 |     100 |     100 |
+  scenes.module.ts                                  |     100 |      100 |     100 |     100 |
+  scenes.repository.ts                              |     100 |      100 |     100 |     100 |
+ songs/domain                                       |     100 |      100 |     100 |     100 |
+  songs.repository.ts                               |     100 |      100 |     100 |     100 |
+ songs/infrastructure/repositories                  |     100 |      100 |     100 |     100 |
+  songs.module.ts                                   |     100 |      100 |     100 |     100 |
+  songs.repository.ts                               |     100 |      100 |     100 |     100 |
+ tracks/application                                 |     100 |      100 |     100 |     100 |
+  tracks-module.ts                                  |     100 |      100 |     100 |     100 |
+  tracks-service.ts                                 |     100 |      100 |     100 |     100 |
+ tracks/domain                                      |     100 |      100 |     100 |     100 |
+  tracks.repository.ts                              |     100 |      100 |     100 |     100 |
+ tracks/infrastructure/controllers                  |     100 |      100 |     100 |     100 |
+  tracks.controller.ts                              |     100 |      100 |     100 |     100 |
+ tracks/infrastructure/controllers/dtos/requests    |     100 |      100 |     100 |     100 |
+  create-track.request.dto.ts                       |     100 |      100 |     100 |     100 |
+ tracks/infrastructure/controllers/dtos/responses   |     100 |      100 |     100 |     100 |
+  create-track.response.dto.ts                      |     100 |      100 |     100 |     100 |
+ tracks/infrastructure/repositories                 |     100 |      100 |     100 |     100 |
+  tracks.module.ts                                  |     100 |      100 |     100 |     100 |
+  tracks.repository.ts                              |     100 |      100 |     100 |     100 |
+----------------------------------------------------|---------|----------|---------|---------|-------------------
+```

@@ -1,0 +1,10 @@
+{
+  "$schema": "http://json-schema.org/schema",
+  "schematics": {
+    "context": {
+      "description": "Generate a DDD context (application/domain/infrastructure)",
+      "factory": "./context/index#context",
+      "schema": "./context/schema.json"
+    }
+  }
+}

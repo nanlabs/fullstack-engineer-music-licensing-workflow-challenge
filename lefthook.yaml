@@ -1,0 +1,10 @@
+commit-msg:
+  commands:
+    lint-commit-msg:
+      run: "./scripts/lint-commit.sh ./.git/COMMIT_EDITMSG"
+pre-push:
+  commands:
+    run-lint:
+      run: "npm run lint"
+    run-tests:
+      run: "npm run test:e2e"

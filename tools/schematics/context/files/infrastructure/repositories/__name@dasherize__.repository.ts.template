@@ -1,0 +1,7 @@
+import { Injectable } from '@nestjs/common'
+
+import { <%= classify(name) %>Repository } from '../../domain/<%= dasherize(name) %>.repository.interface'
+
+@Injectable()
+export class <%= classify(name) %>RepositoryImpl implements <%= classify(name) %>Repository {
+}

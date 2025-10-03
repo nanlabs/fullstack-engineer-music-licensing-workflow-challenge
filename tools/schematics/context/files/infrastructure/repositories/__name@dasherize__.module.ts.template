@@ -1,0 +1,18 @@
+import { TypeOrmModule } from '@nestjs/typeorm'
+import { Module } from '@nestjs/common'
+
+import { <%= classify(name) %>Repository } from '../../domain/<%= dasherize(name) %>.repository.interface'
+import { <%= classify(name) %>RepositoryImpl } from './<%= dasherize(name) %>.repository'
+import { <%= classify(name) %> } from '../../domain/<%= dasherize(name) %>.entity'
+
+@Module({
+  imports: [TypeOrmModule.forFeature([<%= classify(name) %>])],
+  providers: [
+    {
+      provide: <%= classify(name) %>Repository,
+      useClass: <%= classify(name) %>RepositoryImpl,
+    },
+  ],
+  exports: [<%= classify(name) %>Repository],
+})
+export class <%= classify(name) %>RepositoryModule {}

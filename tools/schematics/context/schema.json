@@ -1,0 +1,39 @@
+{
+  "$schema": "http://json-schema.org/schema",
+  "$id": "ContextSchema",
+  "title": "Context Options",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "The context name"
+    },
+    "application": {
+      "type": "boolean",
+      "default": false,
+      "description": "Generate application folder",
+      "x-prompt": "Would you like to create the application directory?"
+    },
+    "domain": {
+      "type": "boolean",
+      "default": false,
+      "description": "Generate only domain folder",
+      "x-prompt": "Would you like to create the domain directory?"
+    },
+    "controllers": {
+      "type": "boolean",
+      "default": false,
+      "description": "Generate only controllers folder",
+      "x-prompt": "Would you like to create the controllers directory?"
+    },
+    "repositories": {
+      "type": "boolean",
+      "default": false,
+      "description": "Generate only repositories folder",
+      "x-prompt": "Would you like to create the repositories directory?"
+    }
+  },
+  "required": [
+    "name"
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "module": "commonjs",
+    "target": "es2022",
+    "esModuleInterop": true,
+    "strict": true,
+    "outDir": "dist",
+    "sourceMap": true,
+    "inlineSources": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "strictPropertyInitialization": false,
+    "paths": {
+      "@/src/*": [
+        "src/*"
+      ],
+      "@/http-api/*": [
+        "src/http-api/*"
+      ],
+      "@/contexts/*": [
+        "src/contexts/*"
+      ],
+      "@/users/*": [
+        "src/contexts/users/*"
+      ],
+      "@/shared/*": [
+        "src/contexts/shared/*"
+      ],
+      "@/tests/*": [
+        "tests/*"
+      ]
+    },
+    "types": [
+      "vitest/globals"
+    ]
+  },
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}

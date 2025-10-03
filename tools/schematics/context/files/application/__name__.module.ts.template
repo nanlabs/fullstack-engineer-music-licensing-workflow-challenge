@@ -1,0 +1,10 @@
+import { Module } from '@nestjs/common'
+import { <%= classify(name) %>RepositoryModule } from '../infrastructure/repositories/<%= dasherize(name) %>.module'
+import { <%= classify(name) %>Service } from './<%= dasherize(name) %>.service'
+
+@Module({
+  imports: [<%= classify(name) %>RepositoryModule],
+  providers: [<%= classify(name) %>Service],
+  exports: [<%= classify(name) %>Service],
+})
+export class <%= classify(name) %>ServiceModule {}

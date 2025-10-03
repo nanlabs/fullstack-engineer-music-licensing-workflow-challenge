@@ -1,0 +1,10 @@
+import { Inject } from '@nestjs/common'
+
+import { <%= classify(name) %>Repository } from '../../domain/<%= dasherize(name) %>.repository.interface'
+
+export class <%= classify(name) %>Service {
+  constructor(
+    @Inject(<%= classify(name) %>Repository)
+    private readonly <%= camelize(name) %>Repository: <%= classify(name) %>Repository,
+  ) { }
+}

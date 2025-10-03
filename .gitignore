@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.tmp
+.idea
+.env
+.postgres
+coverage/
+.npm
+.vscode
+.nyc_output
+.env
+*.sdi
+*.cnf
+package-lock.json
+docker/.mysql/
