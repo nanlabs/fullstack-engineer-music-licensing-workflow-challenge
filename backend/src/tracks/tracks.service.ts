@@ -12,6 +12,8 @@ import { Track } from './entities/track.entity';
 import { Repository } from 'typeorm';
 import { Song } from 'src/songs/entities/song.entity';
 import { LicensingStatus } from './enums/licensing-status.enum';
+import { SceneIdDto } from 'src/scenes/dto/scene-id.dto';
+import { TrackIdDto } from './dto/track-id.dto';
 
 const logger = new Logger('TracksService');
 
@@ -26,7 +28,8 @@ export class TracksService {
     private readonly songRepo: Repository<Song>,
   ) {}
 
-  async createForScene(sceneId: string, createTrackDto: CreateTrackDto) {
+  async createForScene(sceneIdDto: SceneIdDto, createTrackDto: CreateTrackDto) {
+    const sceneId = sceneIdDto.sceneId;
     try {
       const scene = await this.sceneRepo.findOne({ where: { id: sceneId } });
       if (!scene) {
@@ -63,7 +66,8 @@ export class TracksService {
     }
   }
 
-  async findByScene(sceneId: string) {
+  async findByScene(sceneIdDto: SceneIdDto) {
+    const sceneId = sceneIdDto.sceneId;
     try {
       const tracks = await this.trackRepo.find({
         where: { scene: { id: sceneId } },
@@ -82,10 +86,11 @@ export class TracksService {
   }
 
   async updateStatus(
-    trackId: string,
+    trackIdDto: TrackIdDto,
     updateTrackStatusDto: UpdateTrackStatusDto,
   ) {
     try {
+      const trackId = trackIdDto.trackId;
       const track = await this.trackRepo.findOne({
         where: { id: trackId },
         relations: ['scene', 'song'],

@@ -5,6 +5,7 @@ import { ScenesModule } from './scenes/scenes.module';
 import { SongsModule } from './songs/songs.module';
 import { TracksModule } from './tracks/tracks.module';
 import { envs } from 'config/envs';
+import { SeedModule } from './seed/seed.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { envs } from 'config/envs';
     ScenesModule,
     SongsModule,
     TracksModule,
+    SeedModule,
   ],
   controllers: [],
   providers: [],

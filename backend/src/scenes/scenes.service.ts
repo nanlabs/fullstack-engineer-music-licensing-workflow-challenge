@@ -9,6 +9,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Scene } from './entities/scene.entity';
 import { Movie } from 'src/movies/entities/movie.entity';
+import { SceneIdDto } from './dto/scene-id.dto';
+import { MovieIdDto } from 'src/movies/dto/movie-id.dto';
 
 const logger = new Logger('ScenesService');
 
@@ -49,8 +51,9 @@ export class ScenesService {
     }
   }
 
-  async findAllByMovie(movieId: string) {
+  async findAllByMovie(movieIdDto: MovieIdDto) {
     try {
+      const movieId = movieIdDto.movieId;
       const scenes = await this.sceneRepo.find({
         where: { movie: { id: movieId } },
         relations: ['movie'],
@@ -66,15 +69,16 @@ export class ScenesService {
     }
   }
 
-  async findOne(id: string) {
+  async findOne(sceneIdDto: SceneIdDto) {
+    const sceneId = sceneIdDto.sceneId;
     try {
       const scene = await this.sceneRepo.findOne({
-        where: { id },
+        where: { id: sceneId },
         relations: ['movie'],
       });
       if (!scene) {
-        logger.warn(`Scene not found with id: ${id}`);
-        throw new NotFoundException(`Scene not found with id: ${id}`);
+        logger.warn(`Scene not found with id: ${sceneId}`);
+        throw new NotFoundException(`Scene not found with id: ${sceneId}`);
       }
       return scene;
     } catch (error) {

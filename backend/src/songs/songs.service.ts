@@ -8,6 +8,7 @@ import { CreateSongDto } from './dto/create-song.dto';
 import { Song } from './entities/song.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { SongIdDto } from './dto/song-id.dto';
 
 const logger = new Logger('SongsService');
 
@@ -44,12 +45,13 @@ export class SongsService {
     }
   }
 
-  async findOne(id: string) {
+  async findOne(songIdDto: SongIdDto) {
+    const songId = songIdDto.songId;
     try {
-      const song = await this.songRepo.findOne({ where: { id } });
+      const song = await this.songRepo.findOne({ where: { id: songId } });
       if (!song) {
-        logger.warn(`Song not found with id: ${id}`);
-        throw new NotFoundException(`Song not found with id: ${id}`);
+        logger.warn(`Song not found with id: ${songId}`);
+        throw new NotFoundException(`Song not found with id: ${songId}`);
       }
       return song;
     } catch (error) {

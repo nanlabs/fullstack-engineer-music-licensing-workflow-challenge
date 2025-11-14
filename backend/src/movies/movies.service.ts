@@ -8,6 +8,7 @@ import { CreateMovieDto } from './dto/create-movie.dto';
 import { Movie } from './entities/movie.entity';
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
+import { MovieIdDto } from './dto/movie-id.dto';
 
 const logger = new Logger('MoviesService');
 
@@ -45,12 +46,13 @@ export class MoviesService {
     }
   }
 
-  async findOne(id: string) {
+  async findOne(movieIdDto: MovieIdDto) {
+    const movieId = movieIdDto.movieId;
     try {
-      const movie = await this.movieRepo.findOne({ where: { id } });
+      const movie = await this.movieRepo.findOne({ where: { id: movieId } });
       if (!movie) {
-        logger.warn(`Movie not found with id: ${id}`);
-        throw new NotFoundException(`Movie not found with id: ${id}`);
+        logger.warn(`Movie not found with id: ${movieId}`);
+        throw new NotFoundException(`Movie not found with id: ${movieId}`);
       }
       return movie;
     } catch (error) {

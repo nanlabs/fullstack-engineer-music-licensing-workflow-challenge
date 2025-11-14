@@ -2,7 +2,7 @@ import { Body, Post, Get, Param } from '@nestjs/common';
 import { CreateSongDto } from './dto/create-song.dto';
 import { SongsService } from './songs.service';
 import { ApiController } from 'src/shared/decorators';
-import { FindByIdDto } from 'src/shared/dtos/findById.dto';
+import { SongIdDto } from './dto/song-id.dto';
 
 @ApiController('songs')
 export class SongsController {
@@ -18,8 +18,8 @@ export class SongsController {
     return await this.songsService.findAll();
   }
 
-  @Get(':id')
-  async findOne(@Param() findByIdDto: FindByIdDto) {
-    return await this.songsService.findOne(findByIdDto.id);
+  @Get(':songId')
+  async findOne(@Param() songIdDto: SongIdDto) {
+    return await this.songsService.findOne(songIdDto);
   }
 }
