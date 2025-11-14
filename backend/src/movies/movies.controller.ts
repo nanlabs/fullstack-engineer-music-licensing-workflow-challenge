@@ -9,17 +9,17 @@ export class MoviesController {
   constructor(private readonly moviesService: MoviesService) {}
 
   @Post()
-  create(@Body() createMovieDto: CreateMovieDto) {
-    return this.moviesService.create(createMovieDto);
+  async create(@Body() createMovieDto: CreateMovieDto) {
+    return await this.moviesService.create(createMovieDto);
   }
 
   @Get()
-  findAll() {
-    return this.moviesService.findAll();
+  async findAll() {
+    return await this.moviesService.findAll();
   }
 
   @Get(':id')
-  findOne(@Param() findByIdDto: FindByIdDto) {
-    return this.moviesService.findOne(findByIdDto.id);
+  async findOne(@Param() findByIdDto: FindByIdDto) {
+    return await this.moviesService.findOne(findByIdDto.id);
   }
 }

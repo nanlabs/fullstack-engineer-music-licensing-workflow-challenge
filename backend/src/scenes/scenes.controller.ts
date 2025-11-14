@@ -1,24 +1,25 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Get, Param, Post, Query } from '@nestjs/common';
 import { ScenesService } from './scenes.service';
 import { CreateSceneDto } from './dto/create-scene.dto';
 import { ApiController } from 'src/shared/decorators';
+import { FindByIdDto } from 'src/shared/dtos/findById.dto';
 
 @ApiController('scenes')
 export class ScenesController {
   constructor(private readonly scenesService: ScenesService) {}
 
   @Post()
-  create(@Body() createSceneDto: CreateSceneDto) {
+  async create(@Body() createSceneDto: CreateSceneDto) {
     return this.scenesService.create(createSceneDto);
   }
 
   @Get()
-  findAllByMovie(@Query('movieId') movieId: string) {
-    return this.scenesService.findAllByMovie(movieId);
+  async findAllByMovie(@Query() findByIdDto: FindByIdDto) {
+    return await this.scenesService.findAllByMovie(findByIdDto.id);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.scenesService.findOne(id);
+  async findOne(@Param() findByIdDto: FindByIdDto) {
+    return await this.scenesService.findOne(findByIdDto.id);
   }
 }
