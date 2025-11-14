@@ -3,29 +3,36 @@ import { CreateTrackDto } from './dto/create-tracks.dto';
 import { UpdateTrackStatusDto } from './dto/update-tracks.dto';
 import { TracksService } from './tracks.service';
 import { ApiController } from 'src/shared/decorators';
+import { FindByIdDto } from 'src/shared/dtos/findById.dto';
 
 @ApiController('tracks')
 export class TracksController {
   constructor(private readonly tracksService: TracksService) {}
 
-  @Post('scenes/:sceneId/tracks')
-  createForScene(
-    @Param('sceneId') sceneId: string,
+  @Post('scenes/:id')
+  async createForScene(
+    @Param() findByIdDto: FindByIdDto,
     @Body() createTrackDto: CreateTrackDto,
   ) {
-    return this.tracksService.createForScene(sceneId, createTrackDto);
+    return await this.tracksService.createForScene(
+      findByIdDto.id,
+      createTrackDto,
+    );
   }
 
-  @Get('scenes/:sceneId/tracks')
-  findByScene(@Param('sceneId') sceneId: string) {
-    return this.tracksService.findByScene(sceneId);
+  @Get('scenes/:id')
+  async findByScene(@Param() findByIdDto: FindByIdDto) {
+    return await this.tracksService.findByScene(findByIdDto.id);
   }
 
-  @Patch('tracks/:trackId/status')
-  updateStatus(
-    @Param('trackId') trackId: string,
+  @Patch('status/tracks/:id')
+  async updateStatus(
+    @Param() findByIdDto: FindByIdDto,
     @Body() updateTrackStatusDto: UpdateTrackStatusDto,
   ) {
-    return this.tracksService.updateStatus(trackId, updateTrackStatusDto);
+    return await this.tracksService.updateStatus(
+      findByIdDto.id,
+      updateTrackStatusDto,
+    );
   }
 }
