@@ -2,7 +2,7 @@ import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
 import { CreateTrackDto } from './dto/create-tracks.dto';
 import { UpdateTrackStatusDto } from './dto/update-tracks.dto';
 import { TracksService } from './tracks.service';
-import { ApiController } from 'src/decorators';
+import { ApiController } from 'src/shared/decorators';
 
 @ApiController('tracks')
 export class TracksController {

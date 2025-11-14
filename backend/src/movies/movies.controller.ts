@@ -1,7 +1,8 @@
 import { Body, Get, Param, Post } from '@nestjs/common';
-import { ApiController } from 'src/decorators';
+import { ApiController } from 'src/shared/decorators';
 import { MoviesService } from './movies.service';
 import { CreateMovieDto } from './dto/create-movie.dto';
+import { FindByIdDto } from 'src/shared/dtos/findById.dto';
 
 @ApiController('movies')
 export class MoviesController {
@@ -18,7 +19,7 @@ export class MoviesController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.moviesService.findOne(id);
+  findOne(@Param() findByIdDto: FindByIdDto) {
+    return this.moviesService.findOne(findByIdDto.id);
   }
 }

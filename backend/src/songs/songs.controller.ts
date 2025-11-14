@@ -1,7 +1,7 @@
 import { Body, Controller, Post, Get, Param } from '@nestjs/common';
 import { CreateSongDto } from './dto/create-song.dto';
 import { SongsService } from './songs.service';
-import { ApiController } from 'src/decorators';
+import { ApiController } from 'src/shared/decorators';
 
 @ApiController('songs')
 export class SongsController {

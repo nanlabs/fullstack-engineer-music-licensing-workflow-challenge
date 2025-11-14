@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { MoviesModule } from './movies/movies.module';
 import { ScenesModule } from './scenes/scenes.module';

@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { ScenesService } from './scenes.service';
 import { CreateSceneDto } from './dto/create-scene.dto';
-import { ApiController } from 'src/decorators';
+import { ApiController } from 'src/shared/decorators';
 
 @ApiController('scenes')
 export class ScenesController {
