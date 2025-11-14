@@ -12,6 +12,9 @@ interface EnvVars {
   PGADMIN_EMAIL: string;
   PGADMIN_PASSWORD: string;
   PGADMIN_PORT: number;
+  REDIS_HOST: string;
+  REDIS_PORT: number;
+  REDIS_TTL_MS: number;
 }
 
 const envsSchema = joi
@@ -26,6 +29,9 @@ const envsSchema = joi
     PGADMIN_EMAIL: joi.string().required(),
     PGADMIN_PASSWORD: joi.string().required(),
     PGADMIN_PORT: joi.number().required(),
+    REDIS_HOST: joi.string().required(),
+    REDIS_PORT: joi.number().required(),
+    REDIS_TTL_MS: joi.number().required(),
   })
   .unknown(true);
 
@@ -48,4 +54,7 @@ export const envs = {
   pgadminEmail: envVars.PGADMIN_EMAIL,
   pgadminPassword: envVars.PGADMIN_PASSWORD,
   pgadminPort: envVars.PGADMIN_PORT,
+  redisHost: envVars.REDIS_HOST,
+  redisPort: envVars.REDIS_PORT,
+  redisTtlMs: envVars.REDIS_TTL_MS,
 };
