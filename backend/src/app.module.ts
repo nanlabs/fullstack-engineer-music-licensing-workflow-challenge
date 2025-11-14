@@ -1,26 +1,30 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { MoviesModule } from './movies/movies.module';
+import { ScenesModule } from './scenes/scenes.module';
+import { SongsModule } from './songs/songs.module';
+import { TracksModule } from './tracks/tracks.module';
+import { envs } from 'config/envs';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
-      envFilePath: '../.env',
-    }),
     TypeOrmModule.forRootAsync({
-      useFactory: (configService: ConfigService) => ({
+      useFactory: () => ({
         type: 'postgres',
-        host: configService.get('DB_HOST'),
-        port: parseInt(configService.get('DB_PORT') || '5432', 10),
-        username: configService.get('DB_USER'),
-        password: configService.get('DB_PASSWORD'),
-        database: configService.get('DB_NAME'),
+        host: envs.dbHost,
+        port: envs.dbPort,
+        username: envs.dbUser,
+        password: envs.dbPassword,
+        database: envs.dbName,
         autoLoadEntities: true,
         synchronize: true,
       }),
-      inject: [ConfigService],
     }),
+    MoviesModule,
+    ScenesModule,
+    SongsModule,
+    TracksModule,
   ],
   controllers: [],
   providers: [],

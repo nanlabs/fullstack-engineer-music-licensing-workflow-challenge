@@ -1,0 +1,7 @@
+export enum LicensingStatus {
+  PENDING = 'PENDING',
+  IN_NEGOTIATION = 'IN_NEGOTIATION',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
+  CANCELLED = 'CANCELLED',
+}
