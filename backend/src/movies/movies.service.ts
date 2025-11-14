@@ -54,6 +54,9 @@ export class MoviesService {
       }
       return movie;
     } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
       logger.error(`Error finding movie: ${error}`);
       throw new InternalServerErrorException(error);
     }

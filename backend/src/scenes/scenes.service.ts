@@ -41,6 +41,9 @@ export class ScenesService {
       logger.log(`Scene created: ${scene.id}`);
       return scene;
     } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
       logger.error(`Error creating scene: ${error}`);
       throw new InternalServerErrorException(error);
     }
@@ -75,6 +78,9 @@ export class ScenesService {
       }
       return scene;
     } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
       logger.error(`Error finding scene: ${error}`);
       throw new InternalServerErrorException(error);
     }

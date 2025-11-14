@@ -1,19 +1,63 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateSongDto } from './dto/create-song.dto';
+import { Song } from './entities/song.entity';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 
 const logger = new Logger('SongsService');
 
 @Injectable()
 export class SongsService {
-  create(createSongDto: CreateSongDto) {
-    logger.log('create', createSongDto);
+  constructor(
+    @InjectRepository(Song)
+    private readonly songRepo: Repository<Song>,
+  ) {}
+
+  async create(createSongDto: CreateSongDto) {
+    try {
+      const song = this.songRepo.create(createSongDto);
+      await this.songRepo.save(song);
+      logger.log(`Song created: ${song.id}`);
+      return song;
+    } catch (error) {
+      logger.error(`Error creating song: ${error}`);
+      throw new InternalServerErrorException(error);
+    }
   }
 
-  findAll() {
-    logger.log('findAll');
+  async findAll() {
+    try {
+      const songs = await this.songRepo.find();
+      if (songs.length === 0) {
+        logger.warn('No songs found');
+        return [];
+      }
+      return songs;
+    } catch (error) {
+      logger.error(`Error finding songs: ${error}`);
+      throw new InternalServerErrorException(error);
+    }
   }
 
-  findOne(id: string) {
-    logger.log('findOne', id);
+  async findOne(id: string) {
+    try {
+      const song = await this.songRepo.findOne({ where: { id } });
+      if (!song) {
+        logger.warn(`Song not found with id: ${id}`);
+        throw new NotFoundException(`Song not found with id: ${id}`);
+      }
+      return song;
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      logger.error(`Error finding song: ${error}`);
+      throw new InternalServerErrorException(error);
+    }
   }
 }
