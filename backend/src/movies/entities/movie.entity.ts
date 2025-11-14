@@ -1,7 +1,14 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  OneToMany,
+  Index,
+} from 'typeorm';
 import { Scene } from 'src/scenes/entities/scene.entity';
 
 @Entity()
+@Index(['title', 'releaseYear'], { unique: true })
 export class Movie {
   @PrimaryGeneratedColumn('uuid')
   id: string;

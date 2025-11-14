@@ -5,11 +5,13 @@ import {
   ManyToOne,
   CreateDateColumn,
   UpdateDateColumn,
+  Index,
 } from 'typeorm';
 import { Scene } from '../../scenes/entities/scene.entity';
 import { Song } from '../../songs/entities/song.entity';
 import { LicensingStatus } from '../enums/licensing-status.enum';
 @Entity()
+@Index(['scene', 'song', 'startTime', 'endTime'], { unique: true })
 export class Track {
   @PrimaryGeneratedColumn('uuid')
   id: string;

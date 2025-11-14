@@ -4,11 +4,13 @@ import {
   Column,
   ManyToOne,
   OneToMany,
+  Index,
 } from 'typeorm';
 import { Movie } from '../../movies/entities/movie.entity';
 import { Track } from 'src/tracks/entities/track.entity';
 
 @Entity()
+@Index(['movie', 'order'], { unique: true })
 export class Scene {
   @PrimaryGeneratedColumn('uuid')
   id: string;
