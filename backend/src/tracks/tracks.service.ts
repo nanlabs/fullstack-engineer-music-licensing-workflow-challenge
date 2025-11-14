@@ -15,6 +15,7 @@ import { Song } from 'src/songs/entities/song.entity';
 import { LicensingStatus } from './enums/licensing-status.enum';
 import { SceneIdDto } from 'src/scenes/dto/scene-id.dto';
 import { TrackIdDto } from './dto/track-id.dto';
+import { LicensingGateway } from 'src/realtime/licensing.gateway';
 
 const logger = new Logger('TracksService');
 
@@ -27,6 +28,7 @@ export class TracksService {
     private readonly sceneRepo: Repository<Scene>,
     @InjectRepository(Song)
     private readonly songRepo: Repository<Song>,
+    private readonly licensingGateway: LicensingGateway,
   ) {}
 
   async createForScene(sceneIdDto: SceneIdDto, createTrackDto: CreateTrackDto) {
@@ -100,11 +102,21 @@ export class TracksService {
         logger.warn(`Track not found with id: ${trackId}`);
         throw new NotFoundException(`Track not found with id: ${trackId}`);
       }
+
       const currentStatus = track.licensingStatus;
       const newStatus = updateTrackStatusDto.status;
       this.validateTransition(currentStatus, newStatus);
       track.licensingStatus = newStatus;
-      return await this.trackRepo.save(track);
+
+      await this.trackRepo.save(track);
+
+      this.licensingGateway.notifyTrackStatusUpdated(track.scene.id, {
+        trackId: track.id,
+        sceneId: track.scene.id,
+        newStatus: newStatus,
+      });
+
+      return track;
     } catch (error) {
       if (
         error instanceof NotFoundException ||
