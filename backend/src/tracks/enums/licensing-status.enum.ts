@@ -3,5 +3,4 @@ export enum LicensingStatus {
   IN_NEGOTIATION = 'IN_NEGOTIATION',
   APPROVED = 'APPROVED',
   REJECTED = 'REJECTED',
-  CANCELLED = 'CANCELLED',
 }

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Injectable,
   InternalServerErrorException,
   Logger,
@@ -99,7 +100,10 @@ export class TracksService {
         logger.warn(`Track not found with id: ${trackId}`);
         throw new NotFoundException(`Track not found with id: ${trackId}`);
       }
-      track.licensingStatus = updateTrackStatusDto.status;
+      const currentStatus = track.licensingStatus;
+      const newStatus = updateTrackStatusDto.status;
+      this.validateTransition(currentStatus, newStatus);
+      track.licensingStatus = newStatus;
       return await this.trackRepo.save(track);
     } catch (error) {
       if (error instanceof NotFoundException) {
@@ -107,6 +111,34 @@ export class TracksService {
       }
       logger.error(`Error updating track status: ${error}`);
       throw new InternalServerErrorException(error);
+    }
+  }
+
+  private validateTransition(current: LicensingStatus, next: LicensingStatus) {
+    const allowedTransitions: Record<LicensingStatus, LicensingStatus[]> = {
+      [LicensingStatus.PENDING]: [
+        LicensingStatus.IN_NEGOTIATION,
+        LicensingStatus.APPROVED,
+        LicensingStatus.REJECTED,
+      ],
+      [LicensingStatus.IN_NEGOTIATION]: [
+        LicensingStatus.APPROVED,
+        LicensingStatus.REJECTED,
+      ],
+      [LicensingStatus.APPROVED]: [],
+      [LicensingStatus.REJECTED]: [],
+    };
+
+    const allowedNext = allowedTransitions[current];
+
+    if (!allowedNext) {
+      throw new BadRequestException(`Unknown current status: ${current}`);
+    }
+
+    if (!allowedNext.includes(next)) {
+      throw new BadRequestException(
+        `Cannot transition track from ${current} to ${next}`,
+      );
     }
   }
 }
