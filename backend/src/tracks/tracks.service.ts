@@ -106,7 +106,10 @@ export class TracksService {
       track.licensingStatus = newStatus;
       return await this.trackRepo.save(track);
     } catch (error) {
-      if (error instanceof NotFoundException) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
         throw error;
       }
       logger.error(`Error updating track status: ${error}`);
