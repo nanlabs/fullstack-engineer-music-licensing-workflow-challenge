@@ -1,0 +1,26 @@
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        PORT: ${BACKEND_PORT:-3000}
+    container_name: nest_backend_dev
+    ports:
+      - "${BACKEND_PORT:-3000}:${BACKEND_PORT:-3000}"
+    env_file:
+      - .env  
+    environment:
+      - PORT=${BACKEND_PORT:-3000} 
+    develop:
+      watch:
+        - action: sync
+          path: ./backend/src
+          target: /usr/src/app/src
+          initial_sync: true
+          ignore:
+            - node_modules/
+        - action: rebuild
+          path: ./backend/package.json
