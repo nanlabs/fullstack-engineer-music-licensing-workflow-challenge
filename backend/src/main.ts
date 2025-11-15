@@ -3,10 +3,15 @@ import { AppModule } from './app.module';
 import { envs } from 'config/envs';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { RedisIoAdapter } from './realtime/redis-io.adapter';
 
 async function bootstrap() {
   const logger = new Logger('Main');
   const app = await NestFactory.create(AppModule);
+
+  const redisAdapter = new RedisIoAdapter(app);
+  await redisAdapter.connectToRedis();
+  app.useWebSocketAdapter(redisAdapter);
 
   app.setGlobalPrefix(`api/${envs.apiVersion}`);
 

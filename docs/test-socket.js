@@ -10,7 +10,7 @@ s.onload = () => {
   socket.on('connect', () => {
     console.log('WS connected, id:', socket.id);
 
-    const sceneId = '6ae31240-2601-4b68-a8d4-21bb06e75ab9'; //Here you can use other scene id
+    const sceneId = 'cc8b7b6c-3c1a-4c39-b4ef-839b69c21eab'; //Here you can use other scene id
     socket.emit('joinScene', sceneId);
     console.log('joined scene', sceneId);
   });

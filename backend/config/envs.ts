@@ -3,6 +3,7 @@ import * as joi from 'joi';
 
 interface EnvVars {
   BACKEND_PORT: number;
+  BACKEND_PORT2: number;
   API_VERSION: string;
   DB_HOST: string;
   DB_PORT: number;
@@ -14,12 +15,12 @@ interface EnvVars {
   PGADMIN_PORT: number;
   REDIS_HOST: string;
   REDIS_PORT: number;
-  REDIS_TTL_MS: number;
 }
 
 const envsSchema = joi
   .object({
-    BACKEND_PORT: joi.number().required(),
+    BACKEND_PORT: joi.number().default(3000),
+    BACKEND_PORT2: joi.number().default(3001),
     API_VERSION: joi.string().required(),
     DB_HOST: joi.string().required(),
     DB_PORT: joi.number().required(),
@@ -31,7 +32,6 @@ const envsSchema = joi
     PGADMIN_PORT: joi.number().required(),
     REDIS_HOST: joi.string().required(),
     REDIS_PORT: joi.number().required(),
-    REDIS_TTL_MS: joi.number().required(),
   })
   .unknown(true);
 
@@ -45,6 +45,7 @@ const envVars: EnvVars = value;
 
 export const envs = {
   backendPort: envVars.BACKEND_PORT,
+  backendPort2: envVars.BACKEND_PORT2,
   apiVersion: envVars.API_VERSION,
   dbHost: envVars.DB_HOST,
   dbPort: envVars.DB_PORT,
@@ -56,5 +57,4 @@ export const envs = {
   pgadminPort: envVars.PGADMIN_PORT,
   redisHost: envVars.REDIS_HOST,
   redisPort: envVars.REDIS_PORT,
-  redisTtlMs: envVars.REDIS_TTL_MS,
 };
