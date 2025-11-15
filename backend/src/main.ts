@@ -34,4 +34,4 @@ async function bootstrap() {
   logger.log(`Application is running on: ${url}`);
   logger.log(`Swagger documentation is running on: ${url}/swagger`);
 }
-bootstrap();
+void bootstrap();

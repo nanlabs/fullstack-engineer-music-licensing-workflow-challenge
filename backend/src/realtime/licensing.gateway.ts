@@ -20,14 +20,14 @@ export class LicensingGateway {
   server: Server;
 
   @SubscribeMessage('joinScene')
-  handleJoinScene(
+  async handleJoinScene(
     @MessageBody() sceneId: string,
     @ConnectedSocket() client: Socket,
   ) {
     logger.log(
       `Client ${client.id} joined scene room: ${sceneId} (namespace licensing)`,
     );
-    client.join(sceneId);
+    await client.join(sceneId);
     return { event: 'joined', sceneId };
   }
 

@@ -25,16 +25,14 @@ export class ScenesService {
 
   async create(createSceneDto: CreateSceneDto) {
     try {
+      const { movieId, ...sceneData } = createSceneDto;
       const movie = await this.movieRepo.findOne({
-        where: { id: createSceneDto.movieId },
+        where: { id: movieId },
       });
       if (!movie) {
-        logger.warn(`Movie not found with id: ${createSceneDto.movieId}`);
-        throw new NotFoundException(
-          `Movie not found with id: ${createSceneDto.movieId}`,
-        );
+        logger.warn(`Movie not found with id: ${movieId}`);
+        throw new NotFoundException(`Movie not found with id: ${movieId}`);
       }
-      const { movieId, ...sceneData } = createSceneDto;
       const scene = this.sceneRepo.create({
         ...sceneData,
         movie,

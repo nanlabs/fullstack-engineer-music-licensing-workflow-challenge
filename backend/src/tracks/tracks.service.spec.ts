@@ -8,6 +8,8 @@ import { ObjectLiteral, Repository } from 'typeorm';
 import { LicensingStatus } from './enums/licensing-status.enum';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { LicensingGateway } from '../realtime/licensing.gateway';
+import { TrackIdDto } from './dto/track-id.dto';
+import { UpdateTrackStatusDto } from './dto/update-tracks.dto';
 
 type MockRepo<T extends ObjectLiteral> = Partial<
   Record<keyof Repository<T>, jest.Mock>
@@ -25,11 +27,17 @@ const createGatewayMock = () => ({
   notifyTrackStatusUpdated: jest.fn(),
 });
 
+const buildTrackIdDto = (trackId: string): TrackIdDto => ({ trackId });
+
+const buildUpdateStatusDto = (
+  status: LicensingStatus,
+): UpdateTrackStatusDto => ({
+  status,
+});
+
 describe('TracksService', () => {
   let service: TracksService;
   let trackRepo: MockRepo<Track>;
-  let sceneRepo: MockRepo<Scene>;
-  let songRepo: MockRepo<Song>;
   let gateway: ReturnType<typeof createGatewayMock>;
 
   beforeEach(async () => {
@@ -45,8 +53,6 @@ describe('TracksService', () => {
 
     service = module.get<TracksService>(TracksService);
     trackRepo = module.get(getRepositoryToken(Track));
-    sceneRepo = module.get(getRepositoryToken(Scene));
-    songRepo = module.get(getRepositoryToken(Song));
     gateway = module.get(LicensingGateway);
   });
 
@@ -54,9 +60,10 @@ describe('TracksService', () => {
     trackRepo.findOne!.mockResolvedValue(null);
 
     await expect(
-      service.updateStatus({ trackId: 'non-existing-id' } as any, {
-        status: LicensingStatus.APPROVED,
-      }),
+      service.updateStatus(
+        buildTrackIdDto('non-existing-id'),
+        buildUpdateStatusDto(LicensingStatus.APPROVED),
+      ),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
@@ -66,14 +73,15 @@ describe('TracksService', () => {
       licensingStatus: LicensingStatus.PENDING,
       scene: { id: 'scene-id' },
       song: {},
-    } as any;
+    } as Track;
 
     trackRepo.findOne!.mockResolvedValue(track);
-    trackRepo.save!.mockImplementation(async (t) => t);
+    trackRepo.save!.mockImplementation((t: Track) => Promise.resolve(t));
 
-    const result = await service.updateStatus({ trackId: 'track-id' } as any, {
-      status: LicensingStatus.APPROVED,
-    });
+    const result = await service.updateStatus(
+      buildTrackIdDto('track-id'),
+      buildUpdateStatusDto(LicensingStatus.APPROVED),
+    );
 
     expect(result.licensingStatus).toBe(LicensingStatus.APPROVED);
     expect(trackRepo.save).toHaveBeenCalled();
@@ -90,14 +98,15 @@ describe('TracksService', () => {
       licensingStatus: LicensingStatus.APPROVED,
       scene: { id: 'scene-id' },
       song: {},
-    } as any;
+    } as Track;
 
     trackRepo.findOne!.mockResolvedValue(track);
 
     await expect(
-      service.updateStatus({ trackId: 'track-id' } as any, {
-        status: LicensingStatus.PENDING,
-      }),
+      service.updateStatus(
+        buildTrackIdDto('track-id'),
+        buildUpdateStatusDto(LicensingStatus.PENDING),
+      ),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 });

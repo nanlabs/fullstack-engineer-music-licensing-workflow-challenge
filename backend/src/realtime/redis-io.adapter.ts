@@ -5,11 +5,12 @@ import { createAdapter } from '@socket.io/redis-adapter';
 import { createClient } from 'redis';
 import { Logger } from '@nestjs/common';
 import { envs } from 'config/envs';
+import type { Server, ServerOptions } from 'socket.io';
 
 const logger = new Logger('RedisIoAdapter');
 
 export class RedisIoAdapter extends IoAdapter {
-  private adapterConstructor: ReturnType<typeof createAdapter>;
+  private adapterConstructor?: ReturnType<typeof createAdapter>;
 
   constructor(app: INestApplicationContext) {
     super(app);
@@ -28,14 +29,14 @@ export class RedisIoAdapter extends IoAdapter {
     logger.log(`RedisIoAdapter connected to ${url}`);
   }
 
-  createIOServer(port: number, options?: any): any {
+  createIOServer(port: number, options: Partial<ServerOptions> = {}): Server {
     const server = super.createIOServer(port, {
       ...options,
       cors: {
         origin: '*',
-        ...(options?.cors || {}),
+        ...(options.cors ?? {}),
       },
-    });
+    }) as Server;
 
     if (!this.adapterConstructor) {
       throw new Error(
