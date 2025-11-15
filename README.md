@@ -1,91 +1,94 @@
-# Fullstack Engineer Challenge – Music Licensing Workflow (Backend Only)
+# Music Licensing Workflow API
 
-Este proyecto implementa la API del desafío técnico, enfocada exclusivamente en el **Backend** ya que mi postulación es para un rol Back End.  
-Incluye:  
-- Backend en **NestJS**  
-- Base de datos **PostgreSQL**  
-- **Redis** para sincronización de WebSockets
-- Aplicación **dockerizada**  
-- Soporte para múltiples instancias vía `docker-compose`
-- Pruebas **unitarias** y una prueba de **integración**
-- **GitHub Actions CI** (lint + unit tests)
+Backend-only implementation of the NaNLABS Fullstack Engineer Challenge. The service exposes a NestJS API with PostgreSQL persistence, Redis-backed WebSockets, Dockerized infrastructure, and CI-ready tooling.
 
 ---
 
-## 📦 Tecnologías principales
+## Tech Stack
 
-- **Node.js 20**
-- **NestJS**
-- **TypeScript**
-- **PostgreSQL**
-- **Redis**
-- **Docker & Docker Compose**
-- **Jest** (unit tests + integración)
-- **ESLint**
-- **GitHub Actions** (CI)
+- Node.js 20, NestJS, TypeScript
+- PostgreSQL, Redis
+- Docker & Docker Compose
+- Jest (unit + integration tests)
+- ESLint, GitHub Actions CI
 
 ---
 
-# 🚀 Cómo levantar el proyecto
+## Prerequisites
 
-Clonar el repositorio
-
-En la raiz del projecto debes hacer una copia del ```env.example``` y renombrarlo a ```.env```
-
-Asegurate de tener:
-
-- Docker Desktop (Mas comodo para ver los logs)
+- Docker Desktop (recommended to inspect logs)
 - Docker Compose
+- Copy `.env.example` to `.env` at the repository root and adjust values as needed
 
-Luego ejecutá desde la raíz del proyecto:
+---
+
+## Getting Started
+
+From the repository root, start the full stack:
 
 ```
 docker compose up --watch --build
 ```
 
-Esto levanta:
- - backend (instancia 1)
- - backend-2 (instancia 2 para simular WebSockets distribuidos)
- - postgres
- - redis
+Services launched:
 
-Podras ver el swagger en
-Backend 1: ```http://localhost:3000/api/v1/swagger```
-Backend 2 (Para probar websockets): ```http://localhost:3001/api/v1/swagger```                                    
+- `backend` (instance 1)
+- `backend-2` (instance 2 for distributed WebSocket testing)
+- `postgres`
+- `redis`
 
-Tambien tienes disponible en la carpeta ```docs``` el archivo ```NaNLABS Challenge.postman_collection.json``` que es la colection de postman para poder probar todos los endpoints, este esta scripteado de tal forma que cuando crees por ejemplo una movie el id se asigna directamente a las otra peticionas haciendolo muy comodo de probar
+Swagger UIs:
 
-Tambien en en cuenta que en cualquier momento puedes usar el endpoint seed, ya sea desde postman o swagger, eso borra las dbs y carga datos de prueba
-Recomiendo hacerlo para probar de manera comoda
+- Backend 1: http://localhost:3000/api/v1/swagger
+- Backend 2: http://localhost:3001/api/v1/swagger
 
----
-
-# 🛢️ Cómo ver Database
-
-Pueden ver la db con pgAdmin, ingresando a ```http://localhost:5050/```
-Email: __admin@example.com__
-Password: __admin123__
-
-Agregar DB a pgAdmin
-Click derecho en __Servers__ > __Regsiter__ > __Server..__
-En _Name_, poner cualquier nombre, en la pestaña _Connection_, en _Host name/adress_ poner "__db__" y en _Username_ y _Password_ poner "__postgres__", se clickea _Save_ y con esto ya podras ver la db
-
-*(Luego dentro de la db, vas a databases > music >schemas > public > tables y veras las disitntas tablas, haciendo click derecho sobre cualquier tabla en View/Edit Data > All Rows, asi podras ver los datos)*
+The `docs/NaNLABS Challenge.postman_collection.json` Postman collection contains scripted flows that automatically re-use IDs between requests, making manual testing easy. At any time you can call the `/seed` endpoint (via Swagger or Postman) to wipe databases and reinsert demo data.
 
 ---
 
-#  Como probar Websockets
+## Database Access
 
-Primero recomiendo usar el ```seed``` para ya dejar los datos listos
+Use pgAdmin at http://localhost:5050/
 
-Recomiendo primero que nada abrir ambos swaggers
-Backend 1: ```http://localhost:3000/api/v1/swagger```
-Backend 2: ```http://localhost:3001/api/v1/swagger```
+- Email: `admin@example.com`
+- Password: `admin123`
 
-Precionar F12 en ambos y poner la consola del navegador
+Add the server:
 
-En la carpeta ```docs``` copiara el contenido del archivo ```test-socket.js```, y lo pegaras en ambas consolas, con eso estamos haciendo el join al websocket para una de las scenes el seed, (tambien puedes cambiarlo y usar uno propio en el file dice hay un comentario que dice donde cambiarlo)
+1. Right-click **Servers** → **Register** → **Server…**
+2. In **General**, set any name.
+3. In **Connection**:
+   - Host: `db`
+   - Username: `postgres`
+   - Password: `postgres`
+4. Save, then browse `Servers > music > Schemas > public > Tables` and use _View/Edit Data → All Rows_ to inspect data.
 
-Y listo, ahora deberias ya ahi mismo desde cualqueira de los swaggers o postman y ejecutar el ```PATCH /api/v1/tracks/status/tracks/6ae31240-2601-4b68-a8d4-21bb06e75ab9``` (en swagger es el que esta por default en el try out)
+---
 
-Al ejecutar veras el log de aviso de cambio de estado en ambas consolas, lo cual al ser cada uno de un backend distinto, demuestra el funcionamiento del webhook y la sincronizacion de instancias a travez de redis
+## WebSocket Testing
+
+1. Run the `/seed` endpoint to preload demo data.
+2. Open both Swagger UIs (ports 3000 and 3001) and launch the browser devtools console (F12).
+3. Copy the script from `docs/test-socket.js` into each console. The file includes a comment showing where to adapt the scene ID if needed.
+4. Trigger `PATCH /api/v1/tracks/status/tracks/6ae31240-2601-4b68-a8d4-21bb06e75ab9` (pre-filled in Swagger). Both consoles should log the status change, demonstrating Redis-backed synchronization between backend instances.
+
+---
+
+## Testing & Tooling
+
+I keep expanding my automated testing practice, so the current suite prioritizes the most critical services first. Unit tests cover the business logic entry points, while integration tests exercise the workflow against the real Docker services.
+
+### Unit tests
+
+1. `cd backend`
+2. Install dependencies: `npm install`
+3. Run them locally: `npm run test`
+
+### Integration tests
+
+1. Ensure `docker compose up --watch --build` is already running so PostgreSQL and Redis are available.
+2. From a second terminal: `cd backend && npm run test:e2e`
+
+### Continuous integration
+
+The GitHub Actions workflow at `.github/workflows/backend-ci.yml` lints the codebase and runs the unit test suite on every push. Integration tests remain manual because they depend on the Docker stack.
