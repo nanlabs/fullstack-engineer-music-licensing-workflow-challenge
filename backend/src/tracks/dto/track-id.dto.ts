@@ -12,12 +12,12 @@ export class TrackIdDto {
   @ApiProperty({
     description: 'The id of the track',
     examples: {
-      approved: { value: SEED_TRACK_1_ID, description: 'SEED DATA - Approved' },
-      negotiating: {
+      '1-pending': { value: SEED_TRACK_3_ID, description: 'SEED DATA - Pending' },
+      '2-negotiating': {
         value: SEED_TRACK_2_ID,
         description: 'SEED DATA - Negotiating',
       },
-      pending: { value: SEED_TRACK_3_ID, description: 'SEED DATA - Pending' },
+      '3-approved': { value: SEED_TRACK_1_ID, description: 'SEED DATA - Approved' },
     },
   })
   trackId: string;
