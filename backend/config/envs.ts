@@ -1,10 +1,12 @@
 import 'dotenv/config';
 import * as joi from 'joi';
+import { ENVIRONMENT } from './constants';
 
 interface EnvVars {
   BACKEND_PORT: number;
   BACKEND_PORT2: number;
   API_VERSION: string;
+  ENV: ENVIRONMENT;
   DB_HOST: string;
   DB_PORT: number;
   DB_USER: string;
@@ -22,6 +24,10 @@ const envsSchema = joi
     BACKEND_PORT: joi.number().default(3000),
     BACKEND_PORT2: joi.number().default(3001),
     API_VERSION: joi.string().required(),
+    ENV: joi
+      .string()
+      .valid(ENVIRONMENT.DEV, ENVIRONMENT.PROD)
+      .default(ENVIRONMENT.DEV),
     DB_HOST: joi.string().required(),
     DB_PORT: joi.number().required(),
     DB_USER: joi.string().required(),
@@ -47,6 +53,7 @@ export const envs = {
   backendPort: envVars.BACKEND_PORT,
   backendPort2: envVars.BACKEND_PORT2,
   apiVersion: envVars.API_VERSION,
+  environment: envVars.ENV,
   dbHost: envVars.DB_HOST,
   dbPort: envVars.DB_PORT,
   dbUser: envVars.DB_USER,
