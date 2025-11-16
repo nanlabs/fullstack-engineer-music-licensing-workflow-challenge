@@ -33,9 +33,9 @@ const envsSchema = joi
     DB_USER: joi.string().required(),
     DB_PASSWORD: joi.string().required(),
     DB_NAME: joi.string().required(),
-    PGADMIN_EMAIL: joi.string().required(),
-    PGADMIN_PASSWORD: joi.string().required(),
-    PGADMIN_PORT: joi.number().required(),
+    PGADMIN_EMAIL: joi.string().default('admin@example.com'),
+    PGADMIN_PASSWORD: joi.string().default('admin123'),
+    PGADMIN_PORT: joi.number().default(5050),
     REDIS_HOST: joi.string().required(),
     REDIS_PORT: joi.number().required(),
   })
