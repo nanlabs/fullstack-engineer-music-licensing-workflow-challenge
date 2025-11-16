@@ -27,6 +27,9 @@ services:
       - .env
     environment:
       - BACKEND_PORT=${BACKEND_PORT:-3000}
+    depends_on:
+      - db
+      - redis
     develop:
       watch:
         - action: sync
@@ -49,6 +52,9 @@ services:
       - .env
     environment:
       - BACKEND_PORT=${BACKEND_PORT2:-3001}
+    depends_on:
+      - db
+      - redis
     develop:
       watch:
         - action: sync
