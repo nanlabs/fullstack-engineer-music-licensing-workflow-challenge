@@ -1,0 +1,53 @@
+{
+  "isNotEmpty": {
+    "track_id": "Track ID is required",
+    "status": "Status is required",
+    "title": "Title is required",
+    "description": "Description is required",
+    "movie_id": "Movie ID is required",
+    "artist": "Artist is required",
+    "genre": "Genre is required",
+    "scene_id": "Scene ID is required",
+    "song_id": "Song ID is required",
+    "start_time_seconds": "Start time in seconds is required",
+    "end_time_seconds": "End time in seconds is required",
+    "movieId": "Movie ID is required"
+  },
+  "isString": {
+    "title": "Title must be a string",
+    "description": "Description must be a string",
+    "search": "Search must be a string",
+    "artist": "Artist must be a string",
+    "genre": "Genre must be a string"
+  },
+  "isInt": {
+    "track_id": "Track ID must be an integer",
+    "page": "Page must be an integer",
+    "limit": "Limit must be an integer",
+    "movie_id": "Movie ID must be an integer",
+    "scene_id": "Scene ID must be an integer",
+    "song_id": "Song ID must be an integer",
+    "start_time_seconds": "Start time in seconds must be an integer",
+    "end_time_seconds": "End time in seconds must be an integer",
+    "movieId": "Movie ID must be an integer"
+  },
+  "isPositive": {
+    "track_id": "Track ID must be a positive number",
+    "page": "Page must be a positive number",
+    "limit": "Limit must be a positive number",
+    "start_time_seconds": "Start time in seconds must be a positive number",
+    "end_time_seconds": "End time in seconds must be a positive number"
+  },
+  "isEnum": {
+    "status": "Status must be a valid enum value"
+  },
+  "isNumber": {
+    "movie_id": "Movie ID must be a number"
+  },
+  "license": {
+    "status": {
+      "alreadyGenerated": "License has already been generated",
+      "notAllowed": "Status transition is not allowed"
+    }
+  }
+}

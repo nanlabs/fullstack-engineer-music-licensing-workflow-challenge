@@ -1,0 +1,53 @@
+{
+  "isNotEmpty": {
+    "track_id": "El ID de la pista es requerido",
+    "status": "El estado es requerido",
+    "title": "El título es requerido",
+    "description": "La descripción es requerida",
+    "movie_id": "El ID de la película es requerido",
+    "artist": "El artista es requerido",
+    "genre": "El género es requerido",
+    "scene_id": "El ID de la escena es requerido",
+    "song_id": "El ID de la canción es requerido",
+    "start_time_seconds": "El tiempo de inicio en segundos es requerido",
+    "end_time_seconds": "El tiempo de fin en segundos es requerido",
+    "movieId": "El ID de la película es requerido"
+  },
+  "isString": {
+    "title": "El título debe ser una cadena de texto",
+    "description": "La descripción debe ser una cadena de texto",
+    "search": "La búsqueda debe ser una cadena de texto",
+    "artist": "El artista debe ser una cadena de texto",
+    "genre": "El género debe ser una cadena de texto"
+  },
+  "isInt": {
+    "track_id": "El ID de la pista debe ser un número entero",
+    "page": "La página debe ser un número entero",
+    "limit": "El límite debe ser un número entero",
+    "movie_id": "El ID de la película debe ser un número entero",
+    "scene_id": "El ID de la escena debe ser un número entero",
+    "song_id": "El ID de la canción debe ser un número entero",
+    "start_time_seconds": "El tiempo de inicio en segundos debe ser un número entero",
+    "end_time_seconds": "El tiempo de fin en segundos debe ser un número entero",
+    "movieId": "El ID de la película debe ser un número entero"
+  },
+  "isPositive": {
+    "track_id": "El ID de la pista debe ser un número positivo",
+    "page": "La página debe ser un número positivo",
+    "limit": "El límite debe ser un número positivo",
+    "start_time_seconds": "El tiempo de inicio en segundos debe ser un número positivo",
+    "end_time_seconds": "El tiempo de fin en segundos debe ser un número positivo"
+  },
+  "isEnum": {
+    "status": "El estado debe ser un valor de enumeración válido"
+  },
+  "isNumber": {
+    "movie_id": "El ID de la película debe ser un número"
+  },
+  "license": {
+    "status": {
+      "alreadyGenerated": "La licencia ya ha sido generada",
+      "notAllowed": "La transición de estado no está permitida"
+    }
+  }
+}

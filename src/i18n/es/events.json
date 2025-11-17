@@ -1,0 +1,21 @@
+{
+  "movie": {
+    "notFound": "Película no encontrada"
+  },
+  "scene": {
+    "notFound": "Escena no encontrada"
+  },
+  "song": {
+    "notFound": "Canción no encontrada"
+  },
+  "track": {
+    "notFound": "Pista no encontrada"
+  },
+  "license": {
+    "notFound": "Licencia no encontrada",
+    "status": {
+      "alreadyGenerated": "La licencia ya ha sido generada",
+      "notAllowed": "El estado de la licencia no es permitido"
+    }
+  }
+}
