@@ -1,0 +1,604 @@
+{
+  "info": {
+    "_postman_id": "music-licensing-workflow",
+    "name": "Music Licensing Workflow API",
+    "description": "Colección de ejemplos para probar la API de gestión de licencias de música",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Movies",
+      "item": [
+        {
+          "name": "Create Movie",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Inception\",\n  \"description\": \"A mind-bending thriller\",\n  \"releaseYear\": 2010\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/movies",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "movies"]
+            }
+          }
+        },
+        {
+          "name": "Get All Movies",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/movies",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "movies"]
+            }
+          }
+        },
+        {
+          "name": "Get Movie by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/movies/{{MOVIE_ID}}",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "movies", "{{MOVIE_ID}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Movie",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Inception - Director's Cut\",\n  \"releaseYear\": 2010\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/movies/{{MOVIE_ID}}",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "movies", "{{MOVIE_ID}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Movie",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/movies/{{MOVIE_ID}}",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "movies", "{{MOVIE_ID}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Scenes",
+      "item": [
+        {
+          "name": "Create Scene",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Dream Within Dream\",\n  \"description\": \"Key action scene in limbo\",\n  \"sceneNumber\": 5,\n  \"movieId\": \"{{MOVIE_ID}}\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/scenes",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "scenes"]
+            }
+          }
+        },
+        {
+          "name": "Get All Scenes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/scenes",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "scenes"]
+            }
+          }
+        },
+        {
+          "name": "Get Scenes by Movie",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/scenes/movie/{{MOVIE_ID}}",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "scenes", "movie", "{{MOVIE_ID}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Scene by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/scenes/{{SCENE_ID}}",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "scenes", "{{SCENE_ID}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Scene",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Dream Within Dream - Extended\",\n  \"description\": \"Extended key action scene\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/scenes/{{SCENE_ID}}",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "scenes", "{{SCENE_ID}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Scene",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/scenes/{{SCENE_ID}}",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "scenes", "{{SCENE_ID}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Songs",
+      "item": [
+        {
+          "name": "Create Song",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Time\",\n  \"artist\": \"Hans Zimmer\",\n  \"durationSeconds\": 540\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/songs",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "songs"]
+            }
+          }
+        },
+        {
+          "name": "Get All Songs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/songs",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "songs"]
+            }
+          }
+        },
+        {
+          "name": "Get Song by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/songs/{{SONG_ID}}",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "songs", "{{SONG_ID}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Song",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Time - Extended Mix\",\n  \"durationSeconds\": 720\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/songs/{{SONG_ID}}",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "songs", "{{SONG_ID}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Song",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/songs/{{SONG_ID}}",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "songs", "{{SONG_ID}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Tracks",
+      "item": [
+        {
+          "name": "Create Track",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Background - Theme Music\",\n  \"sceneId\": \"{{SCENE_ID}}\",\n  \"songId\": \"{{SONG_ID}}\",\n  \"startTimeSeconds\": 0,\n  \"endTimeSeconds\": 180\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/tracks",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "tracks"]
+            }
+          }
+        },
+        {
+          "name": "Get All Tracks",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/tracks",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "tracks"]
+            }
+          }
+        },
+        {
+          "name": "Get Tracks by Scene",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/tracks/scene/{{SCENE_ID}}",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "tracks", "scene", "{{SCENE_ID}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Track by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/tracks/{{TRACK_ID}}",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "tracks", "{{TRACK_ID}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Track",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Background - Theme Music (Extended)\",\n  \"startTimeSeconds\": 10,\n  \"endTimeSeconds\": 200\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/tracks/{{TRACK_ID}}",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "tracks", "{{TRACK_ID}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Track",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/tracks/{{TRACK_ID}}",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "tracks", "{{TRACK_ID}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Licenses",
+      "item": [
+        {
+          "name": "Create License",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"trackId\": \"{{TRACK_ID}}\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/licenses",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "licenses"]
+            }
+          }
+        },
+        {
+          "name": "Get All Licenses",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/licenses",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "licenses"]
+            }
+          }
+        },
+        {
+          "name": "Get License by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/licenses/{{LICENSE_ID}}",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "licenses", "{{LICENSE_ID}}"]
+            }
+          }
+        },
+        {
+          "name": "Get License by Track",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/licenses/track/{{TRACK_ID}}",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "licenses", "track", "{{TRACK_ID}}"]
+            }
+          }
+        },
+        {
+          "name": "Update License Status - NEGOTIATING",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"NEGOTIATING\",\n  \"notes\": \"Contacted Hans Zimmer representatives\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/licenses/{{LICENSE_ID}}/status",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "licenses", "{{LICENSE_ID}}", "status"]
+            }
+          }
+        },
+        {
+          "name": "Update License Status - APPROVED",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"APPROVED\",\n  \"notes\": \"License agreement signed\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/licenses/{{LICENSE_ID}}/status",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "licenses", "{{LICENSE_ID}}", "status"]
+            }
+          }
+        },
+        {
+          "name": "Update License Status - REJECTED",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"REJECTED\",\n  \"notes\": \"Rights holder declined the licensing agreement\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/licenses/{{LICENSE_ID}}/status",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "licenses", "{{LICENSE_ID}}", "status"]
+            }
+          }
+        },
+        {
+          "name": "Delete License",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/licenses/{{LICENSE_ID}}",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "licenses", "{{LICENSE_ID}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Real-time Updates (SSE)",
+      "item": [
+        {
+          "name": "Listen to License Updates",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/licenses/updates/stream",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "licenses", "updates", "stream"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "MOVIE_ID",
+      "value": "paste-movie-id-here"
+    },
+    {
+      "key": "SCENE_ID",
+      "value": "paste-scene-id-here"
+    },
+    {
+      "key": "SONG_ID",
+      "value": "paste-song-id-here"
+    },
+    {
+      "key": "TRACK_ID",
+      "value": "paste-track-id-here"
+    },
+    {
+      "key": "LICENSE_ID",
+      "value": "paste-license-id-here"
+    }
+  ]
+}
