@@ -1,132 +1,263 @@
-# 🚀 Fullstack Engineer Challenge – Music Licensing Workflow
+# Music Licensing Workflow
 
-Welcome to the **Fullstack Engineer Challenge!** 🎸🎬  
-In this challenge, you'll help the fictional company **ACME BROS PICTURES** build a system to manage the **music licensing process** for their movies.
+Backend API para gestionar workflows de licenciamiento de música en películas. El sistema permite organizar películas, escenas, canciones y tracks, además de manejar solicitudes de licencias con un flujo de estados definido.
 
-## 🎯 Context
+## Características
 
-Each movie scene can contain **multiple music tracks**, and each track requires licensing. The licensing process involves back-and-forth negotiations with rights holders (artists or labels), which makes tracking each license's progress essential.
+- **CRUD completo** para películas, escenas, canciones y tracks
+- **Gestión de licencias** con flujo de estados (PENDING → NEGOTIATING → APPROVED/REJECTED)
+- **SSE updates** para notificaciones en tiempo real de cambios en licencias
+- **Tests unitarios y e2e** con buena cobertura
 
-Your task is to create a simple system to:
+## Tech Stack
 
-- Manage **tracks** for each movie scene.
-- Associate a **song** to each track, specifying its start and end time.
-- Track the **licensing status** of each song via a stateful workflow.
-- Provide a way for other users to **immediately see updates** in licensing status (real-time or near real-time visibility).
+- **Runtime**: Node.js
+- **Framework**: NestJS 11
+- **Database**: PostgreSQL 16
+- **ORM**: TypeORM
+- **Testing**: Jest
+- **Validation**: class-validator
+- **Real-time**: Server-Sent Events (SSE)
+- **API Documentation**: Swagger
 
-## 📌 Requirements
+## Getting Started
 
-### ⚙️ Tech Stack
+### Requisitos
 
-> ⚡ **Must Include** - Use the following technologies, aligned with our tech stack:
+- Docker y Docker Compose
+- Node.js 18+ (opcional, si quieres correr localmente sin Docker)
 
-- **Backend:** You can use any stack you're comfortable with, but we recommend using any of the following:
-  - TypeScript + NestJS (you can use Fastify or Koa if you prefer)
-  - Python + FastAPI (you can use Flask or Django if you prefer)
-  - Go + Fiber (you can use Gin or Echo if you prefer)
-- **API:** REST and/or GraphQL (you choose, and justify your choice if you only use one)
-- **Frontend:** React (using any framework such as Next.js, Remix, or bare metal with Vite)
-- **Database:** PostgreSQL (primary), MongoDB (optional if needed)
-- **Containerization:** Docker (required)
-- **Bonus:** Kafka, Redis, ArgoCD, Kubernetes (if you want to go further)
+### Instalación
 
-### 📦 Deliverables
+1. **Clonar el repositorio**
 
-> 📥 **Your submission must be a Pull Request that includes:**
-
-- A **backend** exposing the required APIs.
-- A **data model** to manage:
-  - Movies, scenes, tracks, songs, and their licensing states.
-- Endpoints or queries/mutations to:
-  - Create a track and associate a song.
-  - Update the licensing state of a track.
-  - Query all tracks for a given scene/movie, including licensing status.
-- A **frontend built with React** to:
-  - Visualize the movie scenes and associated tracks.
-  - Show licensing status.
-  - Allow status updates (basic UI).
-- Suggest a real-time implementation using WebSockets, GraphQL Subscriptions, or Server-Sent Events.
-- Docker setup to run the entire app locally.
-- A `README.md` with:
-  - Setup instructions
-  - Tech decisions and tradeoffs
-  - If applicable, your reasoning for using REST, GraphQL, or both
-
-> [!TIP]
-> Use the `docs` folder to store any additional documentation or diagrams that help explain your solution.
-> Mention any assumptions or constraints in your `README.md`.
-
-### 📂 Folder Suggestions
-
-You can organize your project like this (suggested but not mandatory):
-
-```txt
-/
-├── .github/
-│   ├── workflows/
-│   └── PULL_REQUEST_TEMPLATE.md
-├── docs/
-├── backend/
-│   ├── src/
-│   ├── test/
-│   └── Dockerfile
-├── frontend/
-│   ├── src/
-│   ├── public/
-│   └── Dockerfile
-├── compose.yml
-├── .env.example
-├── README.md
-├── .prettierrc.js
-├── eslint.config.mjs
-└── . . .
+```bash
+git clone https://github.com/nanlabs/fullstack-engineer-music-licensing-workflow-challenge.git
+cd fullstack-engineer-music-licensing-workflow-challenge
 ```
 
-## 🌟 Nice to Have
+2. **Copiar variables de entorno**
 
-> 💡 **Bonus Points For:**
+```bash
+cp .env.example .env
+```
 
-- Automated testing and CI pipeline using GitHub Actions.
-- Unit or integration tests for API or key logic.
-- Use of MongoDB for unstructured metadata (if justified).
-- Real-time suggestion implemented (e.g., via GraphQL subscriptions or WebSockets).
-- Basic usage of **Kafka or Redis** (e.g., async event messaging).
-- Usage of ArgoCD or Kubernetes (not expected, but definitely cool).
+3. **Con Docker (recomendado)**
 
-> [!TIP]
-> Looking for inspiration or additional ideas to earn extra points? Check out our **[Awesome NaNLABS repository](https://github.com/nanlabs/awesome-nan)** for reference projects and best practices! 🚀
+```bash
+docker-compose up
+```
 
-## 🧪 Submission Guidelines
+El backend estará disponible en `http://localhost:3000`
 
-> 📌 **Follow these steps to submit your solution:**
+La documentación interactiva de Swagger está disponible en `http://localhost:3000/api`
 
-1. **Fork this repository.**
-2. **Create a feature branch** for your implementation.
-3. **Commit your changes** with meaningful commit messages.
-4. **Open a Pull Request** following the provided template.
-5. **Our team will review** and provide feedback.
+1. **Sin Docker**
 
-## ✅ Evaluation Criteria
+```bash
+npm install
+npm run build
+npm run start:dev
+```
 
-> 🔍 **What we'll be looking at:**
+Necesitarás una instancia de PostgreSQL corriendo en `localhost:5432`.
 
-- Ability to **work across the stack** (NestJS, PostgreSQL, React/Next.js/. . .).
-- Clean, modular and maintainable code with proper Git usage.
-- A good understanding of **data modeling and workflow management**.
-- Clear written communication in your README.
-- Ability to **propose real-time solutions**, even if not implemented.
+## Scripts disponibles
 
-## 💬 Final Notes
+```bash
+# Desarrollo con hot reload
+npm run start:dev
 
-> [!TIP]
-> This challenge is designed to be flexible!
+# Build para producción
+npm run build
 
-Here are some tips to help you succeed:
+# Ejecutar en producción
+npm run start:prod
 
-- If you feel confident on the backend but less on the frontend, focus there—but try to show some basic UI.
-- Likewise, if you're stronger on the frontend, make sure your backend has clean structure and endpoints.
-- Time-box it: we don’t expect perfection. We want to see **how you think and solve problems**.
+# Tests unitarios
+npm run test
 
-## 🏁 Good luck and have fun building
+# Tests e2e
+npm run test:e2e
 
-If you have any questions, feel free to reach out.
+# Coverage
+npm run test:cov
+
+# Linter + Prettier
+npm run lint
+npm run format
+```
+
+## Estructura del Proyecto
+
+```
+src/
+├── entities/          # Modelos de datos (TypeORM)
+├── modules/           # Módulos por dominio
+│   ├── movies/        # Películas
+│   ├── scenes/        # Escenas
+│   ├── songs/         # Canciones
+│   ├── tracks/        # Tracks (canción en escena)
+│   └── licenses/      # Licencias
+├── app.module.ts      # Módulo raíz
+└── main.ts            # Entry point
+```
+
+Cada módulo sigue la estructura:
+```
+module/
+├── dto/               # Data Transfer Objects
+├── module.controller.ts
+├── module.service.ts
+├── module.repository.ts
+└── module.spec.ts     # Tests
+```
+
+## API Endpoints
+
+### Películas
+
+- `GET /api/movies` - Listar todas
+- `POST /api/movies` - Crear
+- `GET /api/movies/:id` - Obtener una
+- `PATCH /api/movies/:id` - Actualizar
+- `DELETE /api/movies/:id` - Eliminar
+
+### Escenas
+
+- `GET /api/scenes` - Listar todas
+- `GET /api/scenes/movie/:movieId` - Listar por película
+- `POST /api/scenes` - Crear
+- `GET /api/scenes/:id` - Obtener una
+- `PATCH /api/scenes/:id` - Actualizar
+- `DELETE /api/scenes/:id` - Eliminar
+
+### Canciones
+
+- `GET /api/songs` - Listar todas
+- `POST /api/songs` - Crear
+- `GET /api/songs/:id` - Obtener una
+- `PATCH /api/songs/:id` - Actualizar
+- `DELETE /api/songs/:id` - Eliminar
+
+### Tracks
+
+- `GET /api/tracks` - Listar todos
+- `GET /api/tracks/scene/:sceneId` - Listar por escena
+- `POST /api/tracks` - Crear
+- `GET /api/tracks/:id` - Obtener uno
+- `PATCH /api/tracks/:id` - Actualizar
+- `DELETE /api/tracks/:id` - Eliminar
+
+### Licencias
+
+- `GET /api/licenses` - Listar todas
+- `POST /api/licenses` - Crear
+- `GET /api/licenses/:id` - Obtener una
+- `GET /api/licenses/track/:trackId` - Obtener por track
+- `PATCH /api/licenses/:id/status` - Cambiar estado
+- `DELETE /api/licenses/:id` - Eliminar
+- `SSE /api/licenses/updates/stream` - Stream de actualizaciones en tiempo real
+
+## Testing
+
+### Unit Tests
+
+Tests de servicios usando mocks de repositories:
+
+```bash
+npm run test
+```
+
+### E2E Tests
+
+Tests de endpoints completos:
+
+```bash
+npm run test:e2e
+```
+
+### Probar con Swagger
+
+La forma más fácil de probar la API es usando la documentación interactiva de Swagger:
+
+1. Inicia la aplicación: `docker-compose up`
+2. Abre tu navegador en: `http://localhost:3000/api`
+3. Explora todos los endpoints disponibles
+4. Prueba directamente desde la interfaz haciendo click en "Try it out"
+
+### Probar con Postman
+
+En la carpeta `/docs` encontrarás:
+
+- **postman-collection.json** - Colección completa para importar en Postman
+- **TESTING.md** - Guía paso a paso para probar la API
+
+Lee [TESTING.md](/docs/TESTING.md) para instrucciones detalladas.
+
+## Decisiones Técnicas y Trade-offs
+
+### ¿Por qué NestJS?
+
+Elegí NestJS principalmente por su estructura opinada y patrón de módulos. El proyecto crece más fácil así porque cada dominio (películas, escenas, licencias) está aislado. Además, los decoradores y los servicios inyectados hacen que los tests sean más simples sin necesidad de reinventar la rueda.
+
+Comparado con Express puro hubiera sido más rápido al inicio pero sin estructura tendríamos spaghetti code. Fastify es buena alternativa pero NestJS tiene mejor ecosistema de testing y documentación.
+
+### ¿Por qué PostgreSQL?
+
+Para este caso, PostgreSQL es la opción obvia. Tenemos relaciones claras entre películas → escenas → tracks → songs → licenses. Un documento en MongoDB no simplificaría nada aquí. Además, TypeORM maneja bien las relaciones.
+
+### ¿Por qué REST y no GraphQL?
+
+Inicialmente pensé en GraphQL para evitar over-fetching, pero acá el flujo es bastante directo: queremos listar, crear, actualizar y cambiar estados. REST es más que suficiente. GraphQL hubiera sido overkill y añadía complejidad sin beneficio real. Si eventualmente necesitamos filtros complejos o queries específicas desde frontend, podemos migrar a GraphQL después.
+
+### Real-time con SSE
+
+Para notificaciones en tiempo real de cambios de licencias elegí Server-Sent Events en lugar de WebSockets. Razones:
+
+- **SSE es más simple**: HTTP estándar, maneja reconexión automática, no necesita cliente especial
+- **Casos de uso del proyecto**: Solo notificamos cambios (unidireccional), no hay comunicación bidireccional
+- **Menos overhead**: WebSockets es mejor para chat o aplicaciones muy interactivas
+
+Si mañana tenemos miles de usuarios simultáneos podría ser cuello de botella, y ahí se podría migrar a algo como WS. Pero para esta escala está bien.
+
+### Documentación con Swagger/OpenAPI
+
+Se agregó Swagger para proporcionar documentación interactiva de la API. Beneficios:
+
+- **Documentación automática**: Se genera automáticamente desde los decoradores `@ApiTags`, `@ApiOperation`, `@ApiProperty`
+- **Interfaz interactiva**: Los desarrolladores pueden probar los endpoints directamente sin Postman
+- **Estándar OpenAPI**: Es el estándar de facto para documentación de APIs REST
+- **Bajo costo**: NestJS tiene soporte nativo y es fácil de mantener
+
+## Notas y Consideraciones
+
+- El DB está persistido en un volumen Docker para mantener datos entre reiniciadores
+- No puede haber dos escenas con el mismo `sceneNumber` en la misma película
+- El flujo de estados de licencias es `PENDING → NEGOTIATING → APPROVED/REJECTED`, y está validado en el servicio
+- Las actualizaciones en tiempo real se propagan a través de SSE, conectados al endpoint `/api/licenses/updates/stream`
+- Redis/Kakfa No se incluyen porque la complejidad no se justifica en este proyecto. Los queries son rápidos sin cache distribuido. Si en el futuro necesitamos escalar, se pueden agregar fácilmente.
+
+## Cómo verificar antes de hacer commit
+
+```bash
+# Verificar que todo compila
+npm run build
+
+# Correr linter
+npm run lint
+
+# Tests unitarios con coverage
+npm run test:cov
+
+# Tests e2e
+npm run test:e2e
+```
+
+## Autor
+
+Joaquín Manero
+
+## Licencia
+
+UNLICENSED
