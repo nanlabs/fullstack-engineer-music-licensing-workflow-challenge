@@ -179,9 +179,12 @@ describe('Songs E2E', () => {
     it('should return empty object for non-existent song', () => {
       return request(app.getHttpServer())
         .get('/api/songs/00000000-0000-0000-0000-000000000000')
-        .expect(200)
+        .expect(404)
         .expect((res) => {
-          expect(res.body).toEqual({});
+          expect(res.body.statusCode).toBe(404);
+          expect(res.body.code).toBe('RESOURCE_NOT_FOUND');
+          expect(res.body).toHaveProperty('message');
+          expect(res.body).toHaveProperty('timestamp');
         });
     });
   });
@@ -264,16 +267,25 @@ describe('Songs E2E', () => {
       // Verificar que ya no existe
       await request(app.getHttpServer())
         .get(`/api/songs/${songIdToDelete}`)
-        .expect(200)
+        .expect(404)
         .expect((res) => {
-          expect(res.body).toEqual({});
+          expect(res.body.statusCode).toBe(404);
+          expect(res.body.code).toBe('RESOURCE_NOT_FOUND');
+          expect(res.body).toHaveProperty('message');
+          expect(res.body).toHaveProperty('timestamp');
         });
     });
 
     it('should handle deletion of non-existent song', () => {
       return request(app.getHttpServer())
         .delete('/api/songs/00000000-0000-0000-0000-000000000000')
-        .expect(200);
+        .expect(404)
+        .expect((res) => {
+          expect(res.body.statusCode).toBe(404);
+          expect(res.body.code).toBe('RESOURCE_NOT_FOUND');
+          expect(res.body).toHaveProperty('message');
+          expect(res.body).toHaveProperty('timestamp');
+        });
     });
   });
 
@@ -317,9 +329,12 @@ describe('Songs E2E', () => {
       // Verificar que fue borrado
       const deletedRes = await request(app.getHttpServer())
         .get(`/api/songs/${songId}`)
-        .expect(200);
+        .expect(404);
 
-      expect(deletedRes.body).toEqual({});
+      expect(deletedRes.body.statusCode).toBe(404);
+      expect(deletedRes.body.code).toBe('RESOURCE_NOT_FOUND');
+      expect(deletedRes.body).toHaveProperty('message');
+      expect(deletedRes.body).toHaveProperty('timestamp');
     });
   });
 });

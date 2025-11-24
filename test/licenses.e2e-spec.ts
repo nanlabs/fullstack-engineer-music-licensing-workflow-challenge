@@ -310,9 +310,12 @@ describe('Licenses E2E', () => {
     it('should return empty object for non-existent license', () => {
       return request(app.getHttpServer())
         .get('/api/licenses/00000000-0000-0000-0000-000000000000')
-        .expect(200)
+        .expect(404)
         .expect((res) => {
-          expect(res.body).toEqual({});
+          expect(res.body.statusCode).toBe(404);
+          expect(res.body.code).toBe('RESOURCE_NOT_FOUND');
+          expect(res.body.message).toBeDefined();
+          expect(res.body.timestamp).toBeDefined();
         });
     });
   });
@@ -398,7 +401,7 @@ describe('Licenses E2E', () => {
         .send({
           status: LicenseStatus.NEGOTIATING,
         })
-        .expect(500); // Should return error due to invalid transition
+        .expect(400); // InvalidStateTransitionException returns 400
     });
 
     it('should fail with invalid status enum', () => {
@@ -459,16 +462,23 @@ describe('Licenses E2E', () => {
       // Verificar que ya no existe
       await request(app.getHttpServer())
         .get(`/api/licenses/${licenseIdToDelete}`)
-        .expect(200)
+        .expect(404)
         .expect((res) => {
-          expect(res.body).toEqual({});
+          expect(res.body.statusCode).toBe(404);
+          expect(res.body.code).toBe('RESOURCE_NOT_FOUND');
         });
     });
 
     it('should handle deletion of non-existent license', () => {
       return request(app.getHttpServer())
         .delete('/api/licenses/00000000-0000-0000-0000-000000000000')
-        .expect(200);
+        .expect(404)
+        .expect((res) => {
+          expect(res.body.statusCode).toBe(404);
+          expect(res.body.code).toBe('RESOURCE_NOT_FOUND');
+          expect(res.body.message).toBeDefined();
+          expect(res.body.timestamp).toBeDefined();
+        });
     });
   });
 
@@ -529,9 +539,10 @@ describe('Licenses E2E', () => {
       // Verificar que fue borrado
       const deletedRes = await request(app.getHttpServer())
         .get(`/api/licenses/${licenseId}`)
-        .expect(200);
+        .expect(404);
 
-      expect(deletedRes.body).toEqual({});
+      expect(deletedRes.body.statusCode).toBe(404);
+      expect(deletedRes.body.code).toBe('RESOURCE_NOT_FOUND');
     });
 
     it('should test valid license status transitions', async () => {
@@ -585,7 +596,12 @@ describe('Licenses E2E', () => {
         .send({
           status: LicenseStatus.REJECTED,
         })
-        .expect(500);
+        .expect(400)
+        .expect((res) => {
+          expect(res.body.statusCode).toBe(400);
+          expect(res.body.message).toBeDefined();
+          expect(res.body.timestamp).toBeDefined();
+        });
     });
 
     it('should fetch license by track and verify relationships', async () => {

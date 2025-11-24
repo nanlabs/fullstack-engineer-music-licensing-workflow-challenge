@@ -5,9 +5,10 @@ import { LicensesService } from './licenses.service';
 import { LicensesRepository } from './licenses.repository';
 import { LicensesController } from './licenses.controller';
 import { LicensesUpdatesGateway } from './licenses-updates.gateway';
+import { TracksModule } from '../tracks/tracks.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([License])],
+  imports: [TypeOrmModule.forFeature([License]), TracksModule],
   controllers: [LicensesController],
   providers: [LicensesRepository, LicensesService, LicensesUpdatesGateway],
   exports: [LicensesService],

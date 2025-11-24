@@ -6,11 +6,17 @@ import { LicensesService } from './licenses.service';
 import { LicensesRepository } from './licenses.repository';
 import { LicensesUpdatesGateway } from './licenses-updates.gateway';
 import { CreateLicenseDto, UpdateLicenseStatusDto } from './dto';
+import {
+  ResourceNotFoundException,
+  InvalidStateTransitionException,
+} from '../../common/exceptions';
+import { TracksRepository } from '../tracks/tracks.repository';
 
 describe('LicensesService', () => {
   let service: LicensesService;
   let mockRepository: jest.Mocked<LicensesRepository>;
   let mockUpdatesGateway: any;
+  let mockTracksRepository: jest.Mocked<TracksRepository>;
 
   beforeEach(async () => {
     mockRepository = {
@@ -26,6 +32,10 @@ describe('LicensesService', () => {
       emitLicenseUpdate: jest.fn(),
     };
 
+    mockTracksRepository = {
+      findOne: jest.fn(),
+    } as any;
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         LicensesService,
@@ -36,6 +46,10 @@ describe('LicensesService', () => {
         {
           provide: LicensesUpdatesGateway,
           useValue: mockUpdatesGateway,
+        },
+        {
+          provide: TracksRepository,
+          useValue: mockTracksRepository,
         },
       ],
     }).compile();
@@ -55,6 +69,11 @@ describe('LicensesService', () => {
         notes: 'Initial license request',
       };
 
+      const mockTrack = {
+        id: 'track-1',
+        name: 'Main Theme',
+      } as any;
+
       const mockLicense = {
         id: 'license-1',
         ...createLicenseDto,
@@ -63,12 +82,28 @@ describe('LicensesService', () => {
         updatedAt: new Date(),
       } as License;
 
+      mockTracksRepository.findOne.mockResolvedValue(mockTrack);
       mockRepository.create.mockResolvedValue(mockLicense);
 
       const result = await service.create(createLicenseDto);
 
+      expect(mockTracksRepository.findOne).toHaveBeenCalledWith('track-1');
       expect(mockRepository.create).toHaveBeenCalledWith(createLicenseDto);
       expect(result).toEqual(mockLicense);
+    });
+
+    it('should throw ResourceNotFoundException when track does not exist', async () => {
+      const createLicenseDto: CreateLicenseDto = {
+        trackId: 'non-existent-track',
+        status: LicenseStatus.PENDING,
+        notes: 'Initial license request',
+      };
+
+      mockTracksRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.create(createLicenseDto)).rejects.toThrow(
+        ResourceNotFoundException,
+      );
     });
   });
 
@@ -134,12 +169,12 @@ describe('LicensesService', () => {
       expect(result).toEqual(mockLicense);
     });
 
-    it('should return null when license is not found', async () => {
+    it('should throw ResourceNotFoundException when license is not found', async () => {
       mockRepository.findOne.mockResolvedValue(null);
 
-      const result = await service.findOne('non-existent-id');
-
-      expect(result).toBeNull();
+      await expect(service.findOne('non-existent-id')).rejects.toThrow(
+        ResourceNotFoundException,
+      );
     });
   });
 
@@ -212,7 +247,7 @@ describe('LicensesService', () => {
       expect(result).toEqual(updatedLicense);
     });
 
-    it('should throw error when license not found', async () => {
+    it('should throw ResourceNotFoundException when license not found', async () => {
       mockRepository.findOne.mockResolvedValue(null);
 
       const updateDto: UpdateLicenseStatusDto = {
@@ -221,10 +256,10 @@ describe('LicensesService', () => {
 
       await expect(
         service.updateStatus('non-existent-id', updateDto),
-      ).rejects.toThrow('License with id non-existent-id not found');
+      ).rejects.toThrow(ResourceNotFoundException);
     });
 
-    it('should throw error on invalid state transition', async () => {
+    it('should throw InvalidStateTransitionException on invalid state transition', async () => {
       const currentLicense = {
         id: 'license-1',
         trackId: 'track-1',
@@ -243,7 +278,7 @@ describe('LicensesService', () => {
 
       await expect(
         service.updateStatus('license-1', updateDto),
-      ).rejects.toThrow('Invalid state transition from APPROVED to PENDING');
+      ).rejects.toThrow(InvalidStateTransitionException);
     });
 
     it('should allow transition from PENDING to NEGOTIATING', async () => {
@@ -369,19 +404,32 @@ describe('LicensesService', () => {
 
   describe('remove', () => {
     it('should delete a license by id', async () => {
+      const mockLicense = {
+        id: 'license-1',
+        trackId: 'track-1',
+        status: LicenseStatus.PENDING,
+        notes: 'Pending approval',
+        track: null as any,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as License;
+
+      mockRepository.findOne.mockResolvedValue(mockLicense);
       mockRepository.remove.mockResolvedValue(undefined);
 
-      await service.remove('license-1');
+      const result = await service.remove('license-1');
 
+      expect(mockRepository.findOne).toHaveBeenCalledWith('license-1');
       expect(mockRepository.remove).toHaveBeenCalledWith('license-1');
+      expect(result.message).toBe('License deleted successfully');
     });
 
-    it('should handle deletion of non-existent license', async () => {
-      mockRepository.remove.mockResolvedValue(undefined);
+    it('should throw ResourceNotFoundException when deleting non-existent license', async () => {
+      mockRepository.findOne.mockResolvedValue(null);
 
-      await service.remove('non-existent-id');
-
-      expect(mockRepository.remove).toHaveBeenCalledWith('non-existent-id');
+      await expect(service.remove('non-existent-id')).rejects.toThrow(
+        ResourceNotFoundException,
+      );
     });
   });
 });

@@ -5,6 +5,7 @@ import { Movie } from '../../entities';
 import { MoviesService } from './movies.service';
 import { MoviesRepository } from './movies.repository';
 import { CreateMovieDto, UpdateMovieDto } from './dto';
+import { ResourceNotFoundException } from '../../common/exceptions';
 
 describe('MoviesService', () => {
   let service: MoviesService;
@@ -124,12 +125,12 @@ describe('MoviesService', () => {
       expect(result).toEqual(mockMovie);
     });
 
-    it('should return null when movie is not found', async () => {
+    it('should throw ResourceNotFoundException when movie is not found', async () => {
       mockRepository.findOne.mockResolvedValue(null);
 
-      const result = await service.findOne('non-existent-id');
-
-      expect(result).toBeNull();
+      await expect(service.findOne('non-existent-id')).rejects.toThrow(
+        ResourceNotFoundException,
+      );
     });
   });
 
@@ -161,34 +162,47 @@ describe('MoviesService', () => {
       expect(result).toEqual(mockUpdatedMovie);
     });
 
-    it('should return null when movie to update is not found', async () => {
+    it('should throw ResourceNotFoundException when movie to update is not found', async () => {
       const updateMovieDto: UpdateMovieDto = {
         title: 'Non-existent Movie',
       };
 
       mockRepository.update.mockResolvedValue(null);
 
-      const result = await service.update('non-existent-id', updateMovieDto);
-
-      expect(result).toBeNull();
+      await expect(
+        service.update('non-existent-id', updateMovieDto),
+      ).rejects.toThrow(ResourceNotFoundException);
     });
   });
 
   describe('remove', () => {
     it('should delete a movie by id', async () => {
+      const mockMovie: Movie = {
+        id: 'movie-1',
+        title: 'Inception',
+        description: 'A mind-bending thriller',
+        releaseYear: 2010,
+        scenes: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      mockRepository.findOne.mockResolvedValue(mockMovie);
       mockRepository.remove.mockResolvedValue(undefined);
 
-      await service.remove('movie-1');
+      const result = await service.remove('movie-1');
 
+      expect(mockRepository.findOne).toHaveBeenCalledWith('movie-1');
       expect(mockRepository.remove).toHaveBeenCalledWith('movie-1');
+      expect(result.message).toBe('Movie deleted successfully');
     });
 
-    it('should handle deletion of non-existent movie', async () => {
-      mockRepository.remove.mockResolvedValue(undefined);
+    it('should throw ResourceNotFoundException when deleting non-existent movie', async () => {
+      mockRepository.findOne.mockResolvedValue(null);
 
-      await service.remove('non-existent-id');
-
-      expect(mockRepository.remove).toHaveBeenCalledWith('non-existent-id');
+      await expect(service.remove('non-existent-id')).rejects.toThrow(
+        ResourceNotFoundException,
+      );
     });
   });
 });

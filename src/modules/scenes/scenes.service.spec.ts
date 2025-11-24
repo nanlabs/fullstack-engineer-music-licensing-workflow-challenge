@@ -3,10 +3,16 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ScenesService } from './scenes.service';
 import { ScenesRepository } from './scenes.repository';
+import {
+  ResourceNotFoundException,
+  DuplicateResourceException,
+} from '../../common/exceptions';
+import { MoviesRepository } from '../movies/movies.repository';
 
 describe('ScenesService', () => {
   let service: ScenesService;
   let mockRepository: jest.Mocked<ScenesRepository>;
+  let mockMoviesRepository: jest.Mocked<MoviesRepository>;
 
   beforeEach(async () => {
     mockRepository = {
@@ -18,12 +24,20 @@ describe('ScenesService', () => {
       remove: jest.fn(),
     } as any;
 
+    mockMoviesRepository = {
+      findOne: jest.fn(),
+    } as any;
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ScenesService,
         {
           provide: ScenesRepository,
           useValue: mockRepository,
+        },
+        {
+          provide: MoviesRepository,
+          useValue: mockMoviesRepository,
         },
       ],
     }).compile();
@@ -44,17 +58,69 @@ describe('ScenesService', () => {
         movieId: 'movie-1',
       };
 
+      const mockMovie = {
+        id: 'movie-1',
+        title: 'Inception',
+      } as any;
+
       const mockScene = {
         id: 'scene-1',
         ...createSceneDto,
       } as any;
 
+      mockMoviesRepository.findOne.mockResolvedValue(mockMovie);
+      mockRepository.findByMovieId.mockResolvedValue([]);
       mockRepository.create.mockResolvedValue(mockScene);
 
       const result = await service.create(createSceneDto);
 
+      expect(mockMoviesRepository.findOne).toHaveBeenCalledWith('movie-1');
+      expect(mockRepository.findByMovieId).toHaveBeenCalledWith('movie-1');
       expect(mockRepository.create).toHaveBeenCalledWith(createSceneDto);
       expect(result).toEqual(mockScene);
+    });
+
+    it('should throw ResourceNotFoundException when movie does not exist', async () => {
+      const createSceneDto = {
+        name: 'Dream Within Dream',
+        description: 'Key action scene',
+        sceneNumber: 5,
+        movieId: 'non-existent-movie',
+      };
+
+      mockMoviesRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.create(createSceneDto)).rejects.toThrow(
+        ResourceNotFoundException,
+      );
+    });
+
+    it('should throw DuplicateResourceException when sceneNumber already exists for movie', async () => {
+      const createSceneDto = {
+        name: 'Dream Within Dream',
+        description: 'Key action scene',
+        sceneNumber: 5,
+        movieId: 'movie-1',
+      };
+
+      const mockMovie = {
+        id: 'movie-1',
+        title: 'Inception',
+      } as any;
+
+      const existingScene = {
+        id: 'scene-1',
+        name: 'Existing Scene',
+        sceneNumber: 5,
+        movieId: 'movie-1',
+      } as any;
+
+      mockMoviesRepository.findOne.mockResolvedValue(mockMovie);
+      mockRepository.findByMovieId.mockResolvedValue([existingScene]);
+
+      await expect(service.create(createSceneDto)).rejects.toThrow(
+        DuplicateResourceException,
+      );
     });
   });
 
@@ -100,12 +166,12 @@ describe('ScenesService', () => {
       expect(result).toEqual(mockScene);
     });
 
-    it('should return null when scene is not found', async () => {
+    it('should throw ResourceNotFoundException when scene is not found', async () => {
       mockRepository.findOne.mockResolvedValue(null);
 
-      const result = await service.findOne('non-existent-id');
-
-      expect(result).toBeNull();
+      await expect(service.findOne('non-existent-id')).rejects.toThrow(
+        ResourceNotFoundException,
+      );
     });
   });
 
@@ -155,26 +221,42 @@ describe('ScenesService', () => {
       expect(result).toEqual(mockScene);
     });
 
-    it('should return null when scene to update is not found', async () => {
+    it('should throw ResourceNotFoundException when scene to update is not found', async () => {
       const updateSceneDto = { name: 'Updated Scene' };
 
       mockRepository.update.mockResolvedValue(null);
 
-      const result = await service.update('non-existent-id', updateSceneDto);
-
-      expect(result).toBeNull();
+      await expect(
+        service.update('non-existent-id', updateSceneDto),
+      ).rejects.toThrow(ResourceNotFoundException);
     });
   });
 
   describe('remove', () => {
     it('should delete a scene', async () => {
       const sceneId = 'scene-1';
+      const mockScene = {
+        id: sceneId,
+        name: 'Dream Within Dream',
+        sceneNumber: 5,
+      } as any;
 
+      mockRepository.findOne.mockResolvedValue(mockScene);
       mockRepository.remove.mockResolvedValue(undefined);
 
-      await service.remove(sceneId);
+      const result = await service.remove(sceneId);
 
+      expect(mockRepository.findOne).toHaveBeenCalledWith(sceneId);
       expect(mockRepository.remove).toHaveBeenCalledWith(sceneId);
+      expect(result.message).toBe('Scene deleted successfully');
+    });
+
+    it('should throw ResourceNotFoundException when deleting non-existent scene', async () => {
+      mockRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.remove('non-existent-id')).rejects.toThrow(
+        ResourceNotFoundException,
+      );
     });
   });
 });

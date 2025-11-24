@@ -4,6 +4,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { SongsService } from './songs.service';
 import { SongsRepository } from './songs.repository';
 import { CreateSongDto, UpdateSongDto } from './dto';
+import { ResourceNotFoundException } from '../../common/exceptions';
 
 describe('SongsService', () => {
   let service: SongsService;
@@ -122,12 +123,12 @@ describe('SongsService', () => {
       expect(result).toEqual(mockSong);
     });
 
-    it('should return null when song is not found', async () => {
+    it('should throw ResourceNotFoundException when song is not found', async () => {
       mockRepository.findOne.mockResolvedValue(null);
 
-      const result = await service.findOne('non-existent-id');
-
-      expect(result).toBeNull();
+      await expect(service.findOne('non-existent-id')).rejects.toThrow(
+        ResourceNotFoundException,
+      );
     });
   });
 
@@ -159,34 +160,47 @@ describe('SongsService', () => {
       expect(result).toEqual(mockUpdatedSong);
     });
 
-    it('should return null when song to update is not found', async () => {
+    it('should throw ResourceNotFoundException when song to update is not found', async () => {
       const updateSongDto: UpdateSongDto = {
         title: 'Non-existent Song',
       };
 
       mockRepository.update.mockResolvedValue(null);
 
-      const result = await service.update('non-existent-id', updateSongDto);
-
-      expect(result).toBeNull();
+      await expect(
+        service.update('non-existent-id', updateSongDto),
+      ).rejects.toThrow(ResourceNotFoundException);
     });
   });
 
   describe('remove', () => {
     it('should delete a song by id', async () => {
+      const mockSong = {
+        id: 'song-1',
+        title: 'Time',
+        artist: 'Hans Zimmer',
+        durationSeconds: 276,
+        tracks: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as any;
+
+      mockRepository.findOne.mockResolvedValue(mockSong);
       mockRepository.remove.mockResolvedValue(undefined);
 
-      await service.remove('song-1');
+      const result = await service.remove('song-1');
 
+      expect(mockRepository.findOne).toHaveBeenCalledWith('song-1');
       expect(mockRepository.remove).toHaveBeenCalledWith('song-1');
+      expect(result.message).toBe('Song deleted successfully');
     });
 
-    it('should handle deletion of non-existent song', async () => {
-      mockRepository.remove.mockResolvedValue(undefined);
+    it('should throw ResourceNotFoundException when deleting non-existent song', async () => {
+      mockRepository.findOne.mockResolvedValue(null);
 
-      await service.remove('non-existent-id');
-
-      expect(mockRepository.remove).toHaveBeenCalledWith('non-existent-id');
+      await expect(service.remove('non-existent-id')).rejects.toThrow(
+        ResourceNotFoundException,
+      );
     });
   });
 });

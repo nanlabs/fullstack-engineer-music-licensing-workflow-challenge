@@ -4,10 +4,15 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { TracksService } from './tracks.service';
 import { TracksRepository } from './tracks.repository';
 import { CreateTrackDto, UpdateTrackDto } from './dto';
+import { ResourceNotFoundException } from '../../common/exceptions';
+import { ScenesRepository } from '../scenes/scenes.repository';
+import { SongsRepository } from '../songs/songs.repository';
 
 describe('TracksService', () => {
   let service: TracksService;
   let mockRepository: jest.Mocked<TracksRepository>;
+  let mockScenesRepository: jest.Mocked<ScenesRepository>;
+  let mockSongsRepository: jest.Mocked<SongsRepository>;
 
   beforeEach(async () => {
     mockRepository = {
@@ -19,12 +24,28 @@ describe('TracksService', () => {
       remove: jest.fn(),
     } as any;
 
+    mockScenesRepository = {
+      findOne: jest.fn(),
+    } as any;
+
+    mockSongsRepository = {
+      findOne: jest.fn(),
+    } as any;
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TracksService,
         {
           provide: TracksRepository,
           useValue: mockRepository,
+        },
+        {
+          provide: ScenesRepository,
+          useValue: mockScenesRepository,
+        },
+        {
+          provide: SongsRepository,
+          useValue: mockSongsRepository,
         },
       ],
     }).compile();
@@ -46,6 +67,16 @@ describe('TracksService', () => {
         endTimeSeconds: 120,
       };
 
+      const mockScene = {
+        id: 'scene-1',
+        name: 'Scene 1',
+      } as any;
+
+      const mockSong = {
+        id: 'song-1',
+        title: 'Main Theme',
+      } as any;
+
       const mockTrack = {
         id: 'track-1',
         ...createTrackDto,
@@ -56,12 +87,54 @@ describe('TracksService', () => {
         updatedAt: new Date(),
       } as any;
 
+      mockScenesRepository.findOne.mockResolvedValue(mockScene);
+      mockSongsRepository.findOne.mockResolvedValue(mockSong);
       mockRepository.create.mockResolvedValue(mockTrack);
 
       const result = await service.create(createTrackDto);
 
+      expect(mockScenesRepository.findOne).toHaveBeenCalledWith('scene-1');
+      expect(mockSongsRepository.findOne).toHaveBeenCalledWith('song-1');
       expect(mockRepository.create).toHaveBeenCalledWith(createTrackDto);
       expect(result).toEqual(mockTrack);
+    });
+
+    it('should throw ResourceNotFoundException when scene does not exist', async () => {
+      const createTrackDto: CreateTrackDto = {
+        name: 'Main Theme',
+        sceneId: 'non-existent-scene',
+        songId: 'song-1',
+        startTimeSeconds: 0,
+        endTimeSeconds: 120,
+      };
+
+      mockScenesRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.create(createTrackDto)).rejects.toThrow(
+        ResourceNotFoundException,
+      );
+    });
+
+    it('should throw ResourceNotFoundException when song does not exist', async () => {
+      const createTrackDto: CreateTrackDto = {
+        name: 'Main Theme',
+        sceneId: 'scene-1',
+        songId: 'non-existent-song',
+        startTimeSeconds: 0,
+        endTimeSeconds: 120,
+      };
+
+      const mockScene = {
+        id: 'scene-1',
+        name: 'Scene 1',
+      } as any;
+
+      mockScenesRepository.findOne.mockResolvedValue(mockScene);
+      mockSongsRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.create(createTrackDto)).rejects.toThrow(
+        ResourceNotFoundException,
+      );
     });
   });
 
@@ -174,12 +247,12 @@ describe('TracksService', () => {
       expect(result).toEqual(mockTrack);
     });
 
-    it('should return null when track is not found', async () => {
+    it('should throw ResourceNotFoundException when track is not found', async () => {
       mockRepository.findOne.mockResolvedValue(null);
 
-      const result = await service.findOne('non-existent-id');
-
-      expect(result).toBeNull();
+      await expect(service.findOne('non-existent-id')).rejects.toThrow(
+        ResourceNotFoundException,
+      );
     });
   });
 
@@ -216,34 +289,51 @@ describe('TracksService', () => {
       expect(result).toEqual(mockUpdatedTrack);
     });
 
-    it('should return null when track to update is not found', async () => {
+    it('should throw ResourceNotFoundException when track to update is not found', async () => {
       const updateTrackDto: UpdateTrackDto = {
         name: 'Non-existent Track',
       };
 
       mockRepository.update.mockResolvedValue(null);
 
-      const result = await service.update('non-existent-id', updateTrackDto);
-
-      expect(result).toBeNull();
+      await expect(
+        service.update('non-existent-id', updateTrackDto),
+      ).rejects.toThrow(ResourceNotFoundException);
     });
   });
 
   describe('remove', () => {
     it('should delete a track by id', async () => {
+      const mockTrack = {
+        id: 'track-1',
+        name: 'Main Theme',
+        sceneId: 'scene-1',
+        songId: 'song-1',
+        startTimeSeconds: 0,
+        endTimeSeconds: 120,
+        scene: null,
+        song: null,
+        license: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as any;
+
+      mockRepository.findOne.mockResolvedValue(mockTrack);
       mockRepository.remove.mockResolvedValue(undefined);
 
-      await service.remove('track-1');
+      const result = await service.remove('track-1');
 
+      expect(mockRepository.findOne).toHaveBeenCalledWith('track-1');
       expect(mockRepository.remove).toHaveBeenCalledWith('track-1');
+      expect(result.message).toBe('Track deleted successfully');
     });
 
-    it('should handle deletion of non-existent track', async () => {
-      mockRepository.remove.mockResolvedValue(undefined);
+    it('should throw ResourceNotFoundException when deleting non-existent track', async () => {
+      mockRepository.findOne.mockResolvedValue(null);
 
-      await service.remove('non-existent-id');
-
-      expect(mockRepository.remove).toHaveBeenCalledWith('non-existent-id');
+      await expect(service.remove('non-existent-id')).rejects.toThrow(
+        ResourceNotFoundException,
+      );
     });
   });
 });

@@ -9,6 +9,6 @@ import { SongsController } from './songs.controller';
   imports: [TypeOrmModule.forFeature([Song])],
   controllers: [SongsController],
   providers: [SongsRepository, SongsService],
-  exports: [SongsService],
+  exports: [SongsService, SongsRepository],
 })
 export class SongsModule {}
