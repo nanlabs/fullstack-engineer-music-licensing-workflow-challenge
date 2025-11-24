@@ -12,7 +12,7 @@ import { Movie } from './movie.entity';
 import { Track } from './track.entity';
 
 @Entity('scenes')
-@Unique(['movieId', 'sceneNumber']) // Ensure sceneNumber is unique per movie
+@Unique(['movieId', 'sceneNumber']) // i think that sceneNumber should be unique per movie. Each movie can contains multiple scenes, but each scene should be unique within that movie.
 export class Scene {
   @PrimaryGeneratedColumn('uuid')
   id: string;

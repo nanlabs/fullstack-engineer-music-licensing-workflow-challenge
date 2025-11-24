@@ -50,7 +50,7 @@ export class LicensesService {
 
     const updatedLicense = await this.findOne(id);
 
-    // Emitir actualización en tiempo real a todos los clientes conectados.
+    // Emitir actualización
     if (updatedLicense) {
       this.updatesGateway.emitLicenseUpdate(updatedLicense);
     }
@@ -78,7 +78,8 @@ export class LicensesService {
     return validTransitions[currentStatus]?.includes(newStatus) || false;
   }
 
-  async remove(id: string): Promise<void> {
-    return await this.licensesRepository.remove(id);
+  async remove(id: string): Promise<{ message: string }> {
+    await this.licensesRepository.remove(id);
+    return { message: 'License deleted successfully' };
   }
 }

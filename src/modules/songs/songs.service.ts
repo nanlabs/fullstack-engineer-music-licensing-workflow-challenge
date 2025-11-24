@@ -23,7 +23,8 @@ export class SongsService {
     return await this.songsRepository.update(id, updateSongDto);
   }
 
-  async remove(id: string): Promise<void> {
-    return await this.songsRepository.remove(id);
+  async remove(id: string): Promise<{ message: string }> {
+    await this.songsRepository.remove(id);
+    return { message: 'Song deleted successfully' };
   }
 }

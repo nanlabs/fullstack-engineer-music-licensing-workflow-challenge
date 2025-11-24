@@ -26,7 +26,8 @@ export class MoviesService {
     return await this.moviesRepository.update(id, updateMovieDto);
   }
 
-  async remove(id: string): Promise<void> {
-    return await this.moviesRepository.remove(id);
+  async remove(id: string): Promise<{ message: string }> {
+    await this.moviesRepository.remove(id);
+    return { message: 'Movie deleted successfully' };
   }
 }

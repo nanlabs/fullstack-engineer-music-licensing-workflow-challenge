@@ -1,10 +1,25 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.enableCors();
+
+  // Swagger configuration
+  const config = new DocumentBuilder()
+    .setTitle('Music Licensing Workflow API')
+    .setDescription('API for managing music licensing workflows in movies')
+    .setVersion('1.0.0')
+    .addTag('movies', 'Movie management')
+    .addTag('scenes', 'Scene management')
+    .addTag('songs', 'Song management')
+    .addTag('tracks', 'Track management')
+    .addTag('licenses', 'License management')
+    .build();
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api', app, document);
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -20,5 +35,8 @@ async function bootstrap() {
   const port = process.env.PORT ?? 3000;
   await app.listen(port, '0.0.0.0');
   console.log(`Application is running on: http://localhost:${port}`);
+  console.log(
+    `Swagger documentation available at: http://localhost:${port}/api`,
+  );
 }
-bootstrap();
+void bootstrap();

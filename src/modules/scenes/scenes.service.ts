@@ -30,7 +30,8 @@ export class ScenesService {
     return await this.scenesRepository.update(id, updateSceneDto);
   }
 
-  async remove(id: string): Promise<void> {
-    return await this.scenesRepository.remove(id);
+  async remove(id: string): Promise<{ message: string }> {
+    await this.scenesRepository.remove(id);
+    return { message: 'Scene deleted successfully' };
   }
 }

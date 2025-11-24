@@ -30,7 +30,8 @@ export class TracksService {
     return await this.tracksRepository.update(id, updateTrackDto);
   }
 
-  async remove(id: string): Promise<void> {
-    return await this.tracksRepository.remove(id);
+  async remove(id: string): Promise<{ message: string }> {
+    await this.tracksRepository.remove(id);
+    return { message: 'Track deleted successfully' };
   }
 }

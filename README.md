@@ -7,7 +7,6 @@ Backend API para gestionar workflows de licenciamiento de música en películas.
 - **CRUD completo** para películas, escenas, canciones y tracks
 - **Gestión de licencias** con flujo de estados (PENDING → NEGOTIATING → APPROVED/REJECTED)
 - **SSE updates** para notificaciones en tiempo real de cambios en licencias
-- **Repository Pattern** para abstracción de acceso a datos
 - **Tests unitarios y e2e** con buena cobertura
 
 ## Tech Stack
@@ -19,6 +18,7 @@ Backend API para gestionar workflows de licenciamiento de música en películas.
 - **Testing**: Jest
 - **Validation**: class-validator
 - **Real-time**: Server-Sent Events (SSE)
+- **API Documentation**: Swagger
 
 ## Getting Started
 
@@ -32,7 +32,7 @@ Backend API para gestionar workflows de licenciamiento de música en películas.
 1. **Clonar el repositorio**
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/nanlabs/fullstack-engineer-music-licensing-workflow-challenge.git
 cd fullstack-engineer-music-licensing-workflow-challenge
 ```
 
@@ -50,7 +50,9 @@ docker-compose up
 
 El backend estará disponible en `http://localhost:3000`
 
-4. **Sin Docker**
+La documentación interactiva de Swagger está disponible en `http://localhost:3000/api`
+
+1. **Sin Docker**
 
 ```bash
 npm install
@@ -175,7 +177,14 @@ Tests de endpoints completos:
 npm run test:e2e
 ```
 
-Los e2e tests usan una BD de prueba separada y validan el flujo completo de las operaciones.
+### Probar con Swagger
+
+La forma más fácil de probar la API es usando la documentación interactiva de Swagger:
+
+1. Inicia la aplicación: `docker-compose up`
+2. Abre tu navegador en: `http://localhost:3000/api`
+3. Explora todos los endpoints disponibles
+4. Prueba directamente desde la interfaz haciendo click en "Try it out"
 
 ### Probar con Postman
 
@@ -196,7 +205,7 @@ Comparado con Express puro hubiera sido más rápido al inicio pero sin estructu
 
 ### ¿Por qué PostgreSQL?
 
-Para este caso, PostgreSQL es la opción obvia. Tenemos relaciones claras entre películas → escenas → tracks → songs → licenses. Un documento en MongoDB no simplificaría nada aquí. Además, TypeORM maneja bien las relaciones y las migraciones.
+Para este caso, PostgreSQL es la opción obvia. Tenemos relaciones claras entre películas → escenas → tracks → songs → licenses. Un documento en MongoDB no simplificaría nada aquí. Además, TypeORM maneja bien las relaciones.
 
 ### ¿Por qué REST y no GraphQL?
 
@@ -210,7 +219,16 @@ Para notificaciones en tiempo real de cambios de licencias elegí Server-Sent Ev
 - **Casos de uso del proyecto**: Solo notificamos cambios (unidireccional), no hay comunicación bidireccional
 - **Menos overhead**: WebSockets es mejor para chat o aplicaciones muy interactivas
 
-El trade-off es que SSE es HTTP polling bajo el capó, así que si mañana tenemos miles de usuarios simultáneos podría ser cuello de botella. Pero para esta escala está bien.
+Si mañana tenemos miles de usuarios simultáneos podría ser cuello de botella, y ahí se podría migrar a algo como WS. Pero para esta escala está bien.
+
+### Documentación con Swagger/OpenAPI
+
+Se agregó Swagger para proporcionar documentación interactiva de la API. Beneficios:
+
+- **Documentación automática**: Se genera automáticamente desde los decoradores `@ApiTags`, `@ApiOperation`, `@ApiProperty`
+- **Interfaz interactiva**: Los desarrolladores pueden probar los endpoints directamente sin Postman
+- **Estándar OpenAPI**: Es el estándar de facto para documentación de APIs REST
+- **Bajo costo**: NestJS tiene soporte nativo y es fácil de mantener
 
 ## Notas y Consideraciones
 
@@ -218,6 +236,7 @@ El trade-off es que SSE es HTTP polling bajo el capó, así que si mañana tenem
 - No puede haber dos escenas con el mismo `sceneNumber` en la misma película
 - El flujo de estados de licencias es `PENDING → NEGOTIATING → APPROVED/REJECTED`, y está validado en el servicio
 - Las actualizaciones en tiempo real se propagan a través de SSE, conectados al endpoint `/api/licenses/updates/stream`
+- Redis/Kakfa No se incluyen porque la complejidad no se justifica en este proyecto. Los queries son rápidos sin cache distribuido. Si en el futuro necesitamos escalar, se pueden agregar fácilmente.
 
 ## Cómo verificar antes de hacer commit
 

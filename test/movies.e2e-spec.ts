@@ -37,6 +37,14 @@ describe('Movies E2E', () => {
 
     // Obtener DataSource para limpiar la BD después
     dataSource = moduleFixture.get<DataSource>(DataSource);
+
+    if (dataSource) {
+      await dataSource.query('DELETE FROM licenses');
+      await dataSource.query('DELETE FROM tracks');
+      await dataSource.query('DELETE FROM scenes');
+      await dataSource.query('DELETE FROM songs');
+      await dataSource.query('DELETE FROM movies');
+    }
   });
 
   afterAll(async () => {
