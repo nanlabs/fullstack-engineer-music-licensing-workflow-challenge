@@ -11,6 +11,7 @@ import { LicensesModule } from './modules/licenses/licenses.module';
 
 @Module({
   imports: [
+    //Como es a modo de prueba/desarrollo local y facilitar las pruebas, dejamos valores hardcodeados si no encuentra del .env.
     TypeOrmModule.forRoot({
       type: 'postgres',
       host: process.env.DATABASE_HOST || 'localhost',
