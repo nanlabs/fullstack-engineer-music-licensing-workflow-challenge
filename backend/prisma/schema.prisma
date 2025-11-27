@@ -1,0 +1,58 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Movie {
+  id          String   @id @default(uuid())
+  title       String
+  releaseYear Int
+  scenes      Scene[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Scene {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  movieId     String
+  movie       Movie    @relation(fields: [movieId], references: [id])
+  tracks      Track[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Song {
+  id        String   @id @default(uuid())
+  title     String
+  artist    String
+  duration  Int      // In seconds
+  tracks    Track[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum LicensingStatus {
+  PENDING
+  NEGOTIATING
+  APPROVED
+  REJECTED
+}
+
+model Track {
+  id        String          @id @default(uuid())
+  sceneId   String
+  scene     Scene           @relation(fields: [sceneId], references: [id])
+  songId    String
+  song      Song            @relation(fields: [songId], references: [id])
+  startTime Int             // In seconds
+  endTime   Int             // In seconds
+  status    LicensingStatus @default(PENDING)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+}
