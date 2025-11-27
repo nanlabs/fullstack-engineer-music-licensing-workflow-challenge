@@ -1,0 +1,451 @@
+openapi: 3.0.0
+paths:
+  /:
+    get:
+      operationId: AppController_getHello
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      tags:
+        - App
+  /movies:
+    post:
+      operationId: MoviesController_create
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMovieDto"
+      responses:
+        "201":
+          description: The movie has been successfully created.
+      summary: Create a new movie
+      tags: &a1
+        - movies
+    get:
+      operationId: MoviesController_findAll
+      parameters: []
+      responses:
+        "200":
+          description: Return all movies.
+      summary: Get all movies
+      tags: *a1
+  /movies/{id}:
+    get:
+      operationId: MoviesController_findOne
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Return the movie.
+        "404":
+          description: Movie not found.
+      summary: Get a movie by ID
+      tags: *a1
+    patch:
+      operationId: MoviesController_update
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMovieDto"
+      responses:
+        "200":
+          description: The movie has been successfully updated.
+      summary: Update a movie
+      tags: *a1
+    delete:
+      operationId: MoviesController_remove
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The movie has been successfully deleted.
+      summary: Delete a movie
+      tags: *a1
+  /scenes:
+    post:
+      operationId: ScenesController_create
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSceneDto"
+      responses:
+        "201":
+          description: The scene has been successfully created.
+      summary: Create a new scene
+      tags: &a2
+        - scenes
+    get:
+      operationId: ScenesController_findAll
+      parameters: []
+      responses:
+        "200":
+          description: Return all scenes.
+      summary: Get all scenes
+      tags: *a2
+  /scenes/{id}:
+    get:
+      operationId: ScenesController_findOne
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Return the scene.
+        "404":
+          description: Scene not found.
+      summary: Get a scene by ID
+      tags: *a2
+    patch:
+      operationId: ScenesController_update
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSceneDto"
+      responses:
+        "200":
+          description: The scene has been successfully updated.
+      summary: Update a scene
+      tags: *a2
+    delete:
+      operationId: ScenesController_remove
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The scene has been successfully deleted.
+      summary: Delete a scene
+      tags: *a2
+  /songs:
+    post:
+      operationId: SongsController_create
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSongDto"
+      responses:
+        "201":
+          description: The song has been successfully created.
+      summary: Create a new song
+      tags: &a3
+        - songs
+    get:
+      operationId: SongsController_findAll
+      parameters: []
+      responses:
+        "200":
+          description: Return all songs.
+      summary: Get all songs
+      tags: *a3
+  /songs/{id}:
+    get:
+      operationId: SongsController_findOne
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Return the song.
+        "404":
+          description: Song not found.
+      summary: Get a song by ID
+      tags: *a3
+    patch:
+      operationId: SongsController_update
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSongDto"
+      responses:
+        "200":
+          description: The song has been successfully updated.
+      summary: Update a song
+      tags: *a3
+    delete:
+      operationId: SongsController_remove
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The song has been successfully deleted.
+      summary: Delete a song
+      tags: *a3
+  /tracks:
+    post:
+      operationId: TracksController_create
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTrackDto"
+      responses:
+        "201":
+          description: The track has been successfully created.
+      summary: Create a new track
+      tags: &a4
+        - tracks
+    get:
+      operationId: TracksController_findAll
+      parameters: []
+      responses:
+        "200":
+          description: Return all tracks.
+      summary: Get all tracks
+      tags: *a4
+  /tracks/{id}:
+    get:
+      operationId: TracksController_findOne
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Return the track.
+        "404":
+          description: Track not found.
+      summary: Get a track by ID
+      tags: *a4
+    patch:
+      operationId: TracksController_update
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTrackDto"
+      responses:
+        "200":
+          description: The track has been successfully updated.
+      summary: Update a track
+      tags: *a4
+    delete:
+      operationId: TracksController_remove
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The track has been successfully deleted.
+      summary: Delete a track
+      tags: *a4
+info:
+  title: Music Licensing Workflow API
+  description: API for managing movies, scenes, songs, and licensing tracks
+  version: "1.0"
+  contact: {}
+tags: []
+servers: []
+components:
+  schemas:
+    CreateMovieDto:
+      type: object
+      properties:
+        title:
+          type: string
+          example: Inception
+          description: The title of the movie
+        releaseYear:
+          type: number
+          example: 2010
+          description: The release year of the movie
+      required:
+        - title
+        - releaseYear
+    UpdateMovieDto:
+      type: object
+      properties:
+        title:
+          type: string
+          example: Inception
+          description: The title of the movie
+        releaseYear:
+          type: number
+          example: 2010
+          description: The release year of the movie
+    CreateSceneDto:
+      type: object
+      properties:
+        name:
+          type: string
+          example: Opening Scene
+          description: The name of the scene
+        description:
+          type: string
+          example: Dream within a dream
+          description: Description of the scene
+        movieId:
+          type: string
+          example: uuid-of-movie
+          description: The ID of the movie this scene belongs to
+      required:
+        - name
+        - movieId
+    UpdateSceneDto:
+      type: object
+      properties:
+        name:
+          type: string
+          example: Opening Scene
+          description: The name of the scene
+        description:
+          type: string
+          example: Dream within a dream
+          description: Description of the scene
+        movieId:
+          type: string
+          example: uuid-of-movie
+          description: The ID of the movie this scene belongs to
+    CreateSongDto:
+      type: object
+      properties:
+        title:
+          type: string
+          example: Time
+          description: The title of the song
+        artist:
+          type: string
+          example: Hans Zimmer
+          description: The artist of the song
+        duration:
+          type: number
+          example: 275
+          description: Duration of the song in seconds
+      required:
+        - title
+        - artist
+        - duration
+    UpdateSongDto:
+      type: object
+      properties:
+        title:
+          type: string
+          example: Time
+          description: The title of the song
+        artist:
+          type: string
+          example: Hans Zimmer
+          description: The artist of the song
+        duration:
+          type: number
+          example: 275
+          description: Duration of the song in seconds
+    CreateTrackDto:
+      type: object
+      properties:
+        sceneId:
+          type: string
+          example: uuid-of-scene
+          description: The ID of the scene
+        songId:
+          type: string
+          example: uuid-of-song
+          description: The ID of the song
+        startTime:
+          type: number
+          example: 0
+          description: Start time of the track in the scene (seconds)
+        endTime:
+          type: number
+          example: 60
+          description: End time of the track in the scene (seconds)
+      required:
+        - sceneId
+        - songId
+        - startTime
+        - endTime
+    UpdateTrackDto:
+      type: object
+      properties:
+        sceneId:
+          type: string
+          example: uuid-of-scene
+          description: The ID of the scene
+        songId:
+          type: string
+          example: uuid-of-song
+          description: The ID of the song
+        startTime:
+          type: number
+          example: 0
+          description: Start time of the track in the scene (seconds)
+        endTime:
+          type: number
+          example: 60
+          description: End time of the track in the scene (seconds)
+        status:
+          type: string
+          enum:
+            - PENDING
+            - NEGOTIATING
+            - APPROVED
+            - REJECTED
+          description: The licensing status of the track
