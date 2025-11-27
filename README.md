@@ -1,132 +1,132 @@
-# 🚀 Fullstack Engineer Challenge – Music Licensing Workflow
+# 🎵 Music Licensing Workflow System
 
-Welcome to the **Fullstack Engineer Challenge!** 🎸🎬  
-In this challenge, you'll help the fictional company **ACME BROS PICTURES** build a system to manage the **music licensing process** for their movies.
+**Author**: [Your Name / OssFit Candidate]
 
-## 🎯 Context
+## 📋 Overview
 
-Each movie scene can contain **multiple music tracks**, and each track requires licensing. The licensing process involves back-and-forth negotiations with rights holders (artists or labels), which makes tracking each license's progress essential.
+This project implements a backend system for managing the music licensing process in movie production. It allows managing **Movies**, **Scenes**, **Songs**, and **Tracks**, tracking the licensing status of each track through a state machine workflow.
 
-Your task is to create a simple system to:
+The system is designed to be **scalable**, **real-time**, and **containerized**.
 
-- Manage **tracks** for each movie scene.
-- Associate a **song** to each track, specifying its start and end time.
-- Track the **licensing status** of each song via a stateful workflow.
-- Provide a way for other users to **immediately see updates** in licensing status (real-time or near real-time visibility).
+---
 
-## 📌 Requirements
+## 🛠️ Tech Stack & Architecture Decisions
 
-### ⚙️ Tech Stack
+### 1. Backend Framework: **NestJS**
+- **Decision**: Chosen for its modular architecture, strong TypeScript support, and dependency injection system.
+- **Benefit**: Ensures code maintainability and testability.
 
-> ⚡ **Must Include** - Use the following technologies, aligned with our tech stack:
+### 2. Database & ORM: **PostgreSQL + Prisma**
+- **Decision**: Used **PostgreSQL** for robust relational data management.
+- **Decision**: Selected **Prisma (v5)** as the ORM.
+    - *Note*: We explicitly used v5 to ensure stability with the current NestJS environment, avoiding recent breaking changes in v7.
+- **Schema**: Defined models for `Movie`, `Scene`, `Song`, and `Track` with proper foreign key relationships.
 
-- **Backend:** You can use any stack you're comfortable with, but we recommend using any of the following:
-  - TypeScript + NestJS (you can use Fastify or Koa if you prefer)
-  - Python + FastAPI (you can use Flask or Django if you prefer)
-  - Go + Fiber (you can use Gin or Echo if you prefer)
-- **API:** REST and/or GraphQL (you choose, and justify your choice if you only use one)
-- **Frontend:** React (using any framework such as Next.js, Remix, or bare metal with Vite)
-- **Database:** PostgreSQL (primary), MongoDB (optional if needed)
-- **Containerization:** Docker (required)
-- **Bonus:** Kafka, Redis, ArgoCD, Kubernetes (if you want to go further)
+### 3. Real-time Updates: **WebSockets + Redis**
+- **Decision**: Implemented a **Pub/Sub architecture** using **Redis**.
+- **Flow**:
+    1.  `TracksService` updates a status -> Publishes event to Redis (`track_updates`).
+    2.  `LicensingGateway` subscribes to Redis -> Broadcasts to WebSocket clients.
+- **Benefit**: Decouples the business logic from the WebSocket gateway, allowing the system to scale horizontally (e.g., multiple backend instances).
 
-### 📦 Deliverables
+### 4. Design Patterns
+- **Repository Pattern**: Abstracted data access into `BaseRepository` and specific repositories (e.g., `TracksRepository`). This separates business logic from database queries.
+- **State Machine**: Implemented in `TracksService` to enforce valid transitions for `LicensingStatus` (`PENDING` -> `NEGOTIATING` -> `APPROVED`/`REJECTED`).
 
-> 📥 **Your submission must be a Pull Request that includes:**
+---
 
-- A **backend** exposing the required APIs.
-- A **data model** to manage:
-  - Movies, scenes, tracks, songs, and their licensing states.
-- Endpoints or queries/mutations to:
-  - Create a track and associate a song.
-  - Update the licensing state of a track.
-  - Query all tracks for a given scene/movie, including licensing status.
-- A **frontend built with React** to:
-  - Visualize the movie scenes and associated tracks.
-  - Show licensing status.
-  - Allow status updates (basic UI).
-- Suggest a real-time implementation using WebSockets, GraphQL Subscriptions, or Server-Sent Events.
-- Docker setup to run the entire app locally.
-- A `README.md` with:
-  - Setup instructions
-  - Tech decisions and tradeoffs
-  - If applicable, your reasoning for using REST, GraphQL, or both
+## 🚀 Setup & Running
 
-> [!TIP]
-> Use the `docs` folder to store any additional documentation or diagrams that help explain your solution.
-> Mention any assumptions or constraints in your `README.md`.
+The entire application is containerized using **Docker**.
 
-### 📂 Folder Suggestions
+### Prerequisites
+- Docker & Docker Compose
+- Node.js (v18+) (for local development/testing)
 
-You can organize your project like this (suggested but not mandatory):
+### Steps
 
-```txt
-/
-├── .github/
-│   ├── workflows/
-│   └── PULL_REQUEST_TEMPLATE.md
-├── docs/
-├── backend/
-│   ├── src/
-│   ├── test/
-│   └── Dockerfile
-├── frontend/
-│   ├── src/
-│   ├── public/
-│   └── Dockerfile
-├── compose.yml
-├── .env.example
-├── README.md
-├── .prettierrc.js
-├── eslint.config.mjs
-└── . . .
+1.  **Clone the repository**:
+    ```bash
+    git clone <repo-url>
+    cd fullstack-engineer-music-licensing-workflow-challenge
+    ```
+
+2.  **Start Services**:
+    ```bash
+    docker-compose up -d --build
+    ```
+    This will start:
+    - **Backend API** (Port 3000)
+    - **PostgreSQL** (Port 5432)
+    - **Redis** (Port 6379)
+
+3.  **Access API Documentation**:
+    Open your browser at: [http://localhost:3000/api/docs](http://localhost:3000/api/docs)
+
+---
+
+## 🧪 Testing
+
+We have implemented both Unit and End-to-End (E2E) tests.
+
+### Running Tests
+```bash
+cd backend
+
+# Unit Tests (State Machine logic, etc.)
+npm run test
+
+# E2E Tests (Full workflow: Create Movie -> Scene -> Song -> Track -> Update Status)
+npm run test:e2e
 ```
 
-## 🌟 Nice to Have
+### CI/CD
+A **GitHub Actions** workflow (`.github/workflows/ci.yml`) is configured to automatically run:
+- Dependency installation
+- Prisma Client generation
+- Unit Tests
+On every push to `main`.
 
-> 💡 **Bonus Points For:**
+---
 
-- Automated testing and CI pipeline using GitHub Actions.
-- Unit or integration tests for API or key logic.
-- Use of MongoDB for unstructured metadata (if justified).
-- Real-time suggestion implemented (e.g., via GraphQL subscriptions or WebSockets).
-- Basic usage of **Kafka or Redis** (e.g., async event messaging).
-- Usage of ArgoCD or Kubernetes (not expected, but definitely cool).
+## 🔮 Future Improvements (Roadmap)
 
-> [!TIP]
-> Looking for inspiration or additional ideas to earn extra points? Check out our **[Awesome NaNLABS repository](https://github.com/nanlabs/awesome-nan)** for reference projects and best practices! 🚀
+While the backend is robust, here are the next steps to enhance the project:
 
-## 🧪 Submission Guidelines
+1.  **Frontend Implementation**:
+    - Build a React/Vite dashboard to visualize movies and tracks.
+    - Connect to the WebSocket gateway to show real-time status updates.
 
-> 📌 **Follow these steps to submit your solution:**
+2.  **Authentication & Authorization**:
+    - Implement JWT Guard to secure endpoints.
+    - Add Roles (e.g., `Admin` can approve, `Producer` can only view).
 
-1. **Fork this repository.**
-2. **Create a feature branch** for your implementation.
-3. **Commit your changes** with meaningful commit messages.
-4. **Open a Pull Request** following the provided template.
-5. **Our team will review** and provide feedback.
+3.  **Advanced Notifications**:
+    - Integrate **AWS SNS** to send emails or SMS when a track is approved.
 
-## ✅ Evaluation Criteria
+4.  **Cloud Deployment**:
+    - Deploy to **AWS EC2** or similar cloud provider.
+    - Set up a production-ready database (e.g., AWS RDS).
 
-> 🔍 **What we'll be looking at:**
+---
 
-- Ability to **work across the stack** (NestJS, PostgreSQL, React/Next.js/. . .).
-- Clean, modular and maintainable code with proper Git usage.
-- A good understanding of **data modeling and workflow management**.
-- Clear written communication in your README.
-- Ability to **propose real-time solutions**, even if not implemented.
+## 📂 Project Structure
 
-## 💬 Final Notes
-
-> [!TIP]
-> This challenge is designed to be flexible!
-
-Here are some tips to help you succeed:
-
-- If you feel confident on the backend but less on the frontend, focus there—but try to show some basic UI.
-- Likewise, if you're stronger on the frontend, make sure your backend has clean structure and endpoints.
-- Time-box it: we don’t expect perfection. We want to see **how you think and solve problems**.
-
-## 🏁 Good luck and have fun building
-
-If you have any questions, feel free to reach out.
+```
+.
+├── backend/
+│   ├── src/
+│   │   ├── common/         # Base Repository
+│   │   ├── licensing/      # WebSocket Gateway
+│   │   ├── movies/         # Movies Module
+│   │   ├── redis/          # Redis Module
+│   │   ├── scenes/         # Scenes Module
+│   │   ├── songs/          # Songs Module
+│   │   ├── tracks/         # Tracks Module (State Machine)
+│   │   └── main.ts         # App Entry & Swagger Setup
+│   ├── test/               # E2E Tests
+│   ├── prisma/             # Database Schema & Migrations
+│   └── Dockerfile
+├── docker-compose.yml
+└── README.md
+```
