@@ -8,9 +8,10 @@ export class ScenesService {
   constructor(private readonly scenesRepository: ScenesRepository) {}
 
   create(createSceneDto: CreateSceneDto) {
+    const { movieId, ...sceneData } = createSceneDto;
     return this.scenesRepository.create({
-      ...createSceneDto,
-      movie: { connect: { id: createSceneDto.movieId } },
+      ...sceneData,
+      movie: { connect: { id: movieId } },
     });
   }
 

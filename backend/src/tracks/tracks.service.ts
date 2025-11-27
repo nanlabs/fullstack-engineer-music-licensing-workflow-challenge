@@ -12,10 +12,11 @@ export class TracksService {
   ) {}
 
   create(createTrackDto: CreateTrackDto) {
+    const { sceneId, songId, ...trackData } = createTrackDto;
     return this.tracksRepository.create({
-      ...createTrackDto,
-      scene: { connect: { id: createTrackDto.sceneId } },
-      song: { connect: { id: createTrackDto.songId } },
+      ...trackData,
+      scene: { connect: { id: sceneId } },
+      song: { connect: { id: songId } },
     });
   }
 
