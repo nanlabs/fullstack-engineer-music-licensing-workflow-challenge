@@ -23,9 +23,9 @@ COPY tsconfig.json tsconfig.build.json nest-cli.json ./
 # Install dependencies
 RUN pnpm install --frozen-lockfile
 
-# Copy source files
+# Copy source files (all apps needed for monorepo build)
 COPY ./libs/ ./libs/
-COPY ./apps/song/ ./apps/song/
+COPY ./apps/ ./apps/
 
 # Build the application
 RUN pnpm run build song
