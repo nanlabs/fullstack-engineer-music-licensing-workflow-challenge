@@ -1,0 +1,139 @@
+version: "3.8"
+
+services:
+  # ============================================
+  # Infrastructure Services
+  # ============================================
+  postgres:
+    container_name: postgres
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - ${DB_PORT}:5432
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbit-mq:
+    container_name: rabbit-mq
+    image: rabbitmq:3-management
+    restart: unless-stopped
+    ports:
+      - ${RMQ_MGMT_PORT}:15672
+      - ${RMQ_PORT}:5672
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # Backend Microservices
+  # ============================================
+  api-gateway:
+    hostname: ${API_GATEWAY_HOST}
+    container_name: api-gateway
+    restart: always
+    env_file:
+      - .env
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.api-gateway
+    image: api-gateway-microservice
+    ports:
+      - ${BACKEND_PORT}:${BACKEND_PORT}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbit-mq:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  movie-service:
+    container_name: movie-microservice
+    restart: always
+    env_file:
+      - .env
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.movie
+    image: movie-microservice
+    depends_on:
+      - api-gateway
+      - postgres
+      - rabbit-mq
+    networks:
+      - app-network
+
+  song-service:
+    container_name: song-microservice
+    restart: always
+    env_file:
+      - .env
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.song
+    image: song-microservice
+    depends_on:
+      - api-gateway
+      - postgres
+      - rabbit-mq
+    networks:
+      - app-network
+
+  track-service:
+    container_name: track-microservice
+    restart: always
+    env_file:
+      - .env
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.track
+    image: track-microservice
+    depends_on:
+      - api-gateway
+      - postgres
+      - rabbit-mq
+      - movie-service
+      - song-service
+    networks:
+      - app-network
+
+  # ============================================
+  # Frontend TEST
+  # ============================================
+  # frontend:
+  #   container_name: frontend-webapp
+  #   restart: always
+  #   build:
+  #     context: ./frontend
+  #     dockerfile: Dockerfile
+  #   image: frontend-webapp
+  #   ports:
+  #     - ${CLIENT_PORT}:3000
+  #   environment:
+  #     - REACT_APP_API_URL=${REACT_APP_API_URL}
+  #   depends_on:
+  #     - api-gateway
+  #   networks:
+  #     - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
