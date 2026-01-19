@@ -14,6 +14,16 @@ import { ConfigModule } from '@nestjs/config';
   imports: [
     ConfigModule.forRoot(),
     PostgresRepositoryModule,
+    ClientsModule.register([
+      {
+        name: 'API_GATEWAY_MICROSERVICE_CLIENT',
+        transport: Transport.TCP,
+        options: {
+          port: Number(process.env.API_GATEWAY_PORT),
+          host: process.env.API_GATEWAY_HOST,
+        },
+      },
+    ]),
     ClientsModule.registerAsync([
       {
         imports: [RmqEnvConfigModule],

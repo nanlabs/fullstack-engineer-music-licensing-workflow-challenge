@@ -1,12 +1,8 @@
-import {
-  Controller,
-  forwardRef,
-  Inject,
-  HttpStatus,
-} from '@nestjs/common';
+import { Controller, forwardRef, Inject, HttpStatus } from '@nestjs/common';
 import { TrackService } from './track.service';
 import {
   ClientRMQ,
+  ClientTCP,
   MessagePattern,
   Payload,
   RpcException,
@@ -31,8 +27,9 @@ export class TrackController {
     private readonly songServiceClient: ClientRMQ,
     @Inject(forwardRef(() => 'MOVIE_SERVICE'))
     private readonly movieServiceClient: ClientRMQ,
+    @Inject('API_GATEWAY_MICROSERVICE_CLIENT')
+    private readonly apiGatewayMicroserviceClient: ClientTCP,
     private typeOrmRepositoryService: TypeOrmRepositoryService,
-    private readonly trackService: TrackService,
   ) {}
 
   @MessagePattern('track.fetch.all')
@@ -150,7 +147,7 @@ export class TrackController {
       licensingStatus: savedLicensing.status,
       createdAt: new Date(),
     };
-    this.trackServiceClient.emit('track.created', trackCreatedEvent);
+    this.apiGatewayMicroserviceClient.emit('track.created', trackCreatedEvent);
 
     return savedTrack;
   }
@@ -194,7 +191,10 @@ export class TrackController {
       newStatus: payload.status,
       updatedAt: new Date(),
     };
-    this.trackServiceClient.emit('licensing.status.updated', licensingStatusUpdate);
+    this.apiGatewayMicroserviceClient.emit(
+      'licensing.status.updated',
+      licensingStatusUpdate,
+    );
 
     return updatedLicensing;
   }
