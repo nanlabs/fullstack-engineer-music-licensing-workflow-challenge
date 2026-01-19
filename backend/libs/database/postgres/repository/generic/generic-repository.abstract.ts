@@ -1,9 +1,11 @@
 import { BaseEntity } from 'typeorm';
 
 export abstract class GenericRepository<T extends BaseEntity> {
-  abstract findAll(): Promise<T[]>;
+  abstract findAll(relations?: string[]): Promise<T[]>;
 
-  abstract findById(id: number): Promise<T | null>;
+  abstract findById(id: number, relations?: string[]): Promise<T | null>;
 
   abstract createOne(entity: T): Promise<T>;
+
+  abstract updateOne(id: number, partialEntity: Partial<T>): Promise<T | null>;
 }

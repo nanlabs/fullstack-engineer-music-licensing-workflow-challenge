@@ -18,19 +18,28 @@ export class TypeOrmGenericRepository<
     this.repository = repository;
   }
 
-  findAll(): Promise<T[]> {
-    return this.repository.find();
+  findAll(relations?: string[]): Promise<T[]> {
+    return this.repository.find({
+      relations: relations || [],
+    });
   }
-  findById(id: number): Promise<T | null> {
+
+  findById(id: number, relations?: string[]): Promise<T | null> {
     const options: FindOneOptions<T> = {
       where: {
         id,
       } as unknown as FindOptionsWhere<T>,
+      relations: relations || [],
     };
     return this.repository.findOne(options);
   }
 
   createOne(entity: T): Promise<T> {
     return this.dataSource.transaction(() => this.repository.save(entity));
+  }
+
+  async updateOne(id: number, partialEntity: Partial<T>): Promise<T | null> {
+    await this.repository.update(id, partialEntity as any);
+    return this.findById(id);
   }
 }

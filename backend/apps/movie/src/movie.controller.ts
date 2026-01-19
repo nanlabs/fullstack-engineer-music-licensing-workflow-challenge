@@ -1,11 +1,16 @@
-import { Controller, forwardRef, Get, Inject } from '@nestjs/common';
+import { Controller, forwardRef, Get, Inject, HttpStatus } from '@nestjs/common';
 import {
   ClientRMQ,
   ClientTCP,
   EventPattern,
+  MessagePattern,
   Payload,
+  RpcException,
 } from '@nestjs/microservices';
 import { TypeOrmRepositoryService } from 'libs/database/postgres/repository/service/typeorm-repository.service';
+import { MovieEntity, MovieSceneEntity } from 'libs/shared';
+import { CreateMovieDto } from 'libs/shared/dto/create-movie.dto';
+import { CreateMovieSceneDto } from 'libs/shared/dto/create-movie-scene.dto';
 
 @Controller()
 export class MovieController {
@@ -17,73 +22,54 @@ export class MovieController {
     private typeOrmRepositoryService: TypeOrmRepositoryService,
   ) {}
 
-  @EventPattern('movie.fetch.all.request')
-  async featuredContentProcessRequest(@Payload() payload: {}) {
-    const movies =
-      await this.typeOrmRepositoryService.movieRepository.findAll();
+  @MessagePattern('movie.create.one')
+  async createOne(createMoviePayload: CreateMovieDto) {
+    const newMovie = new MovieEntity();
+    newMovie.releaseDate = createMoviePayload.releaseDate;
+    newMovie.title = createMoviePayload.title;
+    newMovie.encodingFormat = createMoviePayload.encodingFormat;
 
-    console.log('call in fetch all movies', movies);
-    this.apiGatewayMicroserviceClient.emit('movie.fetch.all.response', [
-      {
-        id: 1,
-        title: 'The Shawshank Redemption',
-        release_date: '1994-09-23',
-        director: 'Frank Darabont',
-      },
-      {
-        id: 2,
-        title: 'The Godfather',
-        release_date: '1972-03-24',
-        director: 'Francis Ford Coppola',
-      },
-      {
-        id: 3,
-        title: 'The Dark Knight',
-        release_date: '2008-07-18',
-        director: 'Christopher Nolan',
-      },
-      {
-        id: 4,
-        title: 'Pulp Fiction',
-        release_date: '1994-10-14',
-        director: 'Quentin Tarantino',
-      },
-      {
-        id: 5,
-        title: 'Inception',
-        release_date: '2010-07-16',
-        director: 'Christopher Nolan',
-      },
-      {
-        id: 6,
-        title: 'Forrest Gump',
-        release_date: '1994-07-06',
-        director: 'Robert Zemeckis',
-      },
-      {
-        id: 7,
-        title: 'The Matrix',
-        release_date: '1999-03-31',
-        director: 'Lana Wachowski, Lilly Wachowski',
-      },
-      {
-        id: 8,
-        title: 'Goodfellas',
-        release_date: '1990-09-19',
-        director: 'Martin Scorsese',
-      },
-      {
-        id: 9,
-        title: 'Interstellar',
-        release_date: '2014-11-07',
-        director: 'Christopher Nolan',
-      },
-      {
-        id: 10,
-        title: 'Parasite',
-        release_date: '2019-05-30',
-        director: 'Bong Joon-ho',
-      },
-    ]);
+    return this.typeOrmRepositoryService.movieRepository.createOne(newMovie);
+  }
+
+  @MessagePattern('movie.fetch.all')
+  async fetchAllMovies() {
+    return this.typeOrmRepositoryService.movieRepository.findAll();
+  }
+
+  @MessagePattern('movie.fetch.byId')
+  async fetchMovieById(@Payload() payload: { id: number }) {
+    return this.typeOrmRepositoryService.movieRepository.findById(payload.id);
+  }
+
+  @MessagePattern('movie-scene.fetch.byId')
+  async fetchMovieSceneById(@Payload() payload: { id: number }) {
+    return this.typeOrmRepositoryService.movieSceneRepository.findById(payload.id);
+  }
+
+  @MessagePattern('movie-scene.fetch.all')
+  async fetchAllMovieScenes() {
+    return this.typeOrmRepositoryService.movieSceneRepository.findAll(['movie']);
+  }
+
+  @MessagePattern('movie-scene.create.one')
+  async createMovieScene(@Payload() createMovieScenePayload: CreateMovieSceneDto) {
+    // Validate that the movie exists
+    const movie = await this.typeOrmRepositoryService.movieRepository.findById(
+      createMovieScenePayload.movieId,
+    );
+
+    if (!movie) {
+      throw new RpcException({
+        statusCode: HttpStatus.NOT_FOUND,
+        message: `Movie with id ${createMovieScenePayload.movieId} not found`,
+      });
+    }
+
+    const newMovieScene = new MovieSceneEntity();
+    newMovieScene.name = createMovieScenePayload.name || '';
+    newMovieScene.movie = movie;
+
+    return this.typeOrmRepositoryService.movieSceneRepository.createOne(newMovieScene);
   }
 }

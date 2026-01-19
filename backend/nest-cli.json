@@ -55,6 +55,15 @@
         "tsConfigPath": "libs/shared/tsconfig.lib.json"
       }
     },
+    "song": {
+      "type": "application",
+      "root": "apps/song",
+      "entryFile": "main",
+      "sourceRoot": "apps/song/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/song/tsconfig.app.json"
+      }
+    },
     "track": {
       "type": "application",
       "root": "apps/track",
