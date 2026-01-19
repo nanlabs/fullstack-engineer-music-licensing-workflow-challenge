@@ -1,0 +1,37 @@
+FROM node:20-alpine AS development
+
+# Install pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+# Set environment variables
+ENV BACKEND_PORT=${BACKEND_PORT}
+ENV API_GATEWAY_HOST=${API_GATEWAY_HOST}
+ENV API_GATEWAY_PORT=${API_GATEWAY_PORT}
+ENV RMQ_HOST=${RMQ_HOST}
+ENV RMQ_PORT=${RMQ_PORT}
+ENV DB_HOST=${DB_HOST}
+ENV DB_PORT=${DB_PORT}
+ENV DB_USER=${DB_USER}
+ENV DB_PASSWORD=${DB_PASSWORD}
+ENV DB_NAME=${DB_NAME}
+
+WORKDIR /usr/src/app
+
+# Copy package files
+COPY package.json pnpm-lock.yaml ./
+COPY tsconfig.json tsconfig.build.json nest-cli.json ./
+
+# Install dependencies
+RUN pnpm install --frozen-lockfile
+
+# Copy source files
+COPY ./libs/ ./libs/
+COPY ./apps/api-gateway/ ./apps/api-gateway/
+
+# Build the application
+RUN pnpm run build api-gateway
+
+EXPOSE ${BACKEND_PORT}
+EXPOSE ${API_GATEWAY_PORT}
+
+CMD ["node", "dist/apps/api-gateway/main"]
