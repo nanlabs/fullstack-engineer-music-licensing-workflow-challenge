@@ -73,13 +73,15 @@ export const EVENT_PATTERNS = {
 /**
  * Entity Relations for TypeORM eager loading
  * Used in repository findAll() and findById() calls
+ * Note: Nested relations use dot notation (e.g., 'movieScene.movie')
  */
 export const RELATIONS = {
   TRACK: {
     SONG: 'song',
     MOVIE_SCENE: 'movieScene',
+    MOVIE_SCENE_MOVIE: 'movieScene.movie',
     LICENSING: 'licensing',
-    ALL: ['song', 'movieScene', 'licensing'] as const,
+    ALL: ['song', 'movieScene', 'movieScene.movie', 'licensing'] as const,
   },
   MOVIE_SCENE: {
     MOVIE: 'movie',
