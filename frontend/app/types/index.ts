@@ -1,11 +1,9 @@
-// Licensing status enum matching backend
 export enum LicensingStatus {
-  LICENSED = 'LICENSED',
-  IN_NEGOTIATION = 'IN_NEGOTIATION',
-  UNLICENSED = 'UNLICENSED',
+  LICENSED = "LICENSED",
+  IN_NEGOTIATION = "IN_NEGOTIATION",
+  UNLICENSED = "UNLICENSED",
 }
 
-// Entity types
 export interface Licensing {
   id: number;
   status: LicensingStatus;
@@ -50,7 +48,6 @@ export interface Track {
   updated_at?: string;
 }
 
-// DTOs for creating entities
 export interface CreateTrackDto {
   songId: number;
   movieSceneId: number;
@@ -75,7 +72,6 @@ export interface CreateMovieSceneDto {
   movieId: number;
 }
 
-// SSE Event types
 export interface LicensingStatusUpdate {
   trackId: number;
   previousStatus: string;
@@ -91,10 +87,9 @@ export interface TrackCreatedEvent {
   createdAt: string;
 }
 
-// Notification type for UI
 export interface Notification {
   id: string;
-  type: 'licensing-status' | 'track-created';
+  type: "licensing-status" | "track-created";
   message: string;
   details: string;
   timestamp: Date;

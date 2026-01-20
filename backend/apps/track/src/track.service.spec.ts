@@ -88,7 +88,7 @@ describe('TrackService (Microservice)', () => {
 
   const mockApiGatewayClient = {
     send: jest.fn(),
-    emit: jest.fn(),
+    emit: jest.fn().mockReturnValue(of(undefined)), // emit() returns Observable
   };
 
   beforeEach(async () => {

@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { Notification } from '../types';
+import { Notification } from "../types";
 
 interface LiveUpdatesProps {
   isConnected: boolean;
@@ -11,20 +11,24 @@ interface LiveUpdatesProps {
 function formatTimeAgo(date: Date): string {
   const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
 
-  if (seconds < 60) return 'Just now';
+  if (seconds < 60) return "Just now";
   if (seconds < 3600) return `${Math.floor(seconds / 60)} min ago`;
   if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`;
   return `${Math.floor(seconds / 86400)} days ago`;
 }
 
-export function LiveUpdates({ isConnected, notifications, onClear }: LiveUpdatesProps) {
+export function LiveUpdates({
+  isConnected,
+  notifications,
+  onClear,
+}: LiveUpdatesProps) {
   return (
     <div className="bg-white rounded-lg border border-gray-200">
       <div className="px-5 py-4 border-b border-gray-200 flex justify-between items-center">
         <div className="flex items-center space-x-2">
           <span
             className={`w-2 h-2 rounded-full ${
-              isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'
+              isConnected ? "bg-green-500 animate-pulse" : "bg-red-500"
             }`}
           />
           <h2 className="font-semibold text-gray-900">Live Updates</h2>

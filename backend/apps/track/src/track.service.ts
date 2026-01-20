@@ -194,7 +194,10 @@ export class TrackService {
       createdAt: new Date(),
     };
     this.logger.log(`Emitting ${EVENT_PATTERNS.TRACK_CREATED} event: ${JSON.stringify(trackCreatedEvent)}`);
-    this.apiGatewayClient.emit(EVENT_PATTERNS.TRACK_CREATED, trackCreatedEvent);
+    // emit() returns a cold Observable - must subscribe for event to be sent
+    this.apiGatewayClient.emit(EVENT_PATTERNS.TRACK_CREATED, trackCreatedEvent).subscribe({
+      error: (err) => this.logger.error(`Failed to emit track.created event: ${err.message}`),
+    });
   }
 
   private emitLicensingStatusUpdatedEvent(
@@ -209,6 +212,9 @@ export class TrackService {
       updatedAt: new Date(),
     };
     this.logger.log(`Emitting ${EVENT_PATTERNS.LICENSING_STATUS_UPDATED} event: ${JSON.stringify(licensingStatusUpdate)}`);
-    this.apiGatewayClient.emit(EVENT_PATTERNS.LICENSING_STATUS_UPDATED, licensingStatusUpdate);
+    // emit() returns a cold Observable - must subscribe for event to be sent
+    this.apiGatewayClient.emit(EVENT_PATTERNS.LICENSING_STATUS_UPDATED, licensingStatusUpdate).subscribe({
+      error: (err) => this.logger.error(`Failed to emit licensing.status.updated event: ${err.message}`),
+    });
   }
 }
