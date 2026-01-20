@@ -81,9 +81,13 @@
       "<rootDir>/libs/"
     ],
     "moduleNameMapper": {
-      "^@app/database(|/.*)$": "<rootDir>/libs/database/src/$1",
-      "^@app/rmq-env-config(|/.*)$": "<rootDir>/libs/rmq-env-config/src/$1",
-      "^@app/shared(|/.*)$": "<rootDir>/libs/shared/src/$1"
+      "^@app/database(|/.*)$": "<rootDir>/libs/database$1",
+      "^@app/rmq-env-config(|/.*)$": "<rootDir>/libs/rmq-env-config/src$1",
+      "^@app/shared/([A-Z].*)$": "<rootDir>/libs/shared/entity/$1",
+      "^@app/shared(|/.*)$": "<rootDir>/libs/shared$1",
+      "^libs/database(.*)$": "<rootDir>/libs/database$1",
+      "^libs/shared(.*)$": "<rootDir>/libs/shared$1",
+      "^libs/rmq-env-config(.*)$": "<rootDir>/libs/rmq-env-config$1"
     }
   }
 }
