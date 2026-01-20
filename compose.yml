@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   # ============================================
   # Infrastructure Services
@@ -53,7 +51,7 @@ services:
       dockerfile: Dockerfile.api-gateway
     image: api-gateway-microservice
     ports:
-      - ${BACKEND_PORT}:${BACKEND_PORT}
+      - ${BACKEND_PORT}:3000
     depends_on:
       postgres:
         condition: service_healthy
@@ -115,21 +113,19 @@ services:
   # ============================================
   # Frontend TEST
   # ============================================
-  # frontend:
-  #   container_name: frontend-webapp
-  #   restart: always
-  #   build:
-  #     context: ./frontend
-  #     dockerfile: Dockerfile
-  #   image: frontend-webapp
-  #   ports:
-  #     - ${CLIENT_PORT}:3000
-  #   environment:
-  #     - REACT_APP_API_URL=${REACT_APP_API_URL}
-  #   depends_on:
-  #     - api-gateway
-  #   networks:
-  #     - app-network
+  frontend:
+    container_name: frontend-webapp
+    restart: always
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.frontend
+    image: frontend-webapp
+    ports:
+      - ${CLIENT_PORT}:3000
+    depends_on:
+      - api-gateway
+    networks:
+      - app-network
 
 networks:
   app-network:
