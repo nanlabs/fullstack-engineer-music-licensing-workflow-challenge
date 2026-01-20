@@ -10,6 +10,7 @@ A fullstack application for **ACME BROS PICTURES** to manage music licensing for
 - [API Documentation](#api-documentation)
 - [Real-Time Updates](#real-time-updates)
 - [Testing](#testing)
+- [CI/CD](#cicd)
 - [Tech Decisions & Tradeoffs](#tech-decisions--tradeoffs)
 - [Project Structure](#project-structure)
 
@@ -17,24 +18,24 @@ A fullstack application for **ACME BROS PICTURES** to manage music licensing for
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                              Frontend (Next.js)                              │
-│                              localhost:3005                                  │
+│                             Frontend (Next.js)                              │
+│                              localhost:3005                                 │
 └─────────────────────────────────────────────────────────────────────────────┘
                                       │
                                       │ HTTP / SSE
                                       ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                           API Gateway (NestJS)                               │
-│                              localhost:3000                                  │
+│                           API Gateway (NestJS)                              │
+│                              localhost:3000                                 │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐ │
 │  │   /movies   │  │   /songs    │  │   /tracks   │  │ /sse/notifications  │ │
 │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────────────┘ │
 └─────────────────────────────────────────────────────────────────────────────┘
-         │                   │                   │                   ▲
-         │ RabbitMQ          │ RabbitMQ          │ RabbitMQ          │ TCP
-         ▼                   ▼                   ▼                   │
-┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐         │
-│  Movie Service  │ │  Song Service   │ │  Track Service  │─────────┘
+         │                  │                │                  ▲
+         │ RabbitMQ         │ RabbitMQ       │ RabbitMQ         │ TCP
+         ▼                  ▼                ▼                  │
+┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐     │
+│  Movie Service  │ │  Song Service   │ │  Track Service  │─────┘
 │                 │ │                 │ │                 │  (emits events)
 └────────┬────────┘ └────────┬────────┘ └────────┬────────┘
          │                   │                   │
@@ -69,62 +70,51 @@ A fullstack application for **ACME BROS PICTURES** to manage music licensing for
 
 ### Quick Start with Docker
 
-1. **Clone the repository**
-
-   ```bash
-   git clone <repository-url>
-   cd fullstack-engineer-music-licensing-workflow-challenge
-   ```
-
-2. **Start all services**
+1. **Start all services**
 
    ```bash
    docker compose up --build
    ```
 
-3. **Access the application**
+2. **Access the application**
    - Frontend: http://localhost:3005
    - API Gateway: http://localhost:3000
    - RabbitMQ Management: http://localhost:15672 (guest/guest)
 
 ### Local Development (without Docker)
 
-1. **Start infrastructure services**
+1.  Setup first RabbitMQ & Postgres instance and update `.env` with correct values
 
-   ```bash
-   docker compose up postgres rabbit-mq -d
-   ```
+2.  **Install backend dependencies**
 
-2. **Install backend dependencies**
+    ```bash
+    cd backend
+    pnpm install
+    ```
 
-   ```bash
-   cd backend
-   pnpm install
-   ```
+3.  **Start backend services** (in separate terminals)
 
-3. **Start backend services** (in separate terminals)
+    ```bash
+    # Terminal 1 - API Gateway
+    pnpm run start:dev api-gateway
 
-   ```bash
-   # Terminal 1 - API Gateway
-   pnpm run start:dev api-gateway
+    # Terminal 2 - Movie Service
+    pnpm run start:dev movie
 
-   # Terminal 2 - Movie Service
-   pnpm run start:dev movie
+    # Terminal 3 - Song Service
+    pnpm run start:dev song
 
-   # Terminal 3 - Song Service
-   pnpm run start:dev song
+    # Terminal 4 - Track Service
+    pnpm run start:dev track
+    ```
 
-   # Terminal 4 - Track Service
-   pnpm run start:dev track
-   ```
-
-4. **Install and start frontend**
-   ```bash
-   cd frontend
-   pnpm install
-   cp .env.local.example .env.local
-   pnpm dev
-   ```
+4.  **Install and start frontend**
+    ```bash
+    cd frontend
+    pnpm install
+    cp .env.local.example .env.local
+    npx next dev
+    ```
 
 ### Environment Variables
 
@@ -190,7 +180,7 @@ CLIENT_PORT=3005
 **Create a Movie:**
 
 ```bash
-curl -X POST $BASE/movies \
+curl -X POST http://localhost:3000/movies \
     -H "Content-Type: application/json" \
     -d '{"title": "The Matrix", "encodingFormat": "Blu-ray", "releaseDate": 1999}'
 ```
@@ -198,7 +188,7 @@ curl -X POST $BASE/movies \
 **Create a Movie Scene:**
 
 ```bash
-curl -X POST $BASE/movies/scenes \
+curl -X POST http://localhost:3000/movies/scenes \
     -H "Content-Type: application/json" \
     -d '{"movieId": 1, "name": "Neo takes the red pill"}'
 ```
@@ -206,7 +196,7 @@ curl -X POST $BASE/movies/scenes \
 **Create a Song:**
 
 ```bash
-curl -X POST $BASE/songs \
+curl -X POST http://localhost:3000/songs \
     -H "Content-Type: application/json" \
     -d '{"title": "Clubbed to Death", "releaseDate": 1999, "seconds": 420}'
 ```
@@ -227,7 +217,7 @@ curl -X POST http://localhost:3000/tracks \
 **Listen to Licensing Status Update**
 
 ```bash
-curl -N $BASE/sse/notifications/licensing-status
+curl -N http://localhost:3000/sse/notifications/licensing-status
 ```
 
 **Update Licensing Status:**
@@ -254,7 +244,7 @@ The application uses **Server-Sent Events (SSE)** for real-time notifications.
 | **Complexity**   | Simple                           | More complex          |
 | **Use Case Fit** | Notifications, live feeds        | Chat, gaming          |
 
-For this use case (broadcasting licensing status updates), SSE is the better choice because we only need server-to-client communication. WebSockets implies more overhead than SSE for a notifications functionality
+For this use case (broadcasting licensing status updates and track creation), SSE is the better choice because we only need server-to-client communication. WebSockets implies more overhead than SSE for a notifications functionality
 
 ### Frontend Integration
 
@@ -289,6 +279,84 @@ pnpm test:cov
 - Unit tests for all controllers and services
 - Mocked dependencies for isolated testing
 
+## CI/CD
+
+The project uses **GitHub Actions** for continuous integration and deployment.
+
+### Workflows
+
+| Workflow         | File               | Trigger                                           | Description                      |
+| ---------------- | ------------------ | ------------------------------------------------- | -------------------------------- |
+| **CI**           | `ci.yml`           | Push/PR to `main`, `develop`, `feat/**`, `fix/**` | Lint, build, and test            |
+| **Docker Build** | `docker-build.yml` | Push/PR to `main`, `develop`, `feat/**`, `fix/**` | Build images & integration tests |
+
+### CI Pipeline
+
+The CI workflow runs the following steps for both backend and frontend:
+
+```
+Install Dependencies → Lint → Build → Test → Coverage Report
+```
+
+**Backend:**
+
+- Installs pnpm dependencies with caching
+- Runs ESLint
+- Builds all NestJS microservices
+- Runs 121 unit tests
+- Generates coverage report
+
+**Frontend:**
+
+- Installs pnpm dependencies with caching
+- Runs ESLint
+- Builds Next.js application
+
+### Docker Build Pipeline
+
+The Docker workflow builds and tests all containerized services:
+
+1. **Build Phase** - Builds Docker images in parallel:
+   - `api-gateway`
+   - `movie-service`
+   - `song-service`
+   - `track-service`
+   - `frontend`
+
+2. **Integration Test Phase** - Runs `docker compose` and tests API endpoints
+
+3. **Publish Phase** - On `main` branch, pushes images to GitHub Container Registry (GHCR)
+
+### Running CI Locally
+
+```bash
+# Backend
+cd backend
+pnpm install
+pnpm lint
+pnpm build
+pnpm test
+pnpm test:cov
+
+# Frontend
+cd frontend
+pnpm install
+pnpm lint
+pnpm build
+```
+
+### Docker Images
+
+On push to `main`, images are published to GitHub Container Registry:
+
+| Image         | Registry Path                        |
+| ------------- | ------------------------------------ |
+| API Gateway   | `ghcr.io/<owner>/<repo>/api-gateway` |
+| Movie Service | `ghcr.io/<owner>/<repo>/movie`       |
+| Song Service  | `ghcr.io/<owner>/<repo>/song`        |
+| Track Service | `ghcr.io/<owner>/<repo>/track`       |
+| Frontend      | `ghcr.io/<owner>/<repo>/frontend`    |
+
 ## Tech Decisions & Tradeoffs
 
 ### 1. REST vs GraphQL
@@ -315,7 +383,7 @@ pnpm test:cov
 - Demonstrates distributed systems knowledge
 - Matches real-world enterprise patterns
 
-**Tradeoff:** Added complexity vs a monolith. For a small team, a modular monolith might be simpler. However, the microservices pattern showcases architectural skills.
+**Tradeoff:** Added complexity vs a monolith. For a small team, a modular monolith might be simpler. However, microservices offers more room for scalability and resiliency.
 
 ### 3. RabbitMQ vs Kafka
 
@@ -328,7 +396,7 @@ pnpm test:cov
 - Sufficient for request-reply and event patterns
 - Great NestJS integration
 
-**Tradeoff:** Kafka provides better throughput and replay capabilities. A possible use case could be to implement track history persistence.
+**Tradeoff:** Kafka provides better throughput and replay capabilities. A possible use case could be to implement track history persistence/audit trail.
 
 ### 4. Shared Database vs Database-per-Service
 
@@ -340,7 +408,7 @@ pnpm test:cov
 - Reduced infrastructure complexity
 - ACID transactions across entities
 
-**Tradeoff:** True microservices would have separate databases. However, it also entails extra configuration, architecture decisions and testing setup. In an ideal scenario this kind of infrastructure can be deployed using technologies like ECS from AWS. The codebase would also be largely increased by implementing robust business logic and domain logic that prevents data inconsistencies and/or domain-specific anomalies.
+**Tradeoff:** True microservices would have separate databases. However, it also entails extra configuration, architecture decisions and testing setup. In an ideal scenario this kind of infrastructure can be deployed using infrastructure technologies like ECS from AWS. The codebase would also be largely increased by implementing robust business logic and domain logic that prevents data inconsistencies and/or domain-specific anomalies.
 
 ## Project Structure
 
@@ -398,11 +466,8 @@ pnpm test:cov
 
 ## Future Improvements
 
-- [ ] Add GitHub Actions CI/CD pipeline
 - [ ] Implement user authentication (JWT)
 - [ ] Add pagination for list endpoints
 - [ ] Database-per-service with event sourcing
 - [ ] Kubernetes deployment manifests
-- [ ] E2E tests with Playwright
-- [ ] API rate limiting
 - [ ] OpenAPI/Swagger documentation
