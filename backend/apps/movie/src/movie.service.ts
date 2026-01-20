@@ -1,7 +1,7 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { RpcException } from '@nestjs/microservices';
 import { TypeOrmRepositoryService } from 'libs/database/postgres/repository/service/typeorm-repository.service';
-import { MovieEntity, MovieSceneEntity } from 'libs/shared';
+import { MovieEntity, MovieSceneEntity, RELATIONS } from 'libs/shared';
 import { CreateMovieDto } from 'libs/shared/dto/create-movie.dto';
 import { CreateMovieSceneDto } from 'libs/shared/dto/create-movie-scene.dto';
 
@@ -29,7 +29,7 @@ export class MovieService {
   }
 
   async findAllMovieScenes() {
-    return this.typeOrmRepositoryService.movieSceneRepository.findAll(['movie']);
+    return this.typeOrmRepositoryService.movieSceneRepository.findAll([RELATIONS.MOVIE_SCENE.MOVIE]);
   }
 
   async findMovieSceneById(id: number) {

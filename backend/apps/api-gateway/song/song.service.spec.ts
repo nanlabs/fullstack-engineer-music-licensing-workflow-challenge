@@ -3,6 +3,7 @@ import { SongService } from './song.service';
 import { ClientRMQ } from '@nestjs/microservices';
 import { of, throwError } from 'rxjs';
 import { CreateSongDto } from 'libs/shared/dto/create-song.dto';
+import { INJECTION_TOKENS, SONG_PATTERNS } from 'libs/shared';
 
 describe('SongService (API Gateway)', () => {
   let service: SongService;
@@ -26,7 +27,7 @@ describe('SongService (API Gateway)', () => {
       providers: [
         SongService,
         {
-          provide: 'SONG_SERVICE',
+          provide: INJECTION_TOKENS.SONG_SERVICE,
           useValue: mockSongMicroserviceClient,
         },
       ],

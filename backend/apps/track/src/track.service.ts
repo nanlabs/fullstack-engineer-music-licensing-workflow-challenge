@@ -12,6 +12,11 @@ import {
   LicensingEntity,
   LicensingStatus,
   SongEntity,
+  INJECTION_TOKENS,
+  SONG_PATTERNS,
+  MOVIE_SCENE_PATTERNS,
+  EVENT_PATTERNS,
+  RELATIONS,
 } from 'libs/shared';
 import type { LicensingStatusUpdate, TrackCreatedEvent } from 'libs/shared';
 import type { CreateTrackDto } from 'libs/shared/dto/create-track.dto';
@@ -22,28 +27,24 @@ export class TrackService {
   private readonly logger = new Logger(TrackService.name);
 
   constructor(
-    @Inject(forwardRef(() => 'SONG_SERVICE'))
+    @Inject(forwardRef(() => INJECTION_TOKENS.SONG_SERVICE))
     private readonly songServiceClient: ClientRMQ,
-    @Inject(forwardRef(() => 'MOVIE_SERVICE'))
+    @Inject(forwardRef(() => INJECTION_TOKENS.MOVIE_SERVICE))
     private readonly movieServiceClient: ClientRMQ,
-    @Inject('API_GATEWAY_MICROSERVICE_CLIENT')
+    @Inject(INJECTION_TOKENS.API_GATEWAY_MICROSERVICE_CLIENT)
     private readonly apiGatewayClient: ClientTCP,
     private readonly typeOrmRepositoryService: TypeOrmRepositoryService,
   ) {}
 
   async findAll() {
     return this.typeOrmRepositoryService.trackRepository.findAll([
-      'song',
-      'movieScene',
-      'licensing',
+      ...RELATIONS.TRACK.ALL,
     ]);
   }
 
   async findById(id: number) {
     return this.typeOrmRepositoryService.trackRepository.findById(id, [
-      'song',
-      'movieScene',
-      'licensing',
+      ...RELATIONS.TRACK.ALL,
     ]);
   }
 
@@ -110,7 +111,7 @@ export class TrackService {
   async updateLicensingStatus(trackId: number, status: LicensingStatus) {
     const track = await this.typeOrmRepositoryService.trackRepository.findById(
       trackId,
-      ['licensing'],
+      [RELATIONS.TRACK.LICENSING],
     );
 
     if (!track) {
@@ -144,7 +145,7 @@ export class TrackService {
   private async fetchSong(songId: number): Promise<SongEntity | null> {
     return lastValueFrom(
       this.songServiceClient
-        .send<SongEntity>('song.fetch.byId', { id: songId })
+        .send<SongEntity>(SONG_PATTERNS.FETCH_BY_ID, { id: songId })
         .pipe(
           timeout(5000),
           catchError(() => {
@@ -160,7 +161,7 @@ export class TrackService {
   private async fetchMovieScene(movieSceneId: number) {
     return lastValueFrom(
       this.movieServiceClient
-        .send('movie-scene.fetch.byId', { id: movieSceneId })
+        .send(MOVIE_SCENE_PATTERNS.FETCH_BY_ID, { id: movieSceneId })
         .pipe(
           timeout(5000),
           catchError(() => {
@@ -192,8 +193,8 @@ export class TrackService {
       licensingStatus: savedLicensing.status,
       createdAt: new Date(),
     };
-    this.logger.log(`Emitting track.created event: ${JSON.stringify(trackCreatedEvent)}`);
-    this.apiGatewayClient.emit('track.created', trackCreatedEvent);
+    this.logger.log(`Emitting ${EVENT_PATTERNS.TRACK_CREATED} event: ${JSON.stringify(trackCreatedEvent)}`);
+    this.apiGatewayClient.emit(EVENT_PATTERNS.TRACK_CREATED, trackCreatedEvent);
   }
 
   private emitLicensingStatusUpdatedEvent(
@@ -207,7 +208,7 @@ export class TrackService {
       newStatus,
       updatedAt: new Date(),
     };
-    this.logger.log(`Emitting licensing.status.updated event: ${JSON.stringify(licensingStatusUpdate)}`);
-    this.apiGatewayClient.emit('licensing.status.updated', licensingStatusUpdate);
+    this.logger.log(`Emitting ${EVENT_PATTERNS.LICENSING_STATUS_UPDATED} event: ${JSON.stringify(licensingStatusUpdate)}`);
+    this.apiGatewayClient.emit(EVENT_PATTERNS.LICENSING_STATUS_UPDATED, licensingStatusUpdate);
   }
 }

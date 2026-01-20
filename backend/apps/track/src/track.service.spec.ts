@@ -3,7 +3,14 @@ import { TrackService } from './track.service';
 import { TypeOrmRepositoryService } from 'libs/database/postgres/repository/service/typeorm-repository.service';
 import { ClientRMQ, ClientTCP, RpcException } from '@nestjs/microservices';
 import { HttpStatus } from '@nestjs/common';
-import { LicensingStatus } from 'libs/shared';
+import {
+  LicensingStatus,
+  INJECTION_TOKENS,
+  SONG_PATTERNS,
+  MOVIE_SCENE_PATTERNS,
+  EVENT_PATTERNS,
+  RELATIONS,
+} from 'libs/shared';
 import { CreateTrackDto } from 'libs/shared/dto/create-track.dto';
 import { of, throwError } from 'rxjs';
 
@@ -93,15 +100,15 @@ describe('TrackService (Microservice)', () => {
           useValue: mockTypeOrmRepositoryService,
         },
         {
-          provide: 'SONG_SERVICE',
+          provide: INJECTION_TOKENS.SONG_SERVICE,
           useValue: mockSongServiceClient,
         },
         {
-          provide: 'MOVIE_SERVICE',
+          provide: INJECTION_TOKENS.MOVIE_SERVICE,
           useValue: mockMovieServiceClient,
         },
         {
-          provide: 'API_GATEWAY_MICROSERVICE_CLIENT',
+          provide: INJECTION_TOKENS.API_GATEWAY_MICROSERVICE_CLIENT,
           useValue: mockApiGatewayClient,
         },
       ],
@@ -126,9 +133,7 @@ describe('TrackService (Microservice)', () => {
       expect(result).toEqual(tracks);
       expect(result).toHaveLength(2);
       expect(mockTrackRepository.findAll).toHaveBeenCalledWith([
-        'song',
-        'movieScene',
-        'licensing',
+        ...RELATIONS.TRACK.ALL,
       ]);
     });
 
@@ -149,9 +154,7 @@ describe('TrackService (Microservice)', () => {
 
       expect(result).toEqual(mockTrack);
       expect(mockTrackRepository.findById).toHaveBeenCalledWith(1, [
-        'song',
-        'movieScene',
-        'licensing',
+        ...RELATIONS.TRACK.ALL,
       ]);
     });
 
@@ -183,12 +186,12 @@ describe('TrackService (Microservice)', () => {
       const result = await service.create(createTrackDto);
 
       expect(result).toEqual(mockTrack);
-      expect(mockSongServiceClient.send).toHaveBeenCalledWith('song.fetch.byId', { id: 1 });
-      expect(mockMovieServiceClient.send).toHaveBeenCalledWith('movie-scene.fetch.byId', { id: 1 });
+      expect(mockSongServiceClient.send).toHaveBeenCalledWith(SONG_PATTERNS.FETCH_BY_ID, { id: 1 });
+      expect(mockMovieServiceClient.send).toHaveBeenCalledWith(MOVIE_SCENE_PATTERNS.FETCH_BY_ID, { id: 1 });
       expect(mockLicensingRepository.createOne).toHaveBeenCalled();
       expect(mockTrackRepository.createOne).toHaveBeenCalled();
       expect(mockApiGatewayClient.emit).toHaveBeenCalledWith(
-        'track.created',
+        EVENT_PATTERNS.TRACK_CREATED,
         expect.objectContaining({
           trackId: mockTrack.id,
           songId: mockSong.id,
@@ -274,13 +277,13 @@ describe('TrackService (Microservice)', () => {
       const result = await service.updateLicensingStatus(1, LicensingStatus.LICENSED);
 
       expect(result.status).toBe(LicensingStatus.LICENSED);
-      expect(mockTrackRepository.findById).toHaveBeenCalledWith(1, ['licensing']);
+      expect(mockTrackRepository.findById).toHaveBeenCalledWith(1, [RELATIONS.TRACK.LICENSING]);
       expect(mockLicensingRepository.updateOne).toHaveBeenCalledWith(
         mockLicensing.id,
         { status: LicensingStatus.LICENSED },
       );
       expect(mockApiGatewayClient.emit).toHaveBeenCalledWith(
-        'licensing.status.updated',
+        EVENT_PATTERNS.LICENSING_STATUS_UPDATED,
         expect.objectContaining({
           trackId: 1,
           newStatus: LicensingStatus.LICENSED,

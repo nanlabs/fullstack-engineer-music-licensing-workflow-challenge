@@ -9,6 +9,7 @@ import {
   rmqEnvConfigFactory,
   RmqEnvConfigService,
 } from '@app/rmq-env-config';
+import { INJECTION_TOKENS, QUEUES } from 'libs/shared';
 
 @Module({
   imports: [
@@ -17,8 +18,8 @@ import {
     ClientsModule.registerAsync([
       {
         imports: [RmqEnvConfigModule],
-        name: 'SONG_SERVICE',
-        useFactory: rmqEnvConfigFactory('SONG_QUEUE'),
+        name: INJECTION_TOKENS.SONG_SERVICE,
+        useFactory: rmqEnvConfigFactory(QUEUES.SONG),
         inject: [RmqEnvConfigService],
       },
     ]),

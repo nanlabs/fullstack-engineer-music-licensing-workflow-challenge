@@ -9,6 +9,7 @@ import {
 } from '@app/rmq-env-config';
 import { PostgresRepositoryModule } from 'libs/database';
 import { ConfigModule } from '@nestjs/config';
+import { INJECTION_TOKENS, QUEUES } from 'libs/shared';
 
 @Module({
   imports: [
@@ -16,7 +17,7 @@ import { ConfigModule } from '@nestjs/config';
     PostgresRepositoryModule,
     ClientsModule.register([
       {
-        name: 'api-gateway-host',
+        name: INJECTION_TOKENS.API_GATEWAY_HOST,
         transport: Transport.TCP,
         options: {
           port: Number(process.env.API_GATEWAY_PORT),
@@ -27,8 +28,8 @@ import { ConfigModule } from '@nestjs/config';
     ClientsModule.registerAsync([
       {
         imports: [RmqEnvConfigModule],
-        name: 'MOVIE_SERVICE',
-        useFactory: rmqEnvConfigFactory('MOVIE_QUEUE'),
+        name: INJECTION_TOKENS.MOVIE_SERVICE,
+        useFactory: rmqEnvConfigFactory(QUEUES.MOVIE),
         inject: [RmqEnvConfigService],
       },
     ]),

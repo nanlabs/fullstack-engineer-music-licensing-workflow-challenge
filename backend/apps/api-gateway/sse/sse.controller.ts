@@ -8,7 +8,7 @@ import {
 import { EventPattern } from '@nestjs/microservices';
 import type { Observable } from 'rxjs';
 import { SseNotificationService } from './sse-notification.service';
-import { NotificationKeys } from 'libs/shared';
+import { NotificationKeys, EVENT_PATTERNS } from 'libs/shared';
 import type {
   LicensingStatusUpdate,
   TrackCreatedEvent,
@@ -61,7 +61,7 @@ export class SseController {
    * Event handler for licensing status updates from track microservice.
    * Receives events via RabbitMQ and pushes to SSE subscribers.
    */
-  @EventPattern('licensing.status.updated')
+  @EventPattern(EVENT_PATTERNS.LICENSING_STATUS_UPDATED)
   handleLicensingStatusUpdate(payload: LicensingStatusUpdate): void {
     this.logger.log(
       `Licensing status updated: Track ${payload.trackId} -> ${payload.newStatus}`,
@@ -73,7 +73,7 @@ export class SseController {
    * Event handler for track creation events from track microservice.
    * Receives events via RabbitMQ and pushes to SSE subscribers.
    */
-  @EventPattern('track.created')
+  @EventPattern(EVENT_PATTERNS.TRACK_CREATED)
   handleTrackCreated(payload: TrackCreatedEvent): void {
     this.logger.log(`Track created: ${payload.trackId}`);
     this.sseNotificationService.emit(NotificationKeys.TRACK_CREATED, payload);
