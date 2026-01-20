@@ -1,132 +1,408 @@
-# 🚀 Fullstack Engineer Challenge – Music Licensing Workflow
+# Music Licensing Workflow System
 
-Welcome to the **Fullstack Engineer Challenge!** 🎸🎬  
-In this challenge, you'll help the fictional company **ACME BROS PICTURES** build a system to manage the **music licensing process** for their movies.
+A fullstack application for **ACME BROS PICTURES** to manage music licensing for movie scenes. Built with a microservices architecture using NestJS, React/Next.js, PostgreSQL, and RabbitMQ.
 
-## 🎯 Context
+## Table of Contents
 
-Each movie scene can contain **multiple music tracks**, and each track requires licensing. The licensing process involves back-and-forth negotiations with rights holders (artists or labels), which makes tracking each license's progress essential.
+- [Architecture Overview](#architecture-overview)
+- [Tech Stack](#tech-stack)
+- [Getting Started](#getting-started)
+- [API Documentation](#api-documentation)
+- [Real-Time Updates](#real-time-updates)
+- [Testing](#testing)
+- [Tech Decisions & Tradeoffs](#tech-decisions--tradeoffs)
+- [Project Structure](#project-structure)
 
-Your task is to create a simple system to:
+## Architecture Overview
 
-- Manage **tracks** for each movie scene.
-- Associate a **song** to each track, specifying its start and end time.
-- Track the **licensing status** of each song via a stateful workflow.
-- Provide a way for other users to **immediately see updates** in licensing status (real-time or near real-time visibility).
-
-## 📌 Requirements
-
-### ⚙️ Tech Stack
-
-> ⚡ **Must Include** - Use the following technologies, aligned with our tech stack:
-
-- **Backend:** You can use any stack you're comfortable with, but we recommend using any of the following:
-  - TypeScript + NestJS (you can use Fastify or Koa if you prefer)
-  - Python + FastAPI (you can use Flask or Django if you prefer)
-  - Go + Fiber (you can use Gin or Echo if you prefer)
-- **API:** REST and/or GraphQL (you choose, and justify your choice if you only use one)
-- **Frontend:** React (using any framework such as Next.js, Remix, or bare metal with Vite)
-- **Database:** PostgreSQL (primary), MongoDB (optional if needed)
-- **Containerization:** Docker (required)
-- **Bonus:** Kafka, Redis, ArgoCD, Kubernetes (if you want to go further)
-
-### 📦 Deliverables
-
-> 📥 **Your submission must be a Pull Request that includes:**
-
-- A **backend** exposing the required APIs.
-- A **data model** to manage:
-  - Movies, scenes, tracks, songs, and their licensing states.
-- Endpoints or queries/mutations to:
-  - Create a track and associate a song.
-  - Update the licensing state of a track.
-  - Query all tracks for a given scene/movie, including licensing status.
-- A **frontend built with React** to:
-  - Visualize the movie scenes and associated tracks.
-  - Show licensing status.
-  - Allow status updates (basic UI).
-- Suggest a real-time implementation using WebSockets, GraphQL Subscriptions, or Server-Sent Events.
-- Docker setup to run the entire app locally.
-- A `README.md` with:
-  - Setup instructions
-  - Tech decisions and tradeoffs
-  - If applicable, your reasoning for using REST, GraphQL, or both
-
-> [!TIP]
-> Use the `docs` folder to store any additional documentation or diagrams that help explain your solution.
-> Mention any assumptions or constraints in your `README.md`.
-
-### 📂 Folder Suggestions
-
-You can organize your project like this (suggested but not mandatory):
-
-```txt
-/
-├── .github/
-│   ├── workflows/
-│   └── PULL_REQUEST_TEMPLATE.md
-├── docs/
-├── backend/
-│   ├── src/
-│   ├── test/
-│   └── Dockerfile
-├── frontend/
-│   ├── src/
-│   ├── public/
-│   └── Dockerfile
-├── compose.yml
-├── .env.example
-├── README.md
-├── .prettierrc.js
-├── eslint.config.mjs
-└── . . .
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              Frontend (Next.js)                              │
+│                              localhost:3005                                  │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      │ HTTP / SSE
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           API Gateway (NestJS)                               │
+│                              localhost:3000                                  │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐ │
+│  │   /movies   │  │   /songs    │  │   /tracks   │  │ /sse/notifications  │ │
+│  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────────────┘
+         │                   │                   │                   ▲
+         │ RabbitMQ          │ RabbitMQ          │ RabbitMQ          │ TCP
+         ▼                   ▼                   ▼                   │
+┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐         │
+│  Movie Service  │ │  Song Service   │ │  Track Service  │─────────┘
+│                 │ │                 │ │                 │  (emits events)
+└────────┬────────┘ └────────┬────────┘ └────────┬────────┘
+         │                   │                   │
+         └───────────────────┼───────────────────┘
+                             │
+                             ▼
+                  ┌─────────────────────┐
+                  │     PostgreSQL      │
+                  │    (shared DB)      │
+                  └─────────────────────┘
 ```
 
-## 🌟 Nice to Have
+## Tech Stack
 
-> 💡 **Bonus Points For:**
+| Layer                | Technology                       | Purpose                                  |
+| -------------------- | -------------------------------- | ---------------------------------------- |
+| **Frontend**         | Next.js 15, React 19, TypeScript | UI with SSR support                      |
+| **API Gateway**      | NestJS                           | REST API, SSE endpoints, request routing |
+| **Microservices**    | NestJS                           | Domain-specific business logic           |
+| **Message Broker**   | RabbitMQ                         | Async communication between services     |
+| **Database**         | PostgreSQL 16                    | Primary data store                       |
+| **ORM**              | TypeORM                          | Database abstraction                     |
+| **Containerization** | Docker, Docker Compose           | Local development & deployment           |
 
-- Automated testing and CI pipeline using GitHub Actions.
-- Unit or integration tests for API or key logic.
-- Use of MongoDB for unstructured metadata (if justified).
-- Real-time suggestion implemented (e.g., via GraphQL subscriptions or WebSockets).
-- Basic usage of **Kafka or Redis** (e.g., async event messaging).
-- Usage of ArgoCD or Kubernetes (not expected, but definitely cool).
+## Getting Started
 
-> [!TIP]
-> Looking for inspiration or additional ideas to earn extra points? Check out our **[Awesome NaNLABS repository](https://github.com/nanlabs/awesome-nan)** for reference projects and best practices! 🚀
+### Prerequisites
 
-## 🧪 Submission Guidelines
+- Docker & Docker Compose
+- Node.js 20+ (for local development without Docker)
+- pnpm (recommended) or npm
 
-> 📌 **Follow these steps to submit your solution:**
+### Quick Start with Docker
 
-1. **Fork this repository.**
-2. **Create a feature branch** for your implementation.
-3. **Commit your changes** with meaningful commit messages.
-4. **Open a Pull Request** following the provided template.
-5. **Our team will review** and provide feedback.
+1. **Clone the repository**
 
-## ✅ Evaluation Criteria
+   ```bash
+   git clone <repository-url>
+   cd fullstack-engineer-music-licensing-workflow-challenge
+   ```
 
-> 🔍 **What we'll be looking at:**
+2. **Start all services**
 
-- Ability to **work across the stack** (NestJS, PostgreSQL, React/Next.js/. . .).
-- Clean, modular and maintainable code with proper Git usage.
-- A good understanding of **data modeling and workflow management**.
-- Clear written communication in your README.
-- Ability to **propose real-time solutions**, even if not implemented.
+   ```bash
+   docker compose up --build
+   ```
 
-## 💬 Final Notes
+3. **Access the application**
+   - Frontend: http://localhost:3005
+   - API Gateway: http://localhost:3000
+   - RabbitMQ Management: http://localhost:15672 (guest/guest)
 
-> [!TIP]
-> This challenge is designed to be flexible!
+### Local Development (without Docker)
 
-Here are some tips to help you succeed:
+1. **Start infrastructure services**
 
-- If you feel confident on the backend but less on the frontend, focus there—but try to show some basic UI.
-- Likewise, if you're stronger on the frontend, make sure your backend has clean structure and endpoints.
-- Time-box it: we don’t expect perfection. We want to see **how you think and solve problems**.
+   ```bash
+   docker compose up postgres rabbit-mq -d
+   ```
 
-## 🏁 Good luck and have fun building
+2. **Install backend dependencies**
 
-If you have any questions, feel free to reach out.
+   ```bash
+   cd backend
+   pnpm install
+   ```
+
+3. **Start backend services** (in separate terminals)
+
+   ```bash
+   # Terminal 1 - API Gateway
+   pnpm run start:dev api-gateway
+
+   # Terminal 2 - Movie Service
+   pnpm run start:dev movie
+
+   # Terminal 3 - Song Service
+   pnpm run start:dev song
+
+   # Terminal 4 - Track Service
+   pnpm run start:dev track
+   ```
+
+4. **Install and start frontend**
+   ```bash
+   cd frontend
+   pnpm install
+   cp .env.local.example .env.local
+   pnpm dev
+   ```
+
+### Environment Variables
+
+Copy `.env.example` to `.env` at the project root:
+
+```env
+# Database (PostgreSQL)
+DB_HOST=postgres
+DB_PORT=5432
+DB_USER=acme_user
+DB_PASSWORD=acme_password
+DB_NAME=acme_music_licensing
+
+# RabbitMQ
+RMQ_HOST=rabbit-mq
+RMQ_PORT=5672
+
+# API Gateway
+BACKEND_PORT=3000
+API_GATEWAY_HOST=api-gateway
+API_GATEWAY_PORT=8000
+
+# Frontend
+CLIENT_PORT=3005
+```
+
+## API Documentation
+
+### Movies
+
+| Method | Endpoint         | Description                     |
+| ------ | ---------------- | ------------------------------- |
+| GET    | `/movies`        | List all movies                 |
+| POST   | `/movies`        | Create a movie                  |
+| GET    | `/movies/scenes` | List all scenes with movie info |
+| POST   | `/movies/scenes` | Create a scene for a movie      |
+
+### Songs
+
+| Method | Endpoint | Description    |
+| ------ | -------- | -------------- |
+| GET    | `/songs` | List all songs |
+| POST   | `/songs` | Create a song  |
+
+### Tracks
+
+| Method | Endpoint                | Description                              |
+| ------ | ----------------------- | ---------------------------------------- |
+| GET    | `/tracks`               | List all tracks with relations           |
+| GET    | `/tracks/:id`           | Get a specific track                     |
+| POST   | `/tracks`               | Create a track (associate song to scene) |
+| PATCH  | `/tracks/:id/licensing` | Update licensing status                  |
+
+### SSE (Server-Sent Events)
+
+| Endpoint                              | Event Type         | Description              |
+| ------------------------------------- | ------------------ | ------------------------ |
+| `/sse/notifications/licensing-status` | `licensing-status` | Licensing status changes |
+| `/sse/notifications/track-created`    | `track-created`    | New track created        |
+
+### Example Requests
+
+**Create a Movie:**
+
+```bash
+curl -X POST $BASE/movies \
+    -H "Content-Type: application/json" \
+    -d '{"title": "The Matrix", "encodingFormat": "Blu-ray", "releaseDate": 1999}'
+```
+
+**Create a Movie Scene:**
+
+```bash
+curl -X POST $BASE/movies/scenes \
+    -H "Content-Type: application/json" \
+    -d '{"movieId": 1, "name": "Neo takes the red pill"}'
+```
+
+**Create a Song:**
+
+```bash
+curl -X POST $BASE/songs \
+    -H "Content-Type: application/json" \
+    -d '{"title": "Clubbed to Death", "releaseDate": 1999, "seconds": 420}'
+```
+
+**Create a Track:**
+
+```bash
+curl -X POST http://localhost:3000/tracks \
+  -H "Content-Type: application/json" \
+  -d '{
+    "songId": 1,
+    "movieSceneId": 1,
+    "startTime": 0,
+    "endTime": 180
+  }'
+```
+
+**Listen to Licensing Status Update**
+
+```bash
+curl -N $BASE/sse/notifications/licensing-status
+```
+
+**Update Licensing Status:**
+
+```bash
+curl -X PATCH http://localhost:3000/tracks/1/licensing \
+  -H "Content-Type: application/json" \
+  -d '{"status": "LICENSED"}'
+```
+
+**Licensing Status Values:** `UNLICENSED`, `IN_NEGOTIATION`, `LICENSED`
+
+## Real-Time Updates
+
+The application uses **Server-Sent Events (SSE)** for real-time notifications.
+
+### Why SSE over WebSockets?
+
+| Aspect           | SSE                              | WebSockets            |
+| ---------------- | -------------------------------- | --------------------- |
+| **Direction**    | Server → Client (unidirectional) | Bidirectional         |
+| **Protocol**     | HTTP                             | Custom protocol       |
+| **Reconnection** | Automatic                        | Manual implementation |
+| **Complexity**   | Simple                           | More complex          |
+| **Use Case Fit** | Notifications, live feeds        | Chat, gaming          |
+
+For this use case (broadcasting licensing status updates), SSE is the better choice because we only need server-to-client communication. WebSockets implies more overhead than SSE for a notifications functionality
+
+### Frontend Integration
+
+```javascript
+const eventSource = new EventSource("/sse/notifications/licensing-status");
+
+// Named events require addEventListener (not onmessage)
+eventSource.addEventListener("licensing-status", (event) => {
+  const data = JSON.parse(event.data);
+  console.log("Status updated:", data);
+});
+```
+
+## Testing
+
+### Run All Tests
+
+```bash
+cd backend
+pnpm test
+```
+
+### Test Coverage
+
+```bash
+pnpm test:cov
+```
+
+### Current Test Suite
+
+- **121 tests** across 12 test suites
+- Unit tests for all controllers and services
+- Mocked dependencies for isolated testing
+
+## Tech Decisions & Tradeoffs
+
+### 1. REST vs GraphQL
+
+**Decision:** REST API
+
+**Reasoning:**
+
+- Simpler to implement and debug
+- Better caching with HTTP standards
+- Sufficient for the CRUD operations required
+- SSE integrates naturally with REST
+
+**Tradeoff:** GraphQL would provide more flexibility for complex queries and reduce over-fetching, but adds complexity in both backend and frontend; especially, by integrating subscriptions!
+
+### 2. Microservices Architecture
+
+**Decision:** Separate services for Movie, Song, and Track domains
+
+**Reasoning:**
+
+- Clear domain boundaries (Single Responsibility)
+- Independent scaling potential
+- Demonstrates distributed systems knowledge
+- Matches real-world enterprise patterns
+
+**Tradeoff:** Added complexity vs a monolith. For a small team, a modular monolith might be simpler. However, the microservices pattern showcases architectural skills.
+
+### 3. RabbitMQ vs Kafka
+
+**Decision:** RabbitMQ
+
+**Reasoning:**
+
+- Simpler setup and operations
+- Lower resource footprint
+- Sufficient for request-reply and event patterns
+- Great NestJS integration
+
+**Tradeoff:** Kafka provides better throughput and replay capabilities. A possible use case could be to implement track history persistence.
+
+### 4. Shared Database vs Database-per-Service
+
+**Decision:** Shared PostgreSQL database
+
+**Reasoning:**
+
+- Simpler local development
+- Reduced infrastructure complexity
+- ACID transactions across entities
+
+**Tradeoff:** True microservices would have separate databases. However, it also entails extra configuration, architecture decisions and testing setup. In an ideal scenario this kind of infrastructure can be deployed using technologies like ECS from AWS. The codebase would also be largely increased by implementing robust business logic and domain logic that prevents data inconsistencies and/or domain-specific anomalies.
+
+## Project Structure
+
+```
+/
+├── compose.yml              # Docker Compose configuration
+├── .env                     # Environment variables
+├── README.md                # This file
+│
+├── backend/
+│   ├── apps/
+│   │   ├── api-gateway/     # HTTP API + SSE endpoints
+│   │   ├── movie/           # Movie microservice
+│   │   ├── song/            # Song microservice
+│   │   └── track/           # Track microservice
+│   ├── libs/
+│   │   ├── database/        # TypeORM configuration
+│   │   ├── shared/          # Shared entities, DTOs, constants
+│   │   └── rmq-env-config/  # RabbitMQ configuration
+│   ├── Dockerfile.*         # Service-specific Dockerfiles
+│   └── package.json
+│
+└── frontend/
+    ├── app/
+    │   ├── components/      # React components
+    │   ├── hooks/           # Custom hooks (useSSE)
+    │   ├── lib/             # API client
+    │   └── types/           # TypeScript types
+    ├── Dockerfile.frontend
+    └── package.json
+```
+
+## Data Model
+
+```
+┌─────────────┐       ┌─────────────────┐       ┌─────────────┐
+│   Movie     │       │   MovieScene    │       │    Track    │
+├─────────────┤       ├─────────────────┤       ├─────────────┤
+│ id          │──┐    │ id              │──┐    │ id          │
+│ title       │  └───▶│ name            │  └───▶│ startTime   │
+│ releaseDate │       │ movie_id (FK)   │       │ endTime     │
+│ encoding    │       └─────────────────┘       │ scene_id    │
+└─────────────┘                                 │ song_id     │
+                                                │ licensing_id│
+┌─────────────┐       ┌─────────────────┐       └──────┬──────┘
+│    Song     │       │    Licensing    │              │
+├─────────────┤       ├─────────────────┤              │
+│ id          │◀──────│ id              │◀─────────────┘
+│ title       │       │ status          │
+│ releaseDate │       │ (UNLICENSED,    │
+│ seconds     │       │  IN_NEGOTIATION,│
+└─────────────┘       │  LICENSED)      │
+                      └─────────────────┘
+```
+
+## Future Improvements
+
+- [ ] Add GitHub Actions CI/CD pipeline
+- [ ] Implement user authentication (JWT)
+- [ ] Add pagination for list endpoints
+- [ ] Database-per-service with event sourcing
+- [ ] Kubernetes deployment manifests
+- [ ] E2E tests with Playwright
+- [ ] API rate limiting
+- [ ] OpenAPI/Swagger documentation
