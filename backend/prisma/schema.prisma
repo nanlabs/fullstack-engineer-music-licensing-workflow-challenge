@@ -1,0 +1,70 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  previewFeatures = ["relationJoins"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Movie {
+  id          String   @id @default(uuid())
+  title       String
+  releaseDate DateTime @map("release_date")
+  scenes      Scene[]
+  createdAt   DateTime @map("created_at") @default(now())
+
+  @@map("movies")
+}
+
+model Scene {
+  id          String   @id @default(uuid())
+  description String
+  startTime   Int    @map("start_time") // Tiempo en la película donde inicia la escena
+  movieId     String   @map("movie_id")
+  movie       Movie    @relation(fields: [movieId], references: [id])
+  tracks      Track[]
+
+  @@map("scenes")
+}
+
+model Song {
+  id        String   @id @default(uuid())
+  title     String
+  artist    String
+  label     String
+  tracks    Track[]
+
+  @@map("songs")
+}
+
+enum LicensingStatus {
+  PENDING
+  NEGOTIATING
+  APPROVED
+  REJECTED
+}
+
+model Track {
+  id           String          @id @default(uuid())
+  startInScene Int           @map("start_in_scene") // Cuándo entra la música en la escena
+  endInScene   Int           @map("end_in_scene") // Cuándo sale
+  status       LicensingStatus @default(PENDING)
+  
+  sceneId      String          @map("scene_id")
+  scene        Scene           @relation(fields: [sceneId], references: [id])
+  
+  songId       String          @map("song_id")
+  song         Song            @relation(fields: [songId], references: [id])
+
+  createdAt    DateTime        @map("created_at") @default(now())
+  updatedAt    DateTime        @map("updated_at") @updatedAt
+
+  @@map("tracks")
+}
