@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
+import { getRepositoryToken, getDataSourceToken } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
 import { SongsService } from '../../src/songs/songs.service';
 import { Song } from '../../src/entities/song.entity';
@@ -31,6 +31,23 @@ describe('SongsService', () => {
     remove: jest.fn(),
   };
 
+  const mockQueryRunner = {
+    connect: jest.fn().mockResolvedValue(undefined),
+    startTransaction: jest.fn().mockResolvedValue(undefined),
+    commitTransaction: jest.fn().mockResolvedValue(undefined),
+    rollbackTransaction: jest.fn().mockResolvedValue(undefined),
+    release: jest.fn().mockResolvedValue(undefined),
+    isTransactionActive: true,
+    manager: {
+      save: jest.fn(),
+      remove: jest.fn(),
+    },
+  };
+
+  const mockDataSource = {
+    createQueryRunner: jest.fn().mockReturnValue(mockQueryRunner),
+  };
+
   const mockConfigService = {
     get: jest.fn((key: string) => {
       const config: Record<string, any> = {
@@ -49,6 +66,10 @@ describe('SongsService', () => {
         {
           provide: getRepositoryToken(Song),
           useValue: mockRepository,
+        },
+        {
+          provide: getDataSourceToken(),
+          useValue: mockDataSource,
         },
         {
           provide: ConfigService,
@@ -80,12 +101,13 @@ describe('SongsService', () => {
       };
 
       mockRepository.create.mockReturnValue(mockSong);
-      mockRepository.save.mockResolvedValue(mockSong);
+      mockQueryRunner.manager.save.mockResolvedValue(mockSong);
 
       const result = await service.create(createDto);
 
       expect(mockRepository.create).toHaveBeenCalledWith(createDto);
-      expect(mockRepository.save).toHaveBeenCalledWith(mockSong);
+      expect(mockQueryRunner.manager.save).toHaveBeenCalledWith(Song, mockSong);
+      expect(mockQueryRunner.commitTransaction).toHaveBeenCalled();
       expect(result).toEqual(mockSong);
     });
 
@@ -97,9 +119,11 @@ describe('SongsService', () => {
 
       const error = new Error('Database error');
       mockRepository.create.mockReturnValue(mockSong);
-      mockRepository.save.mockRejectedValue(error);
+      mockQueryRunner.manager.save.mockRejectedValue(error);
 
-      await expect(service.create(createDto)).rejects.toThrow('Database error');
+      await expect(service.create(createDto)).rejects.toThrow();
+      expect(mockQueryRunner.rollbackTransaction).toHaveBeenCalled();
+      expect(mockQueryRunner.release).toHaveBeenCalled();
     });
   });
 
@@ -151,12 +175,12 @@ describe('SongsService', () => {
       const updatedSong = { ...mockSong, ...updateDto };
 
       mockRepository.findOne.mockResolvedValue(mockSong);
-      mockRepository.save.mockResolvedValue(updatedSong);
+      mockQueryRunner.manager.save.mockResolvedValue(updatedSong);
 
       const result = await service.update('1', updateDto);
 
       expect(mockRepository.findOne).toHaveBeenCalled();
-      expect(mockRepository.save).toHaveBeenCalled();
+      expect(mockQueryRunner.manager.save).toHaveBeenCalled();
       expect(result).toEqual(updatedSong);
     });
   });
@@ -164,12 +188,13 @@ describe('SongsService', () => {
   describe('remove', () => {
     it('should delete a song', async () => {
       mockRepository.findOne.mockResolvedValue(mockSong);
-      mockRepository.remove.mockResolvedValue(mockSong);
+      mockQueryRunner.manager.remove.mockResolvedValue(mockSong);
 
       await service.remove('1');
 
       expect(mockRepository.findOne).toHaveBeenCalled();
-      expect(mockRepository.remove).toHaveBeenCalledWith(mockSong);
+      expect(mockQueryRunner.manager.remove).toHaveBeenCalledWith(Song, mockSong);
+      expect(mockQueryRunner.commitTransaction).toHaveBeenCalled();
     });
   });
 });

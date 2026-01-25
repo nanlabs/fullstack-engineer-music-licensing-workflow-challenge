@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
+import { getRepositoryToken, getDataSourceToken } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
 import { ScenesService } from '../../src/scenes/scenes.service';
 import { Scene } from '../../src/entities/scene.entity';
@@ -44,6 +44,23 @@ describe('ScenesService', () => {
     findOne: jest.fn(),
   };
 
+  const mockQueryRunner = {
+    connect: jest.fn().mockResolvedValue(undefined),
+    startTransaction: jest.fn().mockResolvedValue(undefined),
+    commitTransaction: jest.fn().mockResolvedValue(undefined),
+    rollbackTransaction: jest.fn().mockResolvedValue(undefined),
+    release: jest.fn().mockResolvedValue(undefined),
+    isTransactionActive: true,
+    manager: {
+      save: jest.fn(),
+      remove: jest.fn(),
+    },
+  };
+
+  const mockDataSource = {
+    createQueryRunner: jest.fn().mockReturnValue(mockQueryRunner),
+  };
+
   const mockConfigService = {
     get: jest.fn((key: string) => {
       const config: Record<string, any> = {
@@ -66,6 +83,10 @@ describe('ScenesService', () => {
         {
           provide: getRepositoryToken(Movie),
           useValue: mockMovieRepository,
+        },
+        {
+          provide: getDataSourceToken(),
+          useValue: mockDataSource,
         },
         {
           provide: ConfigService,
@@ -98,7 +119,7 @@ describe('ScenesService', () => {
 
       mockMovieRepository.findOne.mockResolvedValue({ id: 'movie-1' });
       mockRepository.create.mockReturnValue(mockScene);
-      mockRepository.save.mockResolvedValue(mockScene);
+      mockQueryRunner.manager.save.mockResolvedValue(mockScene);
 
       const result = await service.create(createDto);
 
@@ -106,7 +127,8 @@ describe('ScenesService', () => {
         where: { id: createDto.movieId },
       });
       expect(mockRepository.create).toHaveBeenCalledWith(createDto);
-      expect(mockRepository.save).toHaveBeenCalledWith(mockScene);
+      expect(mockQueryRunner.manager.save).toHaveBeenCalledWith(Scene, mockScene);
+      expect(mockQueryRunner.commitTransaction).toHaveBeenCalled();
       expect(result).toEqual(mockScene);
     });
 
@@ -147,11 +169,13 @@ describe('ScenesService', () => {
       mockMovieRepository.findOne.mockResolvedValue({ id: 'movie-1' });
       const error = new Error('Database error');
       mockRepository.create.mockReturnValue(mockScene);
-      mockRepository.save.mockRejectedValue(error);
+      mockQueryRunner.manager.save.mockRejectedValue(error);
 
       await expect(service.create(createDto)).rejects.toThrow(
         BadRequestException,
       );
+      expect(mockQueryRunner.rollbackTransaction).toHaveBeenCalled();
+      expect(mockQueryRunner.release).toHaveBeenCalled();
     });
   });
 
@@ -223,12 +247,12 @@ describe('ScenesService', () => {
       const updatedScene = { ...mockScene, ...updateDto };
 
       mockRepository.findOne.mockResolvedValue(mockScene);
-      mockRepository.save.mockResolvedValue(updatedScene);
+      mockQueryRunner.manager.save.mockResolvedValue(updatedScene);
 
       const result = await service.update('1', updateDto);
 
       expect(mockRepository.findOne).toHaveBeenCalled();
-      expect(mockRepository.save).toHaveBeenCalled();
+      expect(mockQueryRunner.manager.save).toHaveBeenCalled();
       expect(result).toEqual(updatedScene);
     });
   });
@@ -236,12 +260,13 @@ describe('ScenesService', () => {
   describe('remove', () => {
     it('should delete a scene', async () => {
       mockRepository.findOne.mockResolvedValue(mockScene);
-      mockRepository.remove.mockResolvedValue(mockScene);
+      mockQueryRunner.manager.remove.mockResolvedValue(mockScene);
 
       await service.remove('1');
 
       expect(mockRepository.findOne).toHaveBeenCalled();
-      expect(mockRepository.remove).toHaveBeenCalledWith(mockScene);
+      expect(mockQueryRunner.manager.remove).toHaveBeenCalledWith(Scene, mockScene);
+      expect(mockQueryRunner.commitTransaction).toHaveBeenCalled();
     });
   });
 });

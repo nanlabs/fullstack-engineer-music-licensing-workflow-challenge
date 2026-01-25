@@ -1,4 +1,4 @@
-import { HttpExceptionFilter } from '../../src/common/filters/http-exception.filter';
+import { HttpExceptionFilter } from 'src/common/filters/http-exception.filter';
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { ArgumentsHost } from '@nestjs/common';
 import { Request, Response } from 'express';
@@ -38,7 +38,7 @@ describe('HttpExceptionFilter', () => {
 
   it('should handle HttpException with string message', () => {
     const exception = new HttpException('Test error', HttpStatus.BAD_REQUEST);
-    const loggerSpy = jest.spyOn(filter['logger'], 'error').mockImplementation();
+    const loggerSpy = jest.spyOn(filter['logger'], 'warn').mockImplementation();
 
     filter.catch(exception, mockArgumentsHost as ArgumentsHost);
 
@@ -60,7 +60,7 @@ describe('HttpExceptionFilter', () => {
       { message: 'Validation failed', error: 'Bad Request' },
       HttpStatus.BAD_REQUEST,
     );
-    const loggerSpy = jest.spyOn(filter['logger'], 'error').mockImplementation();
+    const loggerSpy = jest.spyOn(filter['logger'], 'warn').mockImplementation();
 
     filter.catch(exception, mockArgumentsHost as ArgumentsHost);
 
@@ -78,7 +78,7 @@ describe('HttpExceptionFilter', () => {
 
   it('should include timestamp in error response', () => {
     const exception = new HttpException('Test error', HttpStatus.BAD_REQUEST);
-    jest.spyOn(filter['logger'], 'error').mockImplementation();
+    jest.spyOn(filter['logger'], 'warn').mockImplementation();
 
     filter.catch(exception, mockArgumentsHost as ArgumentsHost);
 

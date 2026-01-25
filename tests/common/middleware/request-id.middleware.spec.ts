@@ -1,4 +1,4 @@
-import { RequestIdMiddleware } from '../../src/../../src/common/middleware/request-id.middleware';
+import { RequestIdMiddleware } from 'src/common/middleware/request-id.middleware';
 import { Request, Response, NextFunction } from 'express';
 
 describe('RequestIdMiddleware', () => {
@@ -44,7 +44,7 @@ describe('RequestIdMiddleware', () => {
   });
 
   it('should use existing request ID if present', () => {
-    const existingId = 'existing-request-id';
+    const existingId = '550e8400-e29b-41d4-a716-446655440000'; // Valid UUID v4
     mockRequest.headers = {
       'x-request-id': existingId,
     };

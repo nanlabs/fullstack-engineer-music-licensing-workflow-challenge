@@ -83,6 +83,7 @@ describe('TracksService', () => {
     commitTransaction: jest.fn().mockResolvedValue(undefined),
     rollbackTransaction: jest.fn().mockResolvedValue(undefined),
     release: jest.fn().mockResolvedValue(undefined),
+    isTransactionActive: true,
     manager: {
       save: jest.fn(),
     },

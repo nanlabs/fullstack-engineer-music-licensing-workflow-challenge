@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
+import { getRepositoryToken, getDataSourceToken } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
 import { MoviesService } from '../../src/movies/movies.service';
 import { Movie } from '../../src/entities/movie.entity';
@@ -29,6 +29,23 @@ describe('MoviesService', () => {
     remove: jest.fn(),
   };
 
+  const mockQueryRunner = {
+    connect: jest.fn().mockResolvedValue(undefined),
+    startTransaction: jest.fn().mockResolvedValue(undefined),
+    commitTransaction: jest.fn().mockResolvedValue(undefined),
+    rollbackTransaction: jest.fn().mockResolvedValue(undefined),
+    release: jest.fn().mockResolvedValue(undefined),
+    isTransactionActive: true,
+    manager: {
+      save: jest.fn(),
+      remove: jest.fn(),
+    },
+  };
+
+  const mockDataSource = {
+    createQueryRunner: jest.fn().mockReturnValue(mockQueryRunner),
+  };
+
   const mockConfigService = {
     get: jest.fn((key: string) => {
       const config: Record<string, any> = {
@@ -47,6 +64,10 @@ describe('MoviesService', () => {
         {
           provide: getRepositoryToken(Movie),
           useValue: mockRepository,
+        },
+        {
+          provide: getDataSourceToken(),
+          useValue: mockDataSource,
         },
         {
           provide: ConfigService,
@@ -76,12 +97,13 @@ describe('MoviesService', () => {
       };
 
       mockRepository.create.mockReturnValue(mockMovie);
-      mockRepository.save.mockResolvedValue(mockMovie);
+      mockQueryRunner.manager.save.mockResolvedValue(mockMovie);
 
       const result = await service.create(createDto);
 
       expect(mockRepository.create).toHaveBeenCalledWith(createDto);
-      expect(mockRepository.save).toHaveBeenCalledWith(mockMovie);
+      expect(mockQueryRunner.manager.save).toHaveBeenCalledWith(Movie, mockMovie);
+      expect(mockQueryRunner.commitTransaction).toHaveBeenCalled();
       expect(result).toEqual(mockMovie);
     });
 
@@ -95,9 +117,11 @@ describe('MoviesService', () => {
 
       const error = new Error('Database error');
       mockRepository.create.mockReturnValue(mockMovie);
-      mockRepository.save.mockRejectedValue(error);
+      mockQueryRunner.manager.save.mockRejectedValue(error);
 
-      await expect(service.create(createDto)).rejects.toThrow('Database error');
+      await expect(service.create(createDto)).rejects.toThrow();
+      expect(mockQueryRunner.rollbackTransaction).toHaveBeenCalled();
+      expect(mockQueryRunner.release).toHaveBeenCalled();
     });
   });
 
@@ -149,7 +173,7 @@ describe('MoviesService', () => {
       const updatedMovie = { ...mockMovie, ...updateDto };
 
       mockRepository.findOne.mockResolvedValue(mockMovie);
-      mockRepository.save.mockResolvedValue(updatedMovie);
+      mockQueryRunner.manager.save.mockResolvedValue(updatedMovie);
 
       const result = await service.update('1', updateDto);
 
@@ -157,7 +181,7 @@ describe('MoviesService', () => {
         where: { id: '1' },
         relations: ['scenes', 'scenes.tracks', 'scenes.tracks.song'],
       });
-      expect(mockRepository.save).toHaveBeenCalled();
+      expect(mockQueryRunner.manager.save).toHaveBeenCalled();
       expect(result).toEqual(updatedMovie);
     });
   });
@@ -165,12 +189,13 @@ describe('MoviesService', () => {
   describe('remove', () => {
     it('should delete a movie', async () => {
       mockRepository.findOne.mockResolvedValue(mockMovie);
-      mockRepository.remove.mockResolvedValue(mockMovie);
+      mockQueryRunner.manager.remove.mockResolvedValue(mockMovie);
 
       await service.remove('1');
 
       expect(mockRepository.findOne).toHaveBeenCalled();
-      expect(mockRepository.remove).toHaveBeenCalledWith(mockMovie);
+      expect(mockQueryRunner.manager.remove).toHaveBeenCalledWith(Movie, mockMovie);
+      expect(mockQueryRunner.commitTransaction).toHaveBeenCalled();
     });
   });
 });

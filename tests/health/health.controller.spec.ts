@@ -5,6 +5,7 @@ import {
   MemoryHealthIndicator,
   DiskHealthIndicator,
 } from '@nestjs/terminus';
+import { ConfigService } from '@nestjs/config';
 import { HealthController } from '../../src/health/health.controller';
 
 describe('HealthController', () => {
@@ -31,6 +32,18 @@ describe('HealthController', () => {
     checkStorage: jest.fn(),
   };
 
+  const mockConfigService = {
+    get: jest.fn((key: string) => {
+      const config: Record<string, any> = {
+        'app.healthCheck.memoryHeapThreshold': 150 * 1024 * 1024,
+        'app.healthCheck.memoryRssThreshold': 150 * 1024 * 1024,
+        'app.healthCheck.diskThresholdPercent': 0.9,
+        'app.healthCheck.livenessMemoryThreshold': 300 * 1024 * 1024,
+      };
+      return config[key];
+    }),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [HealthController],
@@ -50,6 +63,10 @@ describe('HealthController', () => {
         {
           provide: DiskHealthIndicator,
           useValue: mockDiskIndicator,
+        },
+        {
+          provide: ConfigService,
+          useValue: mockConfigService,
         },
       ],
     }).compile();

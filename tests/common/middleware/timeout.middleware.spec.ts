@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
-import { TimeoutMiddleware } from '../../src/common/middleware/timeout.middleware';
+import { TimeoutMiddleware } from 'src/common/middleware/timeout.middleware';
 import { Request, Response, NextFunction } from 'express';
 
 describe('TimeoutMiddleware', () => {

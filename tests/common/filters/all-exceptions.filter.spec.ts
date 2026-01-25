@@ -1,4 +1,4 @@
-import { AllExceptionsFilter } from '../../src/common/filters/all-exceptions.filter';
+import { AllExceptionsFilter } from 'src/common/filters/all-exceptions.filter';
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { ArgumentsHost } from '@nestjs/common';
 import { Request, Response } from 'express';
