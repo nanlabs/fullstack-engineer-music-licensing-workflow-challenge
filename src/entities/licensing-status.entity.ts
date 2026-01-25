@@ -16,7 +16,7 @@ export class LicensingStatus {
   @Column({ type: 'uuid' })
   trackId!: string;
 
-  @ManyToOne(() => Track, (track) => track.licensingStatusHistory, {
+  @ManyToOne(() => Track, track => track.licensingStatusHistory, {
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'trackId' })

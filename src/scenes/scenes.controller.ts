@@ -31,7 +31,9 @@ export class ScenesController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Get all scenes or scenes by movie with pagination' })
+  @ApiOperation({
+    summary: 'Get all scenes or scenes by movie with pagination',
+  })
   @ApiQuery({
     name: 'movieId',
     required: false,

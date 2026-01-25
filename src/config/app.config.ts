@@ -14,10 +14,7 @@ export default registerAs('app', () => ({
     process.env.SSE_HEARTBEAT_INTERVAL || '30000',
     10,
   ),
-  sseMaxConnections: parseInt(
-    process.env.SSE_MAX_CONNECTIONS || '1000',
-    10,
-  ),
+  sseMaxConnections: parseInt(process.env.SSE_MAX_CONNECTIONS || '1000', 10),
   requestTimeout: parseInt(process.env.REQUEST_TIMEOUT || '30000', 10),
   requestBodySizeLimit: process.env.REQUEST_BODY_SIZE_LIMIT || '10mb',
   pagination: {
@@ -48,7 +45,7 @@ export default registerAs('app', () => ({
       : ['/health', '/docs'],
     skipStatusCodes: process.env.TRANSFORM_INTERCEPTOR_SKIP_STATUS_CODES
       ? process.env.TRANSFORM_INTERCEPTOR_SKIP_STATUS_CODES.split(',').map(
-          (code) => parseInt(code, 10),
+          code => parseInt(code, 10),
         )
       : [204],
   },

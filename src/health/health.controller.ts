@@ -33,9 +33,8 @@ export class HealthController {
       this.configService.get<number>('app.healthCheck.memoryRssThreshold') ||
       150 * 1024 * 1024; // Default: 150MB
     const diskThresholdPercent =
-      this.configService.get<number>(
-        'app.healthCheck.diskThresholdPercent',
-      ) || 0.9; // Default: 90%
+      this.configService.get<number>('app.healthCheck.diskThresholdPercent') ||
+      0.9; // Default: 90%
 
     return this.health.check([
       () => this.db.pingCheck('database'),

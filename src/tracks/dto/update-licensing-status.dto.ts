@@ -21,7 +21,7 @@ export class UpdateLicensingStatusDto {
 
   @ApiPropertyOptional({ example: 'admin' })
   @IsOptional()
-  @ValidateIf((o) => o.updatedBy !== undefined)
+  @ValidateIf(o => o.updatedBy !== undefined)
   @IsNotEmpty()
   @IsString()
   @MaxLength(255)

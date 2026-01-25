@@ -31,7 +31,7 @@ export class Song {
   @Column({ type: 'varchar', length: 255, nullable: true })
   rightsHolder?: string;
 
-  @OneToMany(() => Track, (track) => track.song)
+  @OneToMany(() => Track, track => track.song)
   tracks!: Track[];
 
   @CreateDateColumn()

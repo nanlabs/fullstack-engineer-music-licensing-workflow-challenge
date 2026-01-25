@@ -58,8 +58,6 @@ import { TimeoutMiddleware } from './common/middleware/timeout.middleware';
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer
-      .apply(RequestIdMiddleware, TimeoutMiddleware)
-      .forRoutes('*');
+    consumer.apply(RequestIdMiddleware, TimeoutMiddleware).forRoutes('*');
   }
 }

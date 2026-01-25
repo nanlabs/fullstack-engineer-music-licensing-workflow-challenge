@@ -25,7 +25,7 @@ export class Movie {
   @Column({ type: 'int', nullable: true })
   releaseYear?: number;
 
-  @OneToMany(() => Scene, (scene) => scene.movie)
+  @OneToMany(() => Scene, scene => scene.movie)
   scenes!: Scene[];
 
   @CreateDateColumn()

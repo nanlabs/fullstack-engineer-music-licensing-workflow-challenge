@@ -34,10 +34,7 @@ export class SongsController {
   @ApiOperation({ summary: 'Get all songs with pagination' })
   @ApiResponse({ status: 200, description: 'Paginated list of songs' })
   findAll(@Query() paginationDto: PaginationDto) {
-    return this.songsService.findAll(
-      paginationDto.page,
-      paginationDto.limit,
-    );
+    return this.songsService.findAll(paginationDto.page, paginationDto.limit);
   }
 
   @Get(':id')

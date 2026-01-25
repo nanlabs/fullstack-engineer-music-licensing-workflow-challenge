@@ -69,15 +69,27 @@ export class AddDatabaseConstraints1700000002000 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_licensing_statuses_trackId"`);
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "IDX_licensing_statuses_trackId"`,
+    );
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_tracks_songId"`);
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_tracks_sceneId"`);
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_scenes_movieId"`);
-    await queryRunner.query(`ALTER TABLE "movies" DROP CONSTRAINT IF EXISTS "CHK_movies_releaseYear_range"`);
-    await queryRunner.query(`ALTER TABLE "tracks" DROP CONSTRAINT IF EXISTS "CHK_tracks_endTime_gt_startTime"`);
-    await queryRunner.query(`ALTER TABLE "scenes" DROP CONSTRAINT IF EXISTS "CHK_scenes_endTime_gt_startTime"`);
-    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_songs_title_artist_unique"`);
-    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_scenes_movieId_sceneNumber_unique"`);
+    await queryRunner.query(
+      `ALTER TABLE "movies" DROP CONSTRAINT IF EXISTS "CHK_movies_releaseYear_range"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "tracks" DROP CONSTRAINT IF EXISTS "CHK_tracks_endTime_gt_startTime"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "scenes" DROP CONSTRAINT IF EXISTS "CHK_scenes_endTime_gt_startTime"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "IDX_songs_title_artist_unique"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "IDX_scenes_movieId_sceneNumber_unique"`,
+    );
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_movies_title_unique"`);
   }
 }

@@ -50,10 +50,7 @@ export const configValidationSchema = Joi.object({
     .integer()
     .min(1048576)
     .default(314572800),
-  HEALTH_CHECK_DISK_THRESHOLD_PERCENT: Joi.number()
-    .min(0)
-    .max(1)
-    .default(0.9),
+  HEALTH_CHECK_DISK_THRESHOLD_PERCENT: Joi.number().min(0).max(1).default(0.9),
 
   // SSE Configuration
   SSE_HEARTBEAT_INTERVAL: Joi.number().integer().min(1000).default(30000),

@@ -116,8 +116,11 @@ export class TracksService {
     page?: number,
     limit?: number,
   ): Promise<PaginatedResult<Track>> {
-    const { page: pageNum, limit: limitNum, skip } =
-      PaginationHelper.getPaginationOptions(this.configService, page, limit);
+    const {
+      page: pageNum,
+      limit: limitNum,
+      skip,
+    } = PaginationHelper.getPaginationOptions(this.configService, page, limit);
 
     this.logger.log(`Fetching tracks - page: ${pageNum}, limit: ${limitNum}`);
 
@@ -128,7 +131,12 @@ export class TracksService {
       take: limitNum,
     });
 
-    return PaginationHelper.createPaginatedResult(data, total, pageNum, limitNum);
+    return PaginationHelper.createPaginatedResult(
+      data,
+      total,
+      pageNum,
+      limitNum,
+    );
   }
 
   async findByScene(sceneId: string): Promise<Track[]> {
@@ -261,17 +269,17 @@ export class TracksService {
   async remove(id: string): Promise<void> {
     this.logger.log(`Deleting track with ID: ${id}`);
     const track = await this.findOne(id);
-    
+
     // Store track data for event emission before deletion
     const trackId = track.id;
     const sceneId = track.sceneId;
     const movieId = track.scene?.movieId ?? undefined;
-    
+
     await this.trackRepository.remove(track);
-    
+
     // Emit real-time event for track deletion
     this.realtimeService.emitTrackDeleted(trackId, sceneId, movieId);
-    
+
     this.logger.log(`Track deleted successfully with ID: ${id}`);
   }
 }

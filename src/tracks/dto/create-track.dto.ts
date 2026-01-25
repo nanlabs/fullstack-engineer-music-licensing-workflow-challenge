@@ -28,9 +28,9 @@ export class CreateTrackDto {
   @IsNumber()
   @Min(0)
   @Max(9999999999.99)
-  @ValidateIf((o) => o.endTime !== undefined)
+  @ValidateIf(o => o.endTime !== undefined)
   @Validate(
-    (value: any, args: ValidationArguments) => {
+    (value: number, args: ValidationArguments) => {
       const startTime = (args.object as CreateTrackDto).startTime;
       return value > startTime;
     },

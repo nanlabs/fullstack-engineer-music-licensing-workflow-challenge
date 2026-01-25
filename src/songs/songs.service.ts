@@ -47,7 +47,10 @@ export class SongsService {
         `Error creating song: ${error instanceof Error ? error.message : String(error)}`,
         error instanceof Error ? error.stack : undefined,
       );
-      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
         throw error;
       }
       throw new BadRequestException(
@@ -58,12 +61,12 @@ export class SongsService {
     }
   }
 
-  async findAll(
-    page?: number,
-    limit?: number,
-  ): Promise<PaginatedResult<Song>> {
-    const { page: pageNum, limit: limitNum, skip } =
-      PaginationHelper.getPaginationOptions(this.configService, page, limit);
+  async findAll(page?: number, limit?: number): Promise<PaginatedResult<Song>> {
+    const {
+      page: pageNum,
+      limit: limitNum,
+      skip,
+    } = PaginationHelper.getPaginationOptions(this.configService, page, limit);
 
     this.logger.log(`Fetching songs - page: ${pageNum}, limit: ${limitNum}`);
 
@@ -73,7 +76,12 @@ export class SongsService {
       take: limitNum,
     });
 
-    return PaginationHelper.createPaginatedResult(data, total, pageNum, limitNum);
+    return PaginationHelper.createPaginatedResult(
+      data,
+      total,
+      pageNum,
+      limitNum,
+    );
   }
 
   async findOne(id: string): Promise<Song> {
@@ -108,7 +116,10 @@ export class SongsService {
       if (queryRunner.isTransactionActive) {
         await queryRunner.rollbackTransaction();
       }
-      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
         throw error;
       }
       throw new BadRequestException(

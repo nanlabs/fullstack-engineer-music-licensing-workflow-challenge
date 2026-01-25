@@ -45,7 +45,10 @@ export class MoviesService {
         `Error creating movie: ${error instanceof Error ? error.message : String(error)}`,
         error instanceof Error ? error.stack : undefined,
       );
-      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
         throw error;
       }
       throw new BadRequestException(
@@ -60,8 +63,11 @@ export class MoviesService {
     page?: number,
     limit?: number,
   ): Promise<PaginatedResult<Movie>> {
-    const { page: pageNum, limit: limitNum, skip } =
-      PaginationHelper.getPaginationOptions(this.configService, page, limit);
+    const {
+      page: pageNum,
+      limit: limitNum,
+      skip,
+    } = PaginationHelper.getPaginationOptions(this.configService, page, limit);
 
     this.logger.log(`Fetching movies - page: ${pageNum}, limit: ${limitNum}`);
 
@@ -72,7 +78,12 @@ export class MoviesService {
       take: limitNum,
     });
 
-    return PaginationHelper.createPaginatedResult(data, total, pageNum, limitNum);
+    return PaginationHelper.createPaginatedResult(
+      data,
+      total,
+      pageNum,
+      limitNum,
+    );
   }
 
   async findOne(id: string): Promise<Movie> {
@@ -107,7 +118,10 @@ export class MoviesService {
       if (queryRunner.isTransactionActive) {
         await queryRunner.rollbackTransaction();
       }
-      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
         throw error;
       }
       throw new BadRequestException(

@@ -3,7 +3,7 @@ import { Response } from 'express';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { RealtimeService } from './realtime.service';
-import { RealtimeQueryDto, RealtimeEventType } from './dto/realtime-query.dto';
+import { RealtimeQueryDto } from './dto/realtime-query.dto';
 import { map } from 'rxjs/operators';
 
 @ApiTags('realtime')
@@ -11,7 +11,10 @@ import { map } from 'rxjs/operators';
 export class RealtimeController {
   private readonly logger = new Logger(RealtimeController.name);
   private static activeConnections = 0;
-  private static readonly connectionMutex = { locked: false, queue: [] as Array<() => void> };
+  private static readonly connectionMutex = {
+    locked: false,
+    queue: [] as Array<() => void>,
+  };
 
   constructor(
     private readonly realtimeService: RealtimeService,
@@ -29,7 +32,7 @@ export class RealtimeController {
    * Acquire mutex lock for connection counter operations
    */
   private async acquireLock(): Promise<void> {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       if (!RealtimeController.connectionMutex.locked) {
         RealtimeController.connectionMutex.locked = true;
         resolve();
@@ -85,23 +88,23 @@ export class RealtimeController {
 
   /**
    * Subscribe to real-time events via Server-Sent Events (SSE)
-   * 
+   *
    * Establishes a persistent SSE connection for receiving real-time updates about
    * licensing status changes, track creation, updates, and deletions.
-   * 
+   *
    * @param response - Express response object for SSE streaming
    * @param query - Query parameters for filtering events (eventType, trackId, sceneId, movieId)
    * @returns Promise that resolves when the stream is established
-   * 
+   *
    * @throws {503} Too many concurrent connections when connection limit is reached
-   * 
+   *
    * @example
    * // Subscribe to all events
    * GET /realtime/events
-   * 
+   *
    * // Filter by event type
    * GET /realtime/events?eventType=licensing_status_update
-   * 
+   *
    * // Filter by track ID
    * GET /realtime/events?trackId=550e8400-e29b-41d4-a716-446655440000
    */
@@ -168,7 +171,7 @@ export class RealtimeController {
         } else {
           clearInterval(heartbeatTimer);
           subscription.unsubscribe();
-          this.decrementConnections().catch((err) => {
+          this.decrementConnections().catch(err => {
             this.logger.error(`Error decrementing connections: ${err.message}`);
           });
         }
@@ -176,7 +179,7 @@ export class RealtimeController {
         // Client disconnected, cleanup
         clearInterval(heartbeatTimer);
         subscription.unsubscribe();
-        this.decrementConnections().catch((err) => {
+        this.decrementConnections().catch(err => {
           this.logger.error(`Error decrementing connections: ${err.message}`);
         });
       }
@@ -186,7 +189,7 @@ export class RealtimeController {
     const subscription = this.realtimeService
       .getEventStream()
       .pipe(
-        map((event) => {
+        map(event => {
           // Apply filters
           if (eventType && event.type !== eventType) {
             return null;
@@ -204,7 +207,7 @@ export class RealtimeController {
         }),
       )
       .subscribe({
-        next: async (event) => {
+        next: async event => {
           if (event) {
             try {
               // Format as SSE message
@@ -225,14 +228,14 @@ export class RealtimeController {
             }
           }
         },
-        error: (error) => {
+        error: error => {
           const errorMessage =
             error instanceof Error ? error.message : 'Unknown error';
           const errorStack = error instanceof Error ? error.stack : undefined;
           this.logger.error(`SSE stream error: ${errorMessage}`, errorStack);
           clearInterval(heartbeatTimer);
           subscription.unsubscribe();
-          this.decrementConnections().catch((err) => {
+          this.decrementConnections().catch(err => {
             this.logger.error(`Error decrementing connections: ${err.message}`);
           });
           try {
@@ -250,7 +253,7 @@ export class RealtimeController {
           this.logger.log('SSE stream completed');
           clearInterval(heartbeatTimer);
           subscription.unsubscribe();
-          this.decrementConnections().catch((err) => {
+          this.decrementConnections().catch(err => {
             this.logger.error(`Error decrementing connections: ${err.message}`);
           });
           if (!response.closed) {
@@ -263,7 +266,7 @@ export class RealtimeController {
     const cleanup = () => {
       clearInterval(heartbeatTimer);
       subscription.unsubscribe();
-      this.decrementConnections().catch((err) => {
+      this.decrementConnections().catch(err => {
         this.logger.error(`Error decrementing connections: ${err.message}`);
       });
       const maxConnections = this.getMaxConnections();

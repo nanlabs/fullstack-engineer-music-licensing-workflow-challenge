@@ -82,8 +82,11 @@ export class ScenesService {
     page?: number,
     limit?: number,
   ): Promise<PaginatedResult<Scene>> {
-    const { page: pageNum, limit: limitNum, skip } =
-      PaginationHelper.getPaginationOptions(this.configService, page, limit);
+    const {
+      page: pageNum,
+      limit: limitNum,
+      skip,
+    } = PaginationHelper.getPaginationOptions(this.configService, page, limit);
 
     this.logger.log(`Fetching scenes - page: ${pageNum}, limit: ${limitNum}`);
 
@@ -94,7 +97,12 @@ export class ScenesService {
       take: limitNum,
     });
 
-    return PaginationHelper.createPaginatedResult(data, total, pageNum, limitNum);
+    return PaginationHelper.createPaginatedResult(
+      data,
+      total,
+      pageNum,
+      limitNum,
+    );
   }
 
   async findByMovie(movieId: string): Promise<Scene[]> {
@@ -175,7 +183,10 @@ export class ScenesService {
       if (queryRunner.isTransactionActive) {
         await queryRunner.rollbackTransaction();
       }
-      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
         throw error;
       }
       throw new BadRequestException(

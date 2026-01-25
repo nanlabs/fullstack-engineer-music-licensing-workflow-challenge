@@ -7,10 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
-import {
-  HttpExceptionResponse,
-  isHttpExceptionResponse,
-} from '../interfaces/exception-response.interface';
+import { isHttpExceptionResponse } from '../interfaces/exception-response.interface';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -21,8 +18,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
     const nodeEnv = process.env.NODE_ENV || 'development';
-    const requestId =
-      (request.headers['x-request-id'] as string) || 'N/A';
+    const requestId = (request.headers['x-request-id'] as string) || 'N/A';
 
     const status =
       exception instanceof HttpException

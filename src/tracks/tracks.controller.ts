@@ -31,7 +31,9 @@ export class TracksController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Get all tracks or filter by scene/movie with pagination' })
+  @ApiOperation({
+    summary: 'Get all tracks or filter by scene/movie with pagination',
+  })
   @ApiQuery({
     name: 'sceneId',
     required: false,

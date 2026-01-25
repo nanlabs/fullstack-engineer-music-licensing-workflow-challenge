@@ -13,7 +13,7 @@ import { Request, Response } from 'express';
 export class LoggingInterceptor implements NestInterceptor {
   private readonly logger = new Logger('HTTP');
 
-  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const request = context.switchToHttp().getRequest<Request>();
     const response = context.switchToHttp().getResponse<Response>();
     const { method, url, ip } = request;
@@ -32,7 +32,7 @@ export class LoggingInterceptor implements NestInterceptor {
             `← ${method} ${url} ${response.statusCode} - ${delay}ms [${requestId}]`,
           );
         },
-        error: (error) => {
+        error: error => {
           const delay = Date.now() - now;
           this.logger.error(
             `✗ ${method} ${url} ${error.status || 500} - ${delay}ms [${requestId}]`,

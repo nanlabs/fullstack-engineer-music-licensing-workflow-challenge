@@ -84,10 +84,7 @@ export class MoviesController {
     },
   })
   findAll(@Query() paginationDto: PaginationDto) {
-    return this.moviesService.findAll(
-      paginationDto.page,
-      paginationDto.limit,
-    );
+    return this.moviesService.findAll(paginationDto.page, paginationDto.limit);
   }
 
   @Get(':id')

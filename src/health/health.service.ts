@@ -36,6 +36,7 @@ export class HealthService {
   }
 
   private getPoolStatus() {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const driver = this.dataSource.driver as any;
     if (driver.master && driver.master.pool) {
       const pool = driver.master.pool;

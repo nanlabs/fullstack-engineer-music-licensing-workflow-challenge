@@ -19,7 +19,7 @@ export class Scene {
   @Column({ type: 'uuid' })
   movieId!: string;
 
-  @ManyToOne(() => Movie, (movie) => movie.scenes, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Movie, movie => movie.scenes, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'movieId' })
   movie!: Movie;
 
@@ -38,7 +38,7 @@ export class Scene {
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   endTime?: number;
 
-  @OneToMany(() => Track, (track) => track.scene)
+  @OneToMany(() => Track, track => track.scene)
   tracks!: Track[];
 
   @CreateDateColumn()

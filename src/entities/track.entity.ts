@@ -28,14 +28,14 @@ export class Track {
   @Column({ type: 'uuid' })
   sceneId!: string;
 
-  @ManyToOne(() => Scene, (scene) => scene.tracks, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Scene, scene => scene.tracks, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'sceneId' })
   scene!: Scene;
 
   @Column({ type: 'uuid' })
   songId!: string;
 
-  @ManyToOne(() => Song, (song) => song.tracks, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Song, song => song.tracks, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'songId' })
   song!: Song;
 
@@ -53,7 +53,7 @@ export class Track {
   })
   currentLicensingStatus!: LicensingState;
 
-  @OneToMany(() => LicensingStatus, (status) => status.track)
+  @OneToMany(() => LicensingStatus, status => status.track)
   licensingStatusHistory!: LicensingStatus[];
 
   @CreateDateColumn()

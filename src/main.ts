@@ -24,9 +24,7 @@ async function bootstrap() {
   // NestJS uses Express under the hood, access via getHttpAdapter
   const expressApp = app.getHttpAdapter().getInstance();
   expressApp.use(express.json({ limit: bodySizeLimit }));
-  expressApp.use(
-    express.urlencoded({ extended: true, limit: bodySizeLimit }),
-  );
+  expressApp.use(express.urlencoded({ extended: true, limit: bodySizeLimit }));
 
   // Set global API prefix
   app.setGlobalPrefix(apiPrefix);
@@ -39,16 +37,26 @@ async function bootstrap() {
 
   // Enable CORS
   if (configService.get<boolean>('app.corsEnabled') !== false) {
-    const allowedOrigins =
-      nodeEnv === 'production'
-        ? configService.get<string[]>('app.allowedOrigins') || []
-        : configService.get<string[]>('app.allowedOrigins') || [
-            'http://localhost:3000',
-            'http://localhost:3001',
-          ];
+    const configuredOrigins = configService.get<string[]>('app.allowedOrigins');
+    let allowedOrigins: string[] | false;
+
+    if (nodeEnv === 'production') {
+      // In production, require explicit origin configuration
+      // If not configured, CORS is disabled for security
+      allowedOrigins =
+        configuredOrigins && configuredOrigins.length > 0
+          ? configuredOrigins
+          : false;
+    } else {
+      // In development, use configured origins or default to localhost
+      allowedOrigins =
+        configuredOrigins && configuredOrigins.length > 0
+          ? configuredOrigins
+          : ['http://localhost:3000', 'http://localhost:3001'];
+    }
 
     app.enableCors({
-      origin: allowedOrigins.length > 0 ? allowedOrigins : false,
+      origin: allowedOrigins,
       credentials: true,
     });
   }
@@ -113,7 +121,7 @@ async function bootstrap() {
   });
 }
 
-bootstrap().catch((error) => {
+bootstrap().catch(error => {
   const logger = new Logger('Bootstrap');
   logger.error('Failed to start application', error.stack);
   process.exit(1);
