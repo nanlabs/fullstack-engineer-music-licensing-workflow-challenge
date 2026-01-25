@@ -1,132 +1,382 @@
-# 🚀 Fullstack Engineer Challenge – Music Licensing Workflow
+# 🚀 ACME BROS Music Licensing Workflow API
 
-Welcome to the **Fullstack Engineer Challenge!** 🎸🎬  
-In this challenge, you'll help the fictional company **ACME BROS PICTURES** build a system to manage the **music licensing process** for their movies.
+A comprehensive REST API for managing music licensing workflows in movie production, built with NestJS, TypeScript, PostgreSQL, and TypeORM.
 
-## 🎯 Context
+## 🚀 Setup Instructions
 
-Each movie scene can contain **multiple music tracks**, and each track requires licensing. The licensing process involves back-and-forth negotiations with rights holders (artists or labels), which makes tracking each license's progress essential.
+### Prerequisites
 
-Your task is to create a simple system to:
+- **Node.js** 20+ 
+- **npm** or **yarn**
+- **Docker** and **Docker Compose** (for containerized setup)
+- **PostgreSQL** 16+ (if running locally without Docker)
 
-- Manage **tracks** for each movie scene.
-- Associate a **song** to each track, specifying its start and end time.
-- Track the **licensing status** of each song via a stateful workflow.
-- Provide a way for other users to **immediately see updates** in licensing status (real-time or near real-time visibility).
+### Option 1: Docker Compose (Recommended)
 
-## 📌 Requirements
+1. **Clone the repository:**
+   ```bash
+   git clone <repository-url>
+   cd nanlabs-code-challenge
+   ```
 
-### ⚙️ Tech Stack
+2. **Copy environment file:**
+   ```bash
+   cp .env.example .env
+   ```
+   
+   Edit `.env` file and update values as needed (see [Environment Variables](#environment-variables) section).
 
-> ⚡ **Must Include** - Use the following technologies, aligned with our tech stack:
+3. **Start all services:**
+   ```bash
+   docker-compose up -d
+   ```
+   
+   This will:
+   - Start PostgreSQL database container
+   - Run database migrations automatically
+   - Seed the database with test data
+   - Start the API server on `http://localhost:3000`
 
-- **Backend:** You can use any stack you're comfortable with, but we recommend using any of the following:
-  - TypeScript + NestJS (you can use Fastify or Koa if you prefer)
-  - Python + FastAPI (you can use Flask or Django if you prefer)
-  - Go + Fiber (you can use Gin or Echo if you prefer)
-- **API:** REST and/or GraphQL (you choose, and justify your choice if you only use one)
-- **Frontend:** React (using any framework such as Next.js, Remix, or bare metal with Vite)
-- **Database:** PostgreSQL (primary), MongoDB (optional if needed)
-- **Containerization:** Docker (required)
-- **Bonus:** Kafka, Redis, ArgoCD, Kubernetes (if you want to go further)
+4. **Verify installation:**
+   ```bash
+   curl http://localhost:3000/api/health
+   ```
 
-### 📦 Deliverables
+5. **Access Swagger documentation:**
+   Open `http://localhost:3000/api/docs` in your browser
 
-> 📥 **Your submission must be a Pull Request that includes:**
+### Option 2: Local Development Setup
 
-- A **backend** exposing the required APIs.
-- A **data model** to manage:
-  - Movies, scenes, tracks, songs, and their licensing states.
-- Endpoints or queries/mutations to:
-  - Create a track and associate a song.
-  - Update the licensing state of a track.
-  - Query all tracks for a given scene/movie, including licensing status.
-- A **frontend built with React** to:
-  - Visualize the movie scenes and associated tracks.
-  - Show licensing status.
-  - Allow status updates (basic UI).
-- Suggest a real-time implementation using WebSockets, GraphQL Subscriptions, or Server-Sent Events.
-- Docker setup to run the entire app locally.
-- A `README.md` with:
-  - Setup instructions
-  - Tech decisions and tradeoffs
-  - If applicable, your reasoning for using REST, GraphQL, or both
+1. **Clone and install:**
+   ```bash
+   git clone <repository-url>
+   cd nanlabs-code-challenge
+   npm install
+   ```
 
-> [!TIP]
-> Use the `docs` folder to store any additional documentation or diagrams that help explain your solution.
-> Mention any assumptions or constraints in your `README.md`.
+2. **Set up environment variables:**
+   ```bash
+   cp .env.example .env
+   ```
+   
+   Edit `.env` file with your configuration. The `.env.example` file contains all available variables with detailed documentation. Below is the complete list of all environment variables:
+   
+   **Required for basic setup:**
+   ```env
+   # Application Configuration
+   PORT=3000
+   NODE_ENV=development
+   API_PREFIX=api
+   
+   # Database Configuration
+   DB_HOST=localhost
+   DB_PORT=5432
+   DB_USERNAME=postgres
+   DB_PASSWORD=postgres
+   DB_NAME=acme_bros_db
+   DB_SYNC=false
+   ```
+   
+   **All available optional variables (with defaults):**
+   ```env
+   # CORS Configuration
+   CORS_ENABLED=true
+   ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3001
+   
+   # Database Connection Pool Configuration
+   DB_POOL_MAX=20
+   DB_POOL_MIN=5
+   DB_POOL_IDLE_TIMEOUT=30000
+   DB_POOL_CONNECTION_TIMEOUT=2000
+   
+   # Rate Limiting Configuration
+   RATE_LIMIT_TTL=60000
+   RATE_LIMIT_MAX=100
+   
+   # Pagination Configuration
+   PAGINATION_DEFAULT_PAGE=1
+   PAGINATION_DEFAULT_LIMIT=10
+   PAGINATION_MAX_LIMIT=100
+   
+   # Health Check Configuration
+   HEALTH_CHECK_MEMORY_HEAP_THRESHOLD=157286400
+   HEALTH_CHECK_MEMORY_RSS_THRESHOLD=157286400
+   HEALTH_CHECK_LIVENESS_MEMORY_THRESHOLD=314572800
+   HEALTH_CHECK_DISK_THRESHOLD_PERCENT=0.9
+   
+   # Server-Sent Events (SSE) Configuration
+   SSE_HEARTBEAT_INTERVAL=30000
+   
+   # Request Timeout Configuration
+   REQUEST_TIMEOUT=30000
+   
+   # Transform Interceptor Configuration
+   TRANSFORM_INTERCEPTOR_SKIP_PATHS=/health,/docs
+   TRANSFORM_INTERCEPTOR_SKIP_STATUS_CODES=204
+   ```
+   
+   **Quick Start:** For local development, you only need to configure the required variables above. All optional variables have sensible defaults and can be left as-is or customized later. See `.env.example` for detailed documentation of each variable including descriptions, units, and production recommendations.
 
-### 📂 Folder Suggestions
+3. **Start PostgreSQL:**
+   
+   Using Docker:
+   ```bash
+   docker run -d \
+     --name acme-bros-postgres \
+     -e POSTGRES_USER=postgres \
+     -e POSTGRES_PASSWORD=postgres \
+     -e POSTGRES_DB=acme_bros_db \
+     -p 5432:5432 \
+     postgres:16-alpine
+   ```
+   
+   Or use your local PostgreSQL instance.
 
-You can organize your project like this (suggested but not mandatory):
+4. **Run database migrations:**
+   ```bash
+   npm run migration:run
+   ```
 
-```txt
-/
-├── .github/
-│   ├── workflows/
-│   └── PULL_REQUEST_TEMPLATE.md
-├── docs/
-├── backend/
-│   ├── src/
-│   ├── test/
-│   └── Dockerfile
-├── frontend/
-│   ├── src/
-│   ├── public/
-│   └── Dockerfile
-├── compose.yml
-├── .env.example
-├── README.md
-├── .prettierrc.js
-├── eslint.config.mjs
-└── . . .
-```
+5. **Seed the database:**
+   ```bash
+   npm run seed:run
+   ```
 
-## 🌟 Nice to Have
+6. **Start development server:**
+   ```bash
+   npm run start:dev
+   ```
+   
+   The server will start on `http://localhost:3000` with hot-reload enabled.
 
-> 💡 **Bonus Points For:**
+### Environment Variables
 
-- Automated testing and CI pipeline using GitHub Actions.
-- Unit or integration tests for API or key logic.
-- Use of MongoDB for unstructured metadata (if justified).
-- Real-time suggestion implemented (e.g., via GraphQL subscriptions or WebSockets).
-- Basic usage of **Kafka or Redis** (e.g., async event messaging).
-- Usage of ArgoCD or Kubernetes (not expected, but definitely cool).
+All configuration is managed through environment variables. The `.env.example` file contains all available options with documentation. Here's a quick reference:
 
-> [!TIP]
-> Looking for inspiration or additional ideas to earn extra points? Check out our **[Awesome NaNLABS repository](https://github.com/nanlabs/awesome-nan)** for reference projects and best practices! 🚀
+**Required Variables (for local development):**
+- `PORT` - Server port (default: 3000)
+- `NODE_ENV` - Environment: development, production, test
+- `DB_HOST` - Database host (default: localhost)
+- `DB_PORT` - Database port (default: 5432)
+- `DB_USERNAME` - Database username (default: postgres)
+- `DB_PASSWORD` - Database password (default: postgres)
+- `DB_NAME` - Database name (default: acme_bros_db)
 
-## 🧪 Submission Guidelines
+**Optional Variables (have sensible defaults):**
 
-> 📌 **Follow these steps to submit your solution:**
+*Application Configuration:*
+- `API_PREFIX` - API route prefix (default: api)
+- `CORS_ENABLED` - Enable CORS (default: true)
+- `ALLOWED_ORIGINS` - CORS allowed origins (comma-separated, default: http://localhost:3000,http://localhost:3001)
 
-1. **Fork this repository.**
-2. **Create a feature branch** for your implementation.
-3. **Commit your changes** with meaningful commit messages.
-4. **Open a Pull Request** following the provided template.
-5. **Our team will review** and provide feedback.
+*Database Connection Pool:*
+- `DB_POOL_MAX` - Max database connections (default: 20)
+- `DB_POOL_MIN` - Min database connections (default: 5)
+- `DB_POOL_IDLE_TIMEOUT` - Idle timeout in ms (default: 30000)
+- `DB_POOL_CONNECTION_TIMEOUT` - Connection timeout in ms (default: 2000)
+- `DB_SYNC` - Enable database sync in development (default: false, ⚠️ never use in production)
 
-## ✅ Evaluation Criteria
+*Rate Limiting:*
+- `RATE_LIMIT_TTL` - Rate limit window in ms (default: 60000)
+- `RATE_LIMIT_MAX` - Max requests per window (default: 100)
 
-> 🔍 **What we'll be looking at:**
+*Pagination:*
+- `PAGINATION_DEFAULT_PAGE` - Default page number (default: 1)
+- `PAGINATION_DEFAULT_LIMIT` - Default items per page (default: 10)
+- `PAGINATION_MAX_LIMIT` - Max items per page (default: 100)
 
-- Ability to **work across the stack** (NestJS, PostgreSQL, React/Next.js/. . .).
-- Clean, modular and maintainable code with proper Git usage.
-- A good understanding of **data modeling and workflow management**.
-- Clear written communication in your README.
-- Ability to **propose real-time solutions**, even if not implemented.
+*Health Check:*
+- `HEALTH_CHECK_MEMORY_HEAP_THRESHOLD` - Memory heap threshold in bytes (default: 157286400 = 150MB)
+- `HEALTH_CHECK_MEMORY_RSS_THRESHOLD` - Memory RSS threshold in bytes (default: 157286400 = 150MB)
+- `HEALTH_CHECK_LIVENESS_MEMORY_THRESHOLD` - Liveness memory threshold in bytes (default: 314572800 = 300MB)
+- `HEALTH_CHECK_DISK_THRESHOLD_PERCENT` - Disk usage threshold as decimal (default: 0.9 = 90%)
 
-## 💬 Final Notes
+*Server-Sent Events & Timeouts:*
+- `SSE_HEARTBEAT_INTERVAL` - SSE heartbeat interval in ms (default: 30000)
+- `REQUEST_TIMEOUT` - Request timeout in ms (default: 30000)
 
-> [!TIP]
-> This challenge is designed to be flexible!
+*Transform Interceptor:*
+- `TRANSFORM_INTERCEPTOR_SKIP_PATHS` - Comma-separated paths to skip transformation (default: /health,/docs)
+- `TRANSFORM_INTERCEPTOR_SKIP_STATUS_CODES` - Comma-separated status codes to skip (default: 204)
 
-Here are some tips to help you succeed:
+**Important:** 
+- Copy `.env.example` to `.env` and customize as needed
+- Never commit `.env` files to version control (already in `.gitignore`)
+- For production, ensure all sensitive values are properly configured
+- See `.env.example` for detailed documentation of each variable
 
-- If you feel confident on the backend but less on the frontend, focus there—but try to show some basic UI.
-- Likewise, if you're stronger on the frontend, make sure your backend has clean structure and endpoints.
-- Time-box it: we don’t expect perfection. We want to see **how you think and solve problems**.
+## 📚 Documentation
 
-## 🏁 Good luck and have fun building
+All project documentation is available in the [`docs/`](./docs/) folder:
 
-If you have any questions, feel free to reach out.
+- **[Architecture & Design](./docs/ARCHITECTURE.md)** - System architecture, design patterns, and tech stack
+- **[Installation & Setup](./docs/INSTALLATION.md)** - Detailed installation instructions and available scripts
+- **[Database Schema](./docs/DATABASE_SCHEMA.md)** - Entity relationships, licensing states, and field descriptions
+- **[File Structure](./docs/FILE_STRUCTURE.md)** - Complete project structure and module organization
+- **[API Examples](./docs/API_EXAMPLES.md)** - Complete cURL examples for all endpoints
+- **[Real-Time Implementation](./docs/REALTIME_IMPLEMENTATION.md)** - SSE implementation guide and recommendations
+- **[SSE Usage Guide](./docs/SSE_USAGE.md)** - Client integration examples for Server-Sent Events
+- **[Testing](./docs/TESTING.md)** - Testing guide and best practices
+
+## 🎯 Key Features
+
+- **CRUD Operations** - Complete REST API for Movies, Scenes, Songs, and Tracks
+- **Licensing Management** - Track licensing status with full history
+- **Real-Time Updates** - Server-Sent Events (SSE) for live licensing status updates
+- **Production-Ready** - Health checks, rate limiting, security headers, error handling
+- **Comprehensive Testing** - Unit tests with Jest
+- **API Documentation** - Interactive Swagger/OpenAPI documentation
+
+## 🛠️ Tech Stack
+
+- **Framework**: NestJS 10.x
+- **Language**: TypeScript 5.x
+- **Database**: PostgreSQL 16
+- **ORM**: TypeORM 0.3.x
+- **Testing**: Jest
+- **API Style**: REST API with Server-Sent Events (SSE) for real-time updates
+
+## 🎯 Tech Decisions & Tradeoffs
+
+### Why REST API?
+
+This project uses **REST API** instead of GraphQL for the following reasons:
+
+#### ✅ Advantages of REST for This Use Case
+
+1. **Simplicity & Familiarity**
+   - REST follows standard HTTP conventions that are widely understood
+   - Easier onboarding for developers familiar with HTTP methods
+   - Straightforward caching strategies using HTTP cache headers
+
+2. **Clear Resource-Based Model**
+   - The domain (Movies, Scenes, Songs, Tracks) maps naturally to REST resources
+   - CRUD operations align perfectly with HTTP verbs (GET, POST, PATCH, DELETE)
+   - Predictable URL structure: `/api/movies`, `/api/movies/:id/scenes`
+
+3. **Performance & Efficiency**
+   - No query parsing overhead (GraphQL requires parsing and validation)
+   - Simpler request/response cycle for standard CRUD operations
+   - Better suited for bulk operations and pagination
+
+4. **Tooling & Ecosystem**
+   - Excellent Swagger/OpenAPI support for automatic documentation
+   - Standard HTTP caching mechanisms work out of the box
+   - Better integration with CDNs and reverse proxies
+   - Simpler debugging with standard HTTP tools (curl, Postman, browser dev tools)
+
+5. **Real-Time Requirements**
+   - Server-Sent Events (SSE) integrates seamlessly with REST endpoints
+   - No need for GraphQL subscriptions when SSE provides simpler real-time updates
+   - Lower complexity for one-way real-time data streaming
+
+6. **Team & Project Size**
+   - REST is sufficient for the current feature set
+   - Lower learning curve for team members
+   - Faster development iteration without GraphQL schema management
+
+#### ⚠️ Tradeoffs Considered
+
+**What We Gave Up:**
+- **Flexible Queries**: Clients can't request exactly the fields they need (though pagination helps)
+- **Single Endpoint**: Multiple endpoints instead of one GraphQL endpoint
+- **Type Safety**: Less compile-time type safety between client and server
+
+**Why It's Acceptable:**
+- The domain model is relatively simple and stable
+- Most queries follow standard patterns (list, get by ID, filter)
+- The benefits of simplicity outweigh the flexibility cost
+- Type safety is maintained through TypeScript and DTOs on the server side
+
+### When GraphQL Would Make Sense
+
+GraphQL would be a better choice if:
+- Clients need highly flexible, ad-hoc queries
+- Multiple client applications with different data requirements
+- Complex nested relationships requiring multiple round trips
+- Need for real-time subscriptions with complex filtering
+- Large team with dedicated GraphQL expertise
+
+### Other Tech Decisions
+
+#### NestJS Framework
+- **Why**: Enterprise-grade structure, TypeScript-first, excellent decorator support
+- **Tradeoff**: Steeper learning curve vs Express, but better long-term maintainability
+
+#### TypeORM
+- **Why**: TypeScript support, migrations, active record pattern
+- **Tradeoff**: Slightly heavier than Prisma, but better integration with NestJS
+
+#### PostgreSQL
+- **Why**: ACID compliance, JSON support, mature ecosystem
+- **Tradeoff**: More complex setup than MongoDB, but better data integrity
+
+#### Server-Sent Events (SSE) vs WebSockets
+- **Why**: Simpler implementation, one-way server-to-client streaming is sufficient
+- **Tradeoff**: No bidirectional communication, but licensing status updates are unidirectional
+
+#### TypeScript Strict Mode
+- **Why**: Better type safety, catches errors at compile time
+- **Tradeoff**: More verbose code, but significantly reduces runtime errors
+
+## 📋 Available Scripts
+
+| Script | Description |
+|-------|-------------|
+| `npm run start:dev` | Start development server with hot-reload |
+| `npm run build` | Compile TypeScript to JavaScript |
+| `npm run start:prod` | Start production server |
+| `npm test` | Run unit tests |
+| `npm run test:cov` | Run tests with coverage report |
+| `npm run migration:run` | Run database migrations |
+| `npm run seed:run` | Seed database with test data |
+
+See [Installation Guide](./docs/INSTALLATION.md) for complete list of scripts.
+
+## 🔗 Quick Links
+
+- **Swagger Documentation**: `http://localhost:3000/api/docs`
+- **Health Checks**: `http://localhost:3000/api/health`
+- **Real-Time Events**: `http://localhost:3000/api/realtime/events`
+
+**Note**: All endpoints are prefixed with `/api` by default (configurable via `API_PREFIX` environment variable).
+
+## 🏗️ Architecture Highlights
+
+### API Design Philosophy
+
+- **RESTful Principles**: Resources map to URLs, HTTP methods indicate actions
+- **Consistent Response Format**: All responses follow a standardized structure with `success`, `data`, and `meta` fields
+- **Pagination**: All list endpoints support pagination with configurable limits
+- **Real-Time Updates**: SSE streams for licensing status changes
+- **Comprehensive Validation**: Input validation using DTOs with class-validator
+- **Error Handling**: Standardized error responses with appropriate HTTP status codes
+
+### Key Design Patterns
+
+- **Repository Pattern**: Data access abstraction through TypeORM repositories
+- **DTO Pattern**: Data Transfer Objects for validation and API contracts
+- **Module Pattern**: Feature-based modules with clear boundaries
+- **Observer Pattern**: Real-time event streaming with RxJS Observables
+- **Dependency Injection**: Loose coupling through NestJS DI container
+
+### Security Features
+
+- **Rate Limiting**: Configurable rate limits to prevent abuse
+- **CORS**: Configurable allowed origins for cross-origin requests
+- **Security Headers**: Helmet middleware for XSS/CSRF protection
+- **Input Validation**: Strict validation on all inputs
+- **UUID Validation**: All ID parameters validated as UUIDs
+- **Request Timeout**: Configurable timeout to prevent resource exhaustion
+
+### Performance Optimizations
+
+- **Connection Pooling**: Configurable database connection pool
+- **Response Compression**: Gzip compression for responses
+- **Pagination**: Prevents large dataset queries
+- **Efficient Queries**: Optimized TypeORM queries with proper relations
+- **Indexing**: Database indexes on foreign keys and frequently queried fields
+
+## 📝 License
+
+See `LICENSE` file for details.
