@@ -39,8 +39,19 @@ export class TransformInterceptor<T> implements NestInterceptor<
       this.configService.get<string[]>('app.transformInterceptor.skipPaths') ||
       ['/health', '/docs'];
 
-    // Check if URL matches any skip paths
-    if (skipPaths.some((path) => url.startsWith(path))) {
+    // Check if URL matches any skip paths exactly or starts with path followed by / or end of string
+    // This prevents /health-check from matching /health
+    if (
+      skipPaths.some(
+        (path) =>
+          url === path ||
+          url === `${path}/` ||
+          (url.startsWith(path) &&
+            (url.length === path.length ||
+              url[path.length] === '/' ||
+              url[path.length] === '?')),
+      )
+    ) {
       return next.handle();
     }
 

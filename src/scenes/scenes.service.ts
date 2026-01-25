@@ -4,14 +4,15 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
+import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { Scene } from '../entities/scene.entity';
 import { Movie } from '../entities/movie.entity';
 import { CreateSceneDto } from './dto/create-scene.dto';
 import { UpdateSceneDto } from './dto/update-scene.dto';
 import { PaginatedResult } from '../common/dto/pagination.dto';
+import { PaginationHelper } from '../common/utils/pagination.util';
 
 @Injectable()
 export class ScenesService {
@@ -22,6 +23,8 @@ export class ScenesService {
     private readonly sceneRepository: Repository<Scene>,
     @InjectRepository(Movie)
     private readonly movieRepository: Repository<Movie>,
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
     private readonly configService: ConfigService,
   ) {}
 
@@ -48,12 +51,20 @@ export class ScenesService {
       throw new BadRequestException('endTime must be greater than startTime');
     }
 
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
     try {
       const scene = this.sceneRepository.create(createSceneDto);
-      const saved = await this.sceneRepository.save(scene);
+      const saved = await queryRunner.manager.save(Scene, scene);
+      await queryRunner.commitTransaction();
       this.logger.log(`Scene created successfully with ID: ${saved.id}`);
       return saved;
     } catch (error) {
+      if (queryRunner.isTransactionActive) {
+        await queryRunner.rollbackTransaction();
+      }
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
       const errorStack = error instanceof Error ? error.stack : undefined;
@@ -62,6 +73,8 @@ export class ScenesService {
         throw error;
       }
       throw new BadRequestException(`Failed to create scene: ${errorMessage}`);
+    } finally {
+      await queryRunner.release();
     }
   }
 
@@ -69,18 +82,10 @@ export class ScenesService {
     page?: number,
     limit?: number,
   ): Promise<PaginatedResult<Scene>> {
-    const defaultPage =
-      this.configService.get<number>('app.pagination.defaultPage') || 1;
-    const defaultLimit =
-      this.configService.get<number>('app.pagination.defaultLimit') || 10;
-    const maxLimit =
-      this.configService.get<number>('app.pagination.maxLimit') || 100;
-
-    const pageNum = page || defaultPage;
-    const limitNum = Math.min(limit || defaultLimit, maxLimit);
+    const { page: pageNum, limit: limitNum, skip } =
+      PaginationHelper.getPaginationOptions(this.configService, page, limit);
 
     this.logger.log(`Fetching scenes - page: ${pageNum}, limit: ${limitNum}`);
-    const skip = (pageNum - 1) * limitNum;
 
     const [data, total] = await this.sceneRepository.findAndCount({
       relations: ['movie', 'tracks', 'tracks.song'],
@@ -89,19 +94,7 @@ export class ScenesService {
       take: limitNum,
     });
 
-    const totalPages = Math.ceil(total / limitNum);
-
-    return {
-      data,
-      meta: {
-        page: pageNum,
-        limit: limitNum,
-        total,
-        totalPages,
-        hasNextPage: pageNum < totalPages,
-        hasPreviousPage: pageNum > 1,
-      },
-    };
+    return PaginationHelper.createPaginatedResult(data, total, pageNum, limitNum);
   }
 
   async findByMovie(movieId: string): Promise<Scene[]> {
@@ -168,16 +161,54 @@ export class ScenesService {
       throw new BadRequestException('endTime must be greater than startTime');
     }
 
-    Object.assign(scene, updateSceneDto);
-    const updated = await this.sceneRepository.save(scene);
-    this.logger.log(`Scene updated successfully with ID: ${updated.id}`);
-    return updated;
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      Object.assign(scene, updateSceneDto);
+      const updated = await queryRunner.manager.save(Scene, scene);
+      await queryRunner.commitTransaction();
+      this.logger.log(`Scene updated successfully with ID: ${updated.id}`);
+      return updated;
+    } catch (error) {
+      if (queryRunner.isTransactionActive) {
+        await queryRunner.rollbackTransaction();
+      }
+      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException(
+        `Failed to update scene: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+    } finally {
+      await queryRunner.release();
+    }
   }
 
   async remove(id: string): Promise<void> {
     this.logger.log(`Deleting scene with ID: ${id}`);
-    const scene = await this.findOne(id);
-    await this.sceneRepository.remove(scene);
-    this.logger.log(`Scene deleted successfully with ID: ${id}`);
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const scene = await this.findOne(id);
+      await queryRunner.manager.remove(Scene, scene);
+      await queryRunner.commitTransaction();
+      this.logger.log(`Scene deleted successfully with ID: ${id}`);
+    } catch (error) {
+      if (queryRunner.isTransactionActive) {
+        await queryRunner.rollbackTransaction();
+      }
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new BadRequestException(
+        `Failed to delete scene: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+    } finally {
+      await queryRunner.release();
+    }
   }
 }

@@ -6,6 +6,10 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
+import {
+  HttpExceptionResponse,
+  isHttpExceptionResponse,
+} from '../interfaces/exception-response.interface';
 
 @Catch(HttpException)
 export class HttpExceptionFilter implements ExceptionFilter {
@@ -20,6 +24,21 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const requestId =
       (request.headers['x-request-id'] as string) || 'N/A';
 
+    let message: string;
+    let error: string;
+
+    if (typeof exceptionResponse === 'string') {
+      message = exceptionResponse;
+      error = exception.name;
+    } else if (isHttpExceptionResponse(exceptionResponse)) {
+      const msg = exceptionResponse.message;
+      message = Array.isArray(msg) ? msg.join(', ') : msg;
+      error = exceptionResponse.error || exception.name;
+    } else {
+      message = exception.message;
+      error = exception.name;
+    }
+
     const errorResponse = {
       success: false,
       statusCode: status,
@@ -27,14 +46,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
       path: request.url,
       method: request.method,
       requestId,
-      message:
-        typeof exceptionResponse === 'string'
-          ? exceptionResponse
-          : (exceptionResponse as any).message || exception.message,
-      error:
-        typeof exceptionResponse === 'object'
-          ? (exceptionResponse as any).error
-          : exception.name,
+      message,
+      error,
     };
 
     // Log 404s as warn (client errors), 5xx as error (server errors)

@@ -106,9 +106,11 @@ A comprehensive REST API for managing music licensing workflows in movie product
    
    # Server-Sent Events (SSE) Configuration
    SSE_HEARTBEAT_INTERVAL=30000
+   SSE_MAX_CONNECTIONS=1000
    
-   # Request Timeout Configuration
+   # Request Configuration
    REQUEST_TIMEOUT=30000
+   REQUEST_BODY_SIZE_LIMIT=10mb
    
    # Transform Interceptor Configuration
    TRANSFORM_INTERCEPTOR_SKIP_PATHS=/health,/docs
@@ -193,11 +195,15 @@ All configuration is managed through environment variables. The `.env.example` f
 
 *Server-Sent Events & Timeouts:*
 - `SSE_HEARTBEAT_INTERVAL` - SSE heartbeat interval in ms (default: 30000)
+- `SSE_MAX_CONNECTIONS` - Maximum concurrent SSE connections (default: 1000)
 - `REQUEST_TIMEOUT` - Request timeout in ms (default: 30000)
+- `REQUEST_BODY_SIZE_LIMIT` - Maximum request body size (default: 10mb)
 
 *Transform Interceptor:*
 - `TRANSFORM_INTERCEPTOR_SKIP_PATHS` - Comma-separated paths to skip transformation (default: /health,/docs)
 - `TRANSFORM_INTERCEPTOR_SKIP_STATUS_CODES` - Comma-separated status codes to skip (default: 204)
+
+**Note:** The `.env.example` file contains all variables with detailed documentation, descriptions, and production recommendations. Copy it to `.env` and customize as needed.
 
 **Important:** 
 - Copy `.env.example` to `.env` and customize as needed

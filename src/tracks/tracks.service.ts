@@ -15,6 +15,7 @@ import { CreateTrackDto } from './dto/create-track.dto';
 import { UpdateLicensingStatusDto } from './dto/update-licensing-status.dto';
 import { RealtimeService } from '../realtime/realtime.service';
 import { PaginatedResult } from '../common/dto/pagination.dto';
+import { PaginationHelper } from '../common/utils/pagination.util';
 
 @Injectable()
 export class TracksService {
@@ -115,18 +116,10 @@ export class TracksService {
     page?: number,
     limit?: number,
   ): Promise<PaginatedResult<Track>> {
-    const defaultPage =
-      this.configService.get<number>('app.pagination.defaultPage') || 1;
-    const defaultLimit =
-      this.configService.get<number>('app.pagination.defaultLimit') || 10;
-    const maxLimit =
-      this.configService.get<number>('app.pagination.maxLimit') || 100;
-
-    const pageNum = page || defaultPage;
-    const limitNum = Math.min(limit || defaultLimit, maxLimit);
+    const { page: pageNum, limit: limitNum, skip } =
+      PaginationHelper.getPaginationOptions(this.configService, page, limit);
 
     this.logger.log(`Fetching tracks - page: ${pageNum}, limit: ${limitNum}`);
-    const skip = (pageNum - 1) * limitNum;
 
     const [data, total] = await this.trackRepository.findAndCount({
       relations: ['scene', 'scene.movie', 'song', 'licensingStatusHistory'],
@@ -135,19 +128,7 @@ export class TracksService {
       take: limitNum,
     });
 
-    const totalPages = Math.ceil(total / limitNum);
-
-    return {
-      data,
-      meta: {
-        page: pageNum,
-        limit: limitNum,
-        total,
-        totalPages,
-        hasNextPage: pageNum < totalPages,
-        hasPreviousPage: pageNum > 1,
-      },
-    };
+    return PaginationHelper.createPaginatedResult(data, total, pageNum, limitNum);
   }
 
   async findByScene(sceneId: string): Promise<Track[]> {

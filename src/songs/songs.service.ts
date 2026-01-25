@@ -4,13 +4,14 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
+import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { Song } from '../entities/song.entity';
 import { CreateSongDto } from './dto/create-song.dto';
 import { UpdateSongDto } from './dto/update-song.dto';
 import { PaginatedResult } from '../common/dto/pagination.dto';
+import { PaginationHelper } from '../common/utils/pagination.util';
 
 @Injectable()
 export class SongsService {
@@ -19,6 +20,8 @@ export class SongsService {
   constructor(
     @InjectRepository(Song)
     private readonly songRepository: Repository<Song>,
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
     private readonly configService: ConfigService,
   ) {}
 
@@ -26,12 +29,20 @@ export class SongsService {
     this.logger.log(
       `Creating song: ${createSongDto.title} by ${createSongDto.artist}`,
     );
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
     try {
       const song = this.songRepository.create(createSongDto);
-      const saved = await this.songRepository.save(song);
+      const saved = await queryRunner.manager.save(Song, song);
+      await queryRunner.commitTransaction();
       this.logger.log(`Song created successfully with ID: ${saved.id}`);
       return saved;
     } catch (error) {
+      if (queryRunner.isTransactionActive) {
+        await queryRunner.rollbackTransaction();
+      }
       this.logger.error(
         `Error creating song: ${error instanceof Error ? error.message : String(error)}`,
         error instanceof Error ? error.stack : undefined,
@@ -42,6 +53,8 @@ export class SongsService {
       throw new BadRequestException(
         `Failed to create song: ${error instanceof Error ? error.message : 'Unknown error'}`,
       );
+    } finally {
+      await queryRunner.release();
     }
   }
 
@@ -49,18 +62,10 @@ export class SongsService {
     page?: number,
     limit?: number,
   ): Promise<PaginatedResult<Song>> {
-    const defaultPage =
-      this.configService.get<number>('app.pagination.defaultPage') || 1;
-    const defaultLimit =
-      this.configService.get<number>('app.pagination.defaultLimit') || 10;
-    const maxLimit =
-      this.configService.get<number>('app.pagination.maxLimit') || 100;
-
-    const pageNum = page || defaultPage;
-    const limitNum = Math.min(limit || defaultLimit, maxLimit);
+    const { page: pageNum, limit: limitNum, skip } =
+      PaginationHelper.getPaginationOptions(this.configService, page, limit);
 
     this.logger.log(`Fetching songs - page: ${pageNum}, limit: ${limitNum}`);
-    const skip = (pageNum - 1) * limitNum;
 
     const [data, total] = await this.songRepository.findAndCount({
       order: { createdAt: 'DESC' },
@@ -68,19 +73,7 @@ export class SongsService {
       take: limitNum,
     });
 
-    const totalPages = Math.ceil(total / limitNum);
-
-    return {
-      data,
-      meta: {
-        page: pageNum,
-        limit: limitNum,
-        total,
-        totalPages,
-        hasNextPage: pageNum < totalPages,
-        hasPreviousPage: pageNum > 1,
-      },
-    };
+    return PaginationHelper.createPaginatedResult(data, total, pageNum, limitNum);
   }
 
   async findOne(id: string): Promise<Song> {
@@ -100,18 +93,55 @@ export class SongsService {
 
   async update(id: string, updateSongDto: UpdateSongDto): Promise<Song> {
     this.logger.log(`Updating song with ID: ${id}`);
-    const song = await this.findOne(id);
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
-    Object.assign(song, updateSongDto);
-    const updated = await this.songRepository.save(song);
-    this.logger.log(`Song updated successfully with ID: ${updated.id}`);
-    return updated;
+    try {
+      const song = await this.findOne(id);
+      Object.assign(song, updateSongDto);
+      const updated = await queryRunner.manager.save(Song, song);
+      await queryRunner.commitTransaction();
+      this.logger.log(`Song updated successfully with ID: ${updated.id}`);
+      return updated;
+    } catch (error) {
+      if (queryRunner.isTransactionActive) {
+        await queryRunner.rollbackTransaction();
+      }
+      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException(
+        `Failed to update song: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+    } finally {
+      await queryRunner.release();
+    }
   }
 
   async remove(id: string): Promise<void> {
     this.logger.log(`Deleting song with ID: ${id}`);
-    const song = await this.findOne(id);
-    await this.songRepository.remove(song);
-    this.logger.log(`Song deleted successfully with ID: ${id}`);
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const song = await this.findOne(id);
+      await queryRunner.manager.remove(Song, song);
+      await queryRunner.commitTransaction();
+      this.logger.log(`Song deleted successfully with ID: ${id}`);
+    } catch (error) {
+      if (queryRunner.isTransactionActive) {
+        await queryRunner.rollbackTransaction();
+      }
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new BadRequestException(
+        `Failed to delete song: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+    } finally {
+      await queryRunner.release();
+    }
   }
 }

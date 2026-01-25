@@ -7,6 +7,10 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
+import {
+  HttpExceptionResponse,
+  isHttpExceptionResponse,
+} from '../interfaces/exception-response.interface';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -31,16 +35,28 @@ export class AllExceptionsFilter implements ExceptionFilter {
         : 'Internal server error';
 
     // Sanitize error message in production
-    const sanitizedMessage =
-      nodeEnv === 'production'
-        ? status === HttpStatus.INTERNAL_SERVER_ERROR
-          ? 'An error occurred. Please contact support.'
-          : typeof message === 'string'
-            ? message
-            : (message as any).message || 'An error occurred'
-        : typeof message === 'string'
-          ? message
-          : (message as any).message || 'Internal server error';
+    let sanitizedMessage: string;
+    if (nodeEnv === 'production') {
+      if (status === HttpStatus.INTERNAL_SERVER_ERROR) {
+        sanitizedMessage = 'An error occurred. Please contact support.';
+      } else if (typeof message === 'string') {
+        sanitizedMessage = message;
+      } else if (isHttpExceptionResponse(message)) {
+        const msg = message.message;
+        sanitizedMessage = Array.isArray(msg) ? msg.join(', ') : msg;
+      } else {
+        sanitizedMessage = 'An error occurred';
+      }
+    } else {
+      if (typeof message === 'string') {
+        sanitizedMessage = message;
+      } else if (isHttpExceptionResponse(message)) {
+        const msg = message.message;
+        sanitizedMessage = Array.isArray(msg) ? msg.join(', ') : msg;
+      } else {
+        sanitizedMessage = 'Internal server error';
+      }
+    }
 
     const errorResponse = {
       success: false,

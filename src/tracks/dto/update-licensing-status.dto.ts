@@ -1,4 +1,11 @@
-import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
+import {
+  IsEnum,
+  IsOptional,
+  IsString,
+  MaxLength,
+  ValidateIf,
+  IsNotEmpty,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { LicensingState } from '../../entities/track.entity';
 
@@ -14,6 +21,8 @@ export class UpdateLicensingStatusDto {
 
   @ApiPropertyOptional({ example: 'admin' })
   @IsOptional()
+  @ValidateIf((o) => o.updatedBy !== undefined)
+  @IsNotEmpty()
   @IsString()
   @MaxLength(255)
   updatedBy?: string;

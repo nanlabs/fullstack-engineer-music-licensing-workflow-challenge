@@ -1,6 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { RealtimeService } from '../../src/realtime/realtime.service';
 import { LicensingState } from '../../src/entities/track.entity';
+import {
+  LicensingStatusUpdateData,
+  TrackCreatedData,
+  TrackUpdatedData,
+  TrackDeletedData,
+} from '../../src/realtime/interfaces/realtime-event.interface';
 
 describe('RealtimeService', () => {
   let service: RealtimeService;
@@ -40,15 +46,16 @@ describe('RealtimeService', () => {
 
       service.getEventStream().subscribe((event) => {
         expect(event.type).toBe('licensing_status_update');
-        expect(event.data.trackId).toBe('track-1');
-        expect(event.data.sceneId).toBe('scene-1');
-        expect(event.data.songId).toBe('song-1');
-        expect(event.data.movieId).toBe('movie-1');
-        expect(event.data.oldStatus).toBe(LicensingState.PENDING);
-        expect(event.data.newStatus).toBe(LicensingState.APPROVED);
-        expect(event.data.notes).toBe('Test notes');
-        expect(event.data.updatedBy).toBe('admin');
-        expect(event.data.track).toBeDefined();
+        const data = event.data as LicensingStatusUpdateData;
+        expect(data.trackId).toBe('track-1');
+        expect(data.sceneId).toBe('scene-1');
+        expect(data.songId).toBe('song-1');
+        expect(data.movieId).toBe('movie-1');
+        expect(data.oldStatus).toBe(LicensingState.PENDING);
+        expect(data.newStatus).toBe(LicensingState.APPROVED);
+        expect(data.notes).toBe('Test notes');
+        expect(data.updatedBy).toBe('admin');
+        expect(data.track).toBeDefined();
         expect(event.timestamp).toBeDefined();
         done();
       });
@@ -76,10 +83,11 @@ describe('RealtimeService', () => {
 
       service.getEventStream().subscribe((event) => {
         expect(event.type).toBe('licensing_status_update');
-        expect(event.data.notes).toBeUndefined();
-        expect(event.data.updatedBy).toBeUndefined();
-        expect(event.data.track.scene).toBeNull();
-        expect(event.data.track.song).toBeNull();
+        const data = event.data as LicensingStatusUpdateData;
+        expect(data.notes).toBeUndefined();
+        expect(data.updatedBy).toBeUndefined();
+        expect(data.track.scene).toBeNull();
+        expect(data.track.song).toBeNull();
         done();
       });
 
@@ -108,8 +116,9 @@ describe('RealtimeService', () => {
 
       service.getEventStream().subscribe((event) => {
         expect(event.type).toBe('track_created');
-        expect(event.data.trackId).toBe('track-3');
-        expect(event.data.movieId).toBe('movie-3');
+        const data = event.data as TrackCreatedData;
+        expect(data.trackId).toBe('track-3');
+        expect(data.movieId).toBe('movie-3');
         done();
       });
 
@@ -130,7 +139,8 @@ describe('RealtimeService', () => {
 
       service.getEventStream().subscribe((event) => {
         expect(event.type).toBe('track_updated');
-        expect(event.data.trackId).toBe('track-4');
+        const data = event.data as TrackUpdatedData;
+        expect(data.trackId).toBe('track-4');
         done();
       });
 
@@ -142,9 +152,10 @@ describe('RealtimeService', () => {
     it('should emit track deleted events', (done) => {
       service.getEventStream().subscribe((event) => {
         expect(event.type).toBe('track_deleted');
-        expect(event.data.trackId).toBe('track-5');
-        expect(event.data.sceneId).toBe('scene-5');
-        expect(event.data.movieId).toBe('movie-5');
+        const data = event.data as TrackDeletedData;
+        expect(data.trackId).toBe('track-5');
+        expect(data.sceneId).toBe('scene-5');
+        expect(data.movieId).toBe('movie-5');
         done();
       });
 

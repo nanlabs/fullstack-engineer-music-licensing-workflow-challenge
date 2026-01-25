@@ -1,16 +1,13 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { Subject, Observable } from 'rxjs';
 import { Track, LicensingState } from '../entities/track.entity';
-
-export interface RealtimeEvent {
-  type:
-    | 'licensing_status_update'
-    | 'track_created'
-    | 'track_updated'
-    | 'track_deleted';
-  data: any;
-  timestamp: string;
-}
+import {
+  RealtimeEvent,
+  LicensingStatusUpdateData,
+  TrackCreatedData,
+  TrackUpdatedData,
+  TrackDeletedData,
+} from './interfaces/realtime-event.interface';
 
 @Injectable()
 export class RealtimeService implements OnModuleDestroy {
@@ -39,40 +36,42 @@ export class RealtimeService implements OnModuleDestroy {
     notes?: string,
     updatedBy?: string,
   ): void {
-    const event: RealtimeEvent = {
-      type: 'licensing_status_update',
-      data: {
-        trackId: track.id,
+    const data: LicensingStatusUpdateData = {
+      trackId: track.id,
+      sceneId: track.sceneId,
+      songId: track.songId,
+      movieId: track.scene?.movieId ?? null,
+      oldStatus,
+      newStatus,
+      notes,
+      updatedBy,
+      track: {
+        id: track.id,
         sceneId: track.sceneId,
         songId: track.songId,
-        movieId: track.scene?.movieId ?? null,
-        oldStatus,
-        newStatus,
-        notes,
-        updatedBy,
-        track: {
-          id: track.id,
-          sceneId: track.sceneId,
-          songId: track.songId,
-          startTime: track.startTime,
-          endTime: track.endTime,
-          currentLicensingStatus: track.currentLicensingStatus,
-          scene: track.scene
-            ? {
-                id: track.scene.id,
-                title: track.scene.title,
-                movieId: track.scene.movieId,
-              }
-            : null,
-          song: track.song
-            ? {
-                id: track.song.id,
-                title: track.song.title,
-                artist: track.song.artist,
-              }
-            : null,
-        },
+        startTime: track.startTime,
+        endTime: track.endTime,
+        currentLicensingStatus: track.currentLicensingStatus,
+        scene: track.scene
+          ? {
+              id: track.scene.id,
+              title: track.scene.title,
+              movieId: track.scene.movieId,
+            }
+          : null,
+        song: track.song
+          ? {
+              id: track.song.id,
+              title: track.song.title,
+              artist: track.song.artist,
+            }
+          : null,
       },
+    };
+
+    const event: RealtimeEvent = {
+      type: 'licensing_status_update',
+      data,
       timestamp: new Date().toISOString(),
     };
 
@@ -86,22 +85,24 @@ export class RealtimeService implements OnModuleDestroy {
    * Emit track created event
    */
   emitTrackCreated(track: Track): void {
-    const event: RealtimeEvent = {
-      type: 'track_created',
-      data: {
-        trackId: track.id,
+    const data: TrackCreatedData = {
+      trackId: track.id,
+      sceneId: track.sceneId,
+      songId: track.songId,
+      movieId: track.scene?.movieId ?? null,
+      track: {
+        id: track.id,
         sceneId: track.sceneId,
         songId: track.songId,
-        movieId: track.scene?.movieId ?? null,
-        track: {
-          id: track.id,
-          sceneId: track.sceneId,
-          songId: track.songId,
-          startTime: track.startTime,
-          endTime: track.endTime,
-          currentLicensingStatus: track.currentLicensingStatus,
-        },
+        startTime: track.startTime,
+        endTime: track.endTime,
+        currentLicensingStatus: track.currentLicensingStatus,
       },
+    };
+
+    const event: RealtimeEvent = {
+      type: 'track_created',
+      data,
       timestamp: new Date().toISOString(),
     };
 
@@ -112,22 +113,24 @@ export class RealtimeService implements OnModuleDestroy {
    * Emit track updated event
    */
   emitTrackUpdated(track: Track): void {
-    const event: RealtimeEvent = {
-      type: 'track_updated',
-      data: {
-        trackId: track.id,
+    const data: TrackUpdatedData = {
+      trackId: track.id,
+      sceneId: track.sceneId,
+      songId: track.songId,
+      movieId: track.scene?.movieId ?? null,
+      track: {
+        id: track.id,
         sceneId: track.sceneId,
         songId: track.songId,
-        movieId: track.scene?.movieId ?? null,
-        track: {
-          id: track.id,
-          sceneId: track.sceneId,
-          songId: track.songId,
-          startTime: track.startTime,
-          endTime: track.endTime,
-          currentLicensingStatus: track.currentLicensingStatus,
-        },
+        startTime: track.startTime,
+        endTime: track.endTime,
+        currentLicensingStatus: track.currentLicensingStatus,
       },
+    };
+
+    const event: RealtimeEvent = {
+      type: 'track_updated',
+      data,
       timestamp: new Date().toISOString(),
     };
 
@@ -138,13 +141,15 @@ export class RealtimeService implements OnModuleDestroy {
    * Emit track deleted event
    */
   emitTrackDeleted(trackId: string, sceneId: string, movieId?: string): void {
+    const data: TrackDeletedData = {
+      trackId,
+      sceneId,
+      movieId,
+    };
+
     const event: RealtimeEvent = {
       type: 'track_deleted',
-      data: {
-        trackId,
-        sceneId,
-        movieId,
-      },
+      data,
       timestamp: new Date().toISOString(),
     };
 

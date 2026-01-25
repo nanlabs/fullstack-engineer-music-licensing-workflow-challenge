@@ -2,8 +2,15 @@
 set -e
 
 echo "Waiting for PostgreSQL to be ready..."
+MAX_ATTEMPTS=30
+ATTEMPT=0
 until pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USERNAME" > /dev/null 2>&1; do
-  echo "PostgreSQL is unavailable - sleeping"
+  ATTEMPT=$((ATTEMPT + 1))
+  if [ $ATTEMPT -ge $MAX_ATTEMPTS ]; then
+    echo "PostgreSQL failed to become ready after $MAX_ATTEMPTS attempts (60 seconds)"
+    exit 1
+  fi
+  echo "PostgreSQL is unavailable - sleeping (attempt $ATTEMPT/$MAX_ATTEMPTS)"
   sleep 2
 done
 

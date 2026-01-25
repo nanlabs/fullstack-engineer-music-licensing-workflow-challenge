@@ -1,8 +1,9 @@
 import { Controller, Get, Res, Query, Logger } from '@nestjs/common';
 import { Response } from 'express';
-import { ApiTags, ApiOperation, ApiQuery, ApiResponse } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { RealtimeService } from './realtime.service';
+import { RealtimeQueryDto, RealtimeEventType } from './dto/realtime-query.dto';
 import { map } from 'rxjs/operators';
 
 @ApiTags('realtime')
@@ -10,7 +11,7 @@ import { map } from 'rxjs/operators';
 export class RealtimeController {
   private readonly logger = new Logger(RealtimeController.name);
   private static activeConnections = 0;
-  private static readonly connectionLock = new Map<string, boolean>();
+  private static readonly connectionMutex = { locked: false, queue: [] as Array<() => void> };
 
   constructor(
     private readonly realtimeService: RealtimeService,
@@ -24,54 +25,91 @@ export class RealtimeController {
     );
   }
 
-  private incrementConnections(): boolean {
-    const maxConnections = this.getMaxConnections();
-    // Simple atomic-like increment check
-    if (RealtimeController.activeConnections >= maxConnections) {
-      return false;
+  /**
+   * Acquire mutex lock for connection counter operations
+   */
+  private async acquireLock(): Promise<void> {
+    return new Promise((resolve) => {
+      if (!RealtimeController.connectionMutex.locked) {
+        RealtimeController.connectionMutex.locked = true;
+        resolve();
+      } else {
+        RealtimeController.connectionMutex.queue.push(resolve);
+      }
+    });
+  }
+
+  /**
+   * Release mutex lock
+   */
+  private releaseLock(): void {
+    RealtimeController.connectionMutex.locked = false;
+    const next = RealtimeController.connectionMutex.queue.shift();
+    if (next) {
+      RealtimeController.connectionMutex.locked = true;
+      next();
     }
-    RealtimeController.activeConnections++;
-    return true;
   }
 
-  private decrementConnections(): void {
-    RealtimeController.activeConnections = Math.max(
-      0,
-      RealtimeController.activeConnections - 1,
-    );
+  /**
+   * Atomically increment connection counter with mutex
+   */
+  private async incrementConnections(): Promise<boolean> {
+    await this.acquireLock();
+    try {
+      const maxConnections = this.getMaxConnections();
+      if (RealtimeController.activeConnections >= maxConnections) {
+        return false;
+      }
+      RealtimeController.activeConnections++;
+      return true;
+    } finally {
+      this.releaseLock();
+    }
   }
 
+  /**
+   * Atomically decrement connection counter with mutex
+   */
+  private async decrementConnections(): Promise<void> {
+    await this.acquireLock();
+    try {
+      RealtimeController.activeConnections = Math.max(
+        0,
+        RealtimeController.activeConnections - 1,
+      );
+    } finally {
+      this.releaseLock();
+    }
+  }
+
+  /**
+   * Subscribe to real-time events via Server-Sent Events (SSE)
+   * 
+   * Establishes a persistent SSE connection for receiving real-time updates about
+   * licensing status changes, track creation, updates, and deletions.
+   * 
+   * @param response - Express response object for SSE streaming
+   * @param query - Query parameters for filtering events (eventType, trackId, sceneId, movieId)
+   * @returns Promise that resolves when the stream is established
+   * 
+   * @throws {503} Too many concurrent connections when connection limit is reached
+   * 
+   * @example
+   * // Subscribe to all events
+   * GET /realtime/events
+   * 
+   * // Filter by event type
+   * GET /realtime/events?eventType=licensing_status_update
+   * 
+   * // Filter by track ID
+   * GET /realtime/events?trackId=550e8400-e29b-41d4-a716-446655440000
+   */
   @Get('events')
   @ApiOperation({
     summary: 'Subscribe to real-time events via Server-Sent Events',
     description:
       'Returns a stream of real-time events. Clients can filter by event type using query parameters.',
-  })
-  @ApiQuery({
-    name: 'eventType',
-    required: false,
-    enum: [
-      'licensing_status_update',
-      'track_created',
-      'track_updated',
-      'track_deleted',
-    ],
-    description: 'Filter events by type (optional)',
-  })
-  @ApiQuery({
-    name: 'trackId',
-    required: false,
-    description: 'Filter events for a specific track ID (optional)',
-  })
-  @ApiQuery({
-    name: 'sceneId',
-    required: false,
-    description: 'Filter events for a specific scene ID (optional)',
-  })
-  @ApiQuery({
-    name: 'movieId',
-    required: false,
-    description: 'Filter events for a specific movie ID (optional)',
   })
   @ApiResponse({
     status: 200,
@@ -82,15 +120,14 @@ export class RealtimeController {
       Connection: { description: 'keep-alive' },
     },
   })
-  streamEvents(
+  async streamEvents(
     @Res() response: Response,
-    @Query('eventType') eventType?: string,
-    @Query('trackId') trackId?: string,
-    @Query('sceneId') sceneId?: string,
-    @Query('movieId') movieId?: string,
-  ): void {
+    @Query() query: RealtimeQueryDto,
+  ): Promise<void> {
+    const { eventType, trackId, sceneId, movieId } = query;
     // Check and increment connection limit atomically
-    if (!this.incrementConnections()) {
+    const canConnect = await this.incrementConnections();
+    if (!canConnect) {
       const maxConnections = this.getMaxConnections();
       this.logger.warn(
         `SSE connection limit reached: ${RealtimeController.activeConnections}/${maxConnections}`,
@@ -118,6 +155,33 @@ export class RealtimeController {
     // Send initial connection message
     response.write(`: Connected to real-time event stream\n\n`);
 
+    // Send periodic heartbeat to keep connection alive
+    // Declare heartbeatTimer before subscription so it's available in error handlers
+    const heartbeatInterval = parseInt(
+      this.configService.get<string>('app.sseHeartbeatInterval') || '30000',
+      10,
+    );
+    const heartbeatTimer = setInterval(() => {
+      try {
+        if (!response.closed) {
+          response.write(`: heartbeat\n\n`);
+        } else {
+          clearInterval(heartbeatTimer);
+          subscription.unsubscribe();
+          this.decrementConnections().catch((err) => {
+            this.logger.error(`Error decrementing connections: ${err.message}`);
+          });
+        }
+      } catch (error) {
+        // Client disconnected, cleanup
+        clearInterval(heartbeatTimer);
+        subscription.unsubscribe();
+        this.decrementConnections().catch((err) => {
+          this.logger.error(`Error decrementing connections: ${err.message}`);
+        });
+      }
+    }, heartbeatInterval);
+
     // Subscribe to events with optional filtering
     const subscription = this.realtimeService
       .getEventStream()
@@ -140,7 +204,7 @@ export class RealtimeController {
         }),
       )
       .subscribe({
-        next: (event) => {
+        next: async (event) => {
           if (event) {
             try {
               // Format as SSE message
@@ -154,7 +218,7 @@ export class RealtimeController {
               this.logger.error(`Error writing SSE message: ${errorMessage}`);
               clearInterval(heartbeatTimer);
               subscription.unsubscribe();
-              this.decrementConnections();
+              await this.decrementConnections();
               if (!response.closed) {
                 response.end();
               }
@@ -168,7 +232,9 @@ export class RealtimeController {
           this.logger.error(`SSE stream error: ${errorMessage}`, errorStack);
           clearInterval(heartbeatTimer);
           subscription.unsubscribe();
-          this.decrementConnections();
+          this.decrementConnections().catch((err) => {
+            this.logger.error(`Error decrementing connections: ${err.message}`);
+          });
           try {
             if (!response.closed) {
               response.write(
@@ -184,40 +250,22 @@ export class RealtimeController {
           this.logger.log('SSE stream completed');
           clearInterval(heartbeatTimer);
           subscription.unsubscribe();
-          this.decrementConnections();
+          this.decrementConnections().catch((err) => {
+            this.logger.error(`Error decrementing connections: ${err.message}`);
+          });
           if (!response.closed) {
             response.end();
           }
         },
       });
 
-    // Send periodic heartbeat to keep connection alive
-    const heartbeatInterval = parseInt(
-      this.configService.get<string>('app.sseHeartbeatInterval') || '30000',
-      10,
-    );
-    const heartbeatTimer = setInterval(() => {
-      try {
-        if (!response.closed) {
-          response.write(`: heartbeat\n\n`);
-        } else {
-          clearInterval(heartbeatTimer);
-          subscription.unsubscribe();
-          this.decrementConnections();
-        }
-      } catch (error) {
-        // Client disconnected, cleanup
-        clearInterval(heartbeatTimer);
-        subscription.unsubscribe();
-        this.decrementConnections();
-      }
-    }, heartbeatInterval);
-
     // Handle client disconnect and cleanup
     const cleanup = () => {
       clearInterval(heartbeatTimer);
       subscription.unsubscribe();
-      this.decrementConnections();
+      this.decrementConnections().catch((err) => {
+        this.logger.error(`Error decrementing connections: ${err.message}`);
+      });
       const maxConnections = this.getMaxConnections();
       this.logger.log(
         `Client disconnected from SSE stream: ${RealtimeController.activeConnections}/${maxConnections}`,

@@ -4,13 +4,14 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
+import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { Movie } from '../entities/movie.entity';
 import { CreateMovieDto } from './dto/create-movie.dto';
 import { UpdateMovieDto } from './dto/update-movie.dto';
 import { PaginatedResult } from '../common/dto/pagination.dto';
+import { PaginationHelper } from '../common/utils/pagination.util';
 
 @Injectable()
 export class MoviesService {
@@ -19,17 +20,27 @@ export class MoviesService {
   constructor(
     @InjectRepository(Movie)
     private readonly movieRepository: Repository<Movie>,
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
     private readonly configService: ConfigService,
   ) {}
 
   async create(createMovieDto: CreateMovieDto): Promise<Movie> {
     this.logger.log(`Creating movie: ${createMovieDto.title}`);
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
     try {
       const movie = this.movieRepository.create(createMovieDto);
-      const saved = await this.movieRepository.save(movie);
+      const saved = await queryRunner.manager.save(Movie, movie);
+      await queryRunner.commitTransaction();
       this.logger.log(`Movie created successfully with ID: ${saved.id}`);
       return saved;
     } catch (error) {
+      if (queryRunner.isTransactionActive) {
+        await queryRunner.rollbackTransaction();
+      }
       this.logger.error(
         `Error creating movie: ${error instanceof Error ? error.message : String(error)}`,
         error instanceof Error ? error.stack : undefined,
@@ -40,6 +51,8 @@ export class MoviesService {
       throw new BadRequestException(
         `Failed to create movie: ${error instanceof Error ? error.message : 'Unknown error'}`,
       );
+    } finally {
+      await queryRunner.release();
     }
   }
 
@@ -47,18 +60,10 @@ export class MoviesService {
     page?: number,
     limit?: number,
   ): Promise<PaginatedResult<Movie>> {
-    const defaultPage =
-      this.configService.get<number>('app.pagination.defaultPage') || 1;
-    const defaultLimit =
-      this.configService.get<number>('app.pagination.defaultLimit') || 10;
-    const maxLimit =
-      this.configService.get<number>('app.pagination.maxLimit') || 100;
-
-    const pageNum = page || defaultPage;
-    const limitNum = Math.min(limit || defaultLimit, maxLimit);
+    const { page: pageNum, limit: limitNum, skip } =
+      PaginationHelper.getPaginationOptions(this.configService, page, limit);
 
     this.logger.log(`Fetching movies - page: ${pageNum}, limit: ${limitNum}`);
-    const skip = (pageNum - 1) * limitNum;
 
     const [data, total] = await this.movieRepository.findAndCount({
       relations: ['scenes'],
@@ -67,19 +72,7 @@ export class MoviesService {
       take: limitNum,
     });
 
-    const totalPages = Math.ceil(total / limitNum);
-
-    return {
-      data,
-      meta: {
-        page: pageNum,
-        limit: limitNum,
-        total,
-        totalPages,
-        hasNextPage: pageNum < totalPages,
-        hasPreviousPage: pageNum > 1,
-      },
-    };
+    return PaginationHelper.createPaginatedResult(data, total, pageNum, limitNum);
   }
 
   async findOne(id: string): Promise<Movie> {
@@ -99,18 +92,55 @@ export class MoviesService {
 
   async update(id: string, updateMovieDto: UpdateMovieDto): Promise<Movie> {
     this.logger.log(`Updating movie with ID: ${id}`);
-    const movie = await this.findOne(id);
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
-    Object.assign(movie, updateMovieDto);
-    const updated = await this.movieRepository.save(movie);
-    this.logger.log(`Movie updated successfully with ID: ${updated.id}`);
-    return updated;
+    try {
+      const movie = await this.findOne(id);
+      Object.assign(movie, updateMovieDto);
+      const updated = await queryRunner.manager.save(Movie, movie);
+      await queryRunner.commitTransaction();
+      this.logger.log(`Movie updated successfully with ID: ${updated.id}`);
+      return updated;
+    } catch (error) {
+      if (queryRunner.isTransactionActive) {
+        await queryRunner.rollbackTransaction();
+      }
+      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException(
+        `Failed to update movie: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+    } finally {
+      await queryRunner.release();
+    }
   }
 
   async remove(id: string): Promise<void> {
     this.logger.log(`Deleting movie with ID: ${id}`);
-    const movie = await this.findOne(id);
-    await this.movieRepository.remove(movie);
-    this.logger.log(`Movie deleted successfully with ID: ${id}`);
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const movie = await this.findOne(id);
+      await queryRunner.manager.remove(Movie, movie);
+      await queryRunner.commitTransaction();
+      this.logger.log(`Movie deleted successfully with ID: ${id}`);
+    } catch (error) {
+      if (queryRunner.isTransactionActive) {
+        await queryRunner.rollbackTransaction();
+      }
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new BadRequestException(
+        `Failed to delete movie: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+    } finally {
+      await queryRunner.release();
+    }
   }
 }
