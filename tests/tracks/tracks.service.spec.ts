@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken, getDataSourceToken } from '@nestjs/typeorm';
+import { ConfigService } from '@nestjs/config';
 import { TracksService } from '../../src/tracks/tracks.service';
 import { Track, LicensingState } from '../../src/entities/track.entity';
 import { LicensingStatus } from '../../src/entities/licensing-status.entity';
@@ -98,6 +99,17 @@ describe('TracksService', () => {
     emitTrackDeleted: jest.fn(),
   };
 
+  const mockConfigService = {
+    get: jest.fn((key: string) => {
+      const config: Record<string, any> = {
+        'app.pagination.defaultPage': 1,
+        'app.pagination.defaultLimit': 10,
+        'app.pagination.maxLimit': 100,
+      };
+      return config[key];
+    }),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -125,6 +137,10 @@ describe('TracksService', () => {
         {
           provide: RealtimeService,
           useValue: mockRealtimeService,
+        },
+        {
+          provide: ConfigService,
+          useValue: mockConfigService,
         },
       ],
     }).compile();

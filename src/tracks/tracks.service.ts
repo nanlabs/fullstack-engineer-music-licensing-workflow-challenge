@@ -85,10 +85,19 @@ export class TracksService {
 
       await queryRunner.commitTransaction();
 
+      // Get full track data with relations for event emission
+      const fullTrack = await this.findOne(saved.id);
+
+      // Emit real-time event for track creation
+      this.realtimeService.emitTrackCreated(fullTrack);
+
       this.logger.log(`Track created successfully with ID: ${saved.id}`);
-      return this.findOne(saved.id);
+      return fullTrack;
     } catch (error) {
-      await queryRunner.rollbackTransaction();
+      // Only rollback if transaction was started
+      if (queryRunner.isTransactionActive) {
+        await queryRunner.rollbackTransaction();
+      }
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
       const errorStack = error instanceof Error ? error.stack : undefined;
@@ -220,12 +229,18 @@ export class TracksService {
 
       await queryRunner.commitTransaction();
 
-      // Get full track data with relations
-      const fullTrack = await this.findOne(id);
+      // Reload relations on the existing track entity using the main repository
+      // This avoids a second full query by reloading relations on the existing entity
+      const reloadedTrack = await this.trackRepository.findOne({
+        where: { id: track.id },
+        relations: ['scene', 'scene.movie', 'song', 'licensingStatusHistory'],
+      });
+
+      const trackForEvent = reloadedTrack || track;
 
       // Emit real-time event for licensing status update
       this.realtimeService.emitLicensingStatusUpdate(
-        fullTrack,
+        trackForEvent,
         oldStatus,
         updateLicensingStatusDto.status,
         updateLicensingStatusDto.notes,
@@ -235,9 +250,12 @@ export class TracksService {
       this.logger.log(
         `Licensing status updated to ${updateLicensingStatusDto.status} for track ID: ${id}`,
       );
-      return fullTrack;
+      return trackForEvent;
     } catch (error) {
-      await queryRunner.rollbackTransaction();
+      // Only rollback if transaction was started
+      if (queryRunner.isTransactionActive) {
+        await queryRunner.rollbackTransaction();
+      }
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
       const errorStack = error instanceof Error ? error.stack : undefined;
@@ -262,7 +280,17 @@ export class TracksService {
   async remove(id: string): Promise<void> {
     this.logger.log(`Deleting track with ID: ${id}`);
     const track = await this.findOne(id);
+    
+    // Store track data for event emission before deletion
+    const trackId = track.id;
+    const sceneId = track.sceneId;
+    const movieId = track.scene?.movieId ?? undefined;
+    
     await this.trackRepository.remove(track);
+    
+    // Emit real-time event for track deletion
+    this.realtimeService.emitTrackDeleted(trackId, sceneId, movieId);
+    
     this.logger.log(`Track deleted successfully with ID: ${id}`);
   }
 }

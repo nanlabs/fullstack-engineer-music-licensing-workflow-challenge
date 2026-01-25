@@ -1,8 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { MoviesService } from '../../src/../src/movies/movies.service';
-import { Movie } from '../../src/../src/entities/movie.entity';
-import { CreateMovieDto } from '../../src/../src/movies/dto/create-movie.dto';
+import { ConfigService } from '@nestjs/config';
+import { MoviesService } from '../../src/movies/movies.service';
+import { Movie } from '../../src/entities/movie.entity';
+import { CreateMovieDto } from '../../src/movies/dto/create-movie.dto';
 import { NotFoundException } from '@nestjs/common';
 
 describe('MoviesService', () => {
@@ -28,6 +29,17 @@ describe('MoviesService', () => {
     remove: jest.fn(),
   };
 
+  const mockConfigService = {
+    get: jest.fn((key: string) => {
+      const config: Record<string, any> = {
+        'app.pagination.defaultPage': 1,
+        'app.pagination.defaultLimit': 10,
+        'app.pagination.maxLimit': 100,
+      };
+      return config[key];
+    }),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -35,6 +47,10 @@ describe('MoviesService', () => {
         {
           provide: getRepositoryToken(Movie),
           useValue: mockRepository,
+        },
+        {
+          provide: ConfigService,
+          useValue: mockConfigService,
         },
       ],
     }).compile();

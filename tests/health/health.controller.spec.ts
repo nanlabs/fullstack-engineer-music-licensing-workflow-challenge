@@ -5,7 +5,7 @@ import {
   MemoryHealthIndicator,
   DiskHealthIndicator,
 } from '@nestjs/terminus';
-import { HealthController } from '../../src/../src/health/health.controller';
+import { HealthController } from '../../src/health/health.controller';
 
 describe('HealthController', () => {
   let controller: HealthController;
@@ -83,18 +83,10 @@ describe('HealthController', () => {
       };
 
       mockHealthCheckService.check.mockResolvedValue(mockResult);
-      mockDbIndicator.pingCheck.mockReturnValue(() =>
-        Promise.resolve({ database: { status: 'up' } }),
-      );
-      mockMemoryIndicator.checkHeap.mockReturnValue(() =>
-        Promise.resolve({ memory_heap: { status: 'up' } }),
-      );
-      mockMemoryIndicator.checkRSS.mockReturnValue(() =>
-        Promise.resolve({ memory_rss: { status: 'up' } }),
-      );
-      mockDiskIndicator.checkStorage.mockReturnValue(() =>
-        Promise.resolve({ storage: { status: 'up' } }),
-      );
+      mockDbIndicator.pingCheck.mockResolvedValue({ database: { status: 'up' } });
+      mockMemoryIndicator.checkHeap.mockResolvedValue({ memory_heap: { status: 'up' } });
+      mockMemoryIndicator.checkRSS.mockResolvedValue({ memory_rss: { status: 'up' } });
+      mockDiskIndicator.checkStorage.mockResolvedValue({ storage: { status: 'up' } });
 
       const result = await controller.check();
 
@@ -113,9 +105,7 @@ describe('HealthController', () => {
       };
 
       mockHealthCheckService.check.mockResolvedValue(mockResult);
-      mockDbIndicator.pingCheck.mockReturnValue(() =>
-        Promise.resolve({ database: { status: 'up' } }),
-      );
+      mockDbIndicator.pingCheck.mockResolvedValue({ database: { status: 'up' } });
 
       const result = await controller.checkDatabase();
 
@@ -134,9 +124,7 @@ describe('HealthController', () => {
       };
 
       mockHealthCheckService.check.mockResolvedValue(mockResult);
-      mockDbIndicator.pingCheck.mockReturnValue(() =>
-        Promise.resolve({ database: { status: 'up' } }),
-      );
+      mockDbIndicator.pingCheck.mockResolvedValue({ database: { status: 'up' } });
 
       const result = await controller.checkReady();
 
@@ -155,9 +143,7 @@ describe('HealthController', () => {
       };
 
       mockHealthCheckService.check.mockResolvedValue(mockResult);
-      mockMemoryIndicator.checkHeap.mockReturnValue(() =>
-        Promise.resolve({ memory_heap: { status: 'up' } }),
-      );
+      mockMemoryIndicator.checkHeap.mockResolvedValue({ memory_heap: { status: 'up' } });
 
       const result = await controller.checkLive();
 

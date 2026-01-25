@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { Subject, Observable } from 'rxjs';
 import { Track, LicensingState } from '../entities/track.entity';
 
@@ -13,9 +13,14 @@ export interface RealtimeEvent {
 }
 
 @Injectable()
-export class RealtimeService {
+export class RealtimeService implements OnModuleDestroy {
   private readonly logger = new Logger(RealtimeService.name);
   private readonly eventSubject = new Subject<RealtimeEvent>();
+
+  onModuleDestroy() {
+    this.eventSubject.complete();
+    this.logger.log('RealtimeService event stream closed');
+  }
 
   /**
    * Get observable stream of real-time events
@@ -40,7 +45,7 @@ export class RealtimeService {
         trackId: track.id,
         sceneId: track.sceneId,
         songId: track.songId,
-        movieId: track.scene?.movieId,
+        movieId: track.scene?.movieId ?? null,
         oldStatus,
         newStatus,
         notes,
@@ -87,7 +92,7 @@ export class RealtimeService {
         trackId: track.id,
         sceneId: track.sceneId,
         songId: track.songId,
-        movieId: track.scene?.movieId,
+        movieId: track.scene?.movieId ?? null,
         track: {
           id: track.id,
           sceneId: track.sceneId,
@@ -113,7 +118,7 @@ export class RealtimeService {
         trackId: track.id,
         sceneId: track.sceneId,
         songId: track.songId,
-        movieId: track.scene?.movieId,
+        movieId: track.scene?.movieId ?? null,
         track: {
           id: track.id,
           sceneId: track.sceneId,

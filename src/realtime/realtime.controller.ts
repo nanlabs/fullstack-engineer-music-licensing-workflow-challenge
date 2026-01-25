@@ -10,13 +10,36 @@ import { map } from 'rxjs/operators';
 export class RealtimeController {
   private readonly logger = new Logger(RealtimeController.name);
   private static activeConnections = 0;
-  private static readonly MAX_CONNECTIONS =
-    parseInt(process.env.SSE_MAX_CONNECTIONS || '1000', 10);
+  private static readonly connectionLock = new Map<string, boolean>();
 
   constructor(
     private readonly realtimeService: RealtimeService,
     private readonly configService: ConfigService,
   ) {}
+
+  private getMaxConnections(): number {
+    return parseInt(
+      this.configService.get<string>('app.sseMaxConnections') || '1000',
+      10,
+    );
+  }
+
+  private incrementConnections(): boolean {
+    const maxConnections = this.getMaxConnections();
+    // Simple atomic-like increment check
+    if (RealtimeController.activeConnections >= maxConnections) {
+      return false;
+    }
+    RealtimeController.activeConnections++;
+    return true;
+  }
+
+  private decrementConnections(): void {
+    RealtimeController.activeConnections = Math.max(
+      0,
+      RealtimeController.activeConnections - 1,
+    );
+  }
 
   @Get('events')
   @ApiOperation({
@@ -66,13 +89,11 @@ export class RealtimeController {
     @Query('sceneId') sceneId?: string,
     @Query('movieId') movieId?: string,
   ): void {
-    // Check connection limit
-    if (
-      RealtimeController.activeConnections >=
-      RealtimeController.MAX_CONNECTIONS
-    ) {
+    // Check and increment connection limit atomically
+    if (!this.incrementConnections()) {
+      const maxConnections = this.getMaxConnections();
       this.logger.warn(
-        `SSE connection limit reached: ${RealtimeController.activeConnections}/${RealtimeController.MAX_CONNECTIONS}`,
+        `SSE connection limit reached: ${RealtimeController.activeConnections}/${maxConnections}`,
       );
       response.status(503).json({
         success: false,
@@ -83,9 +104,9 @@ export class RealtimeController {
       return;
     }
 
-    RealtimeController.activeConnections++;
+    const maxConnections = this.getMaxConnections();
     this.logger.log(
-      `SSE connection established: ${RealtimeController.activeConnections}/${RealtimeController.MAX_CONNECTIONS}`,
+      `SSE connection established: ${RealtimeController.activeConnections}/${maxConnections}`,
     );
 
     // Set SSE headers
@@ -121,9 +142,23 @@ export class RealtimeController {
       .subscribe({
         next: (event) => {
           if (event) {
-            // Format as SSE message
-            const sseMessage = `event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`;
-            response.write(sseMessage);
+            try {
+              // Format as SSE message
+              const sseMessage = `event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`;
+              if (!response.closed) {
+                response.write(sseMessage);
+              }
+            } catch (error) {
+              const errorMessage =
+                error instanceof Error ? error.message : 'Unknown error';
+              this.logger.error(`Error writing SSE message: ${errorMessage}`);
+              clearInterval(heartbeatTimer);
+              subscription.unsubscribe();
+              this.decrementConnections();
+              if (!response.closed) {
+                response.end();
+              }
+            }
           }
         },
         error: (error) => {
@@ -131,13 +166,28 @@ export class RealtimeController {
             error instanceof Error ? error.message : 'Unknown error';
           const errorStack = error instanceof Error ? error.stack : undefined;
           this.logger.error(`SSE stream error: ${errorMessage}`, errorStack);
-          response.write(
-            `event: error\ndata: ${JSON.stringify({ message: 'Stream error' })}\n\n`,
-          );
+          clearInterval(heartbeatTimer);
+          subscription.unsubscribe();
+          this.decrementConnections();
+          try {
+            if (!response.closed) {
+              response.write(
+                `event: error\ndata: ${JSON.stringify({ message: 'Stream error' })}\n\n`,
+              );
+              response.end();
+            }
+          } catch (writeError) {
+            // Ignore write errors during error handling
+          }
         },
         complete: () => {
           this.logger.log('SSE stream completed');
-          response.end();
+          clearInterval(heartbeatTimer);
+          subscription.unsubscribe();
+          this.decrementConnections();
+          if (!response.closed) {
+            response.end();
+          }
         },
       });
 
@@ -147,28 +197,34 @@ export class RealtimeController {
       10,
     );
     const heartbeatTimer = setInterval(() => {
-      if (!response.closed) {
-        response.write(`: heartbeat\n\n`);
-      } else {
+      try {
+        if (!response.closed) {
+          response.write(`: heartbeat\n\n`);
+        } else {
+          clearInterval(heartbeatTimer);
+          subscription.unsubscribe();
+          this.decrementConnections();
+        }
+      } catch (error) {
+        // Client disconnected, cleanup
         clearInterval(heartbeatTimer);
         subscription.unsubscribe();
+        this.decrementConnections();
       }
     }, heartbeatInterval);
 
     // Handle client disconnect and cleanup
-    response.on('close', () => {
-      RealtimeController.activeConnections = Math.max(
-        0,
-        RealtimeController.activeConnections - 1,
-      );
-      this.logger.log(
-        `Client disconnected from SSE stream: ${RealtimeController.activeConnections}/${RealtimeController.MAX_CONNECTIONS}`,
-      );
+    const cleanup = () => {
       clearInterval(heartbeatTimer);
       subscription.unsubscribe();
-      if (!response.closed) {
-        response.end();
-      }
-    });
+      this.decrementConnections();
+      const maxConnections = this.getMaxConnections();
+      this.logger.log(
+        `Client disconnected from SSE stream: ${RealtimeController.activeConnections}/${maxConnections}`,
+      );
+    };
+
+    response.on('close', cleanup);
+    response.on('error', cleanup);
   }
 }

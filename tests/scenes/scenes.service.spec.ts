@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { ConfigService } from '@nestjs/config';
 import { ScenesService } from '../../src/scenes/scenes.service';
 import { Scene } from '../../src/entities/scene.entity';
 import { Movie } from '../../src/entities/movie.entity';
@@ -43,6 +44,17 @@ describe('ScenesService', () => {
     findOne: jest.fn(),
   };
 
+  const mockConfigService = {
+    get: jest.fn((key: string) => {
+      const config: Record<string, any> = {
+        'app.pagination.defaultPage': 1,
+        'app.pagination.defaultLimit': 10,
+        'app.pagination.maxLimit': 100,
+      };
+      return config[key];
+    }),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -54,6 +66,10 @@ describe('ScenesService', () => {
         {
           provide: getRepositoryToken(Movie),
           useValue: mockMovieRepository,
+        },
+        {
+          provide: ConfigService,
+          useValue: mockConfigService,
         },
       ],
     }).compile();

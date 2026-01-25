@@ -13,7 +13,6 @@ import { RealtimeModule } from './realtime/realtime.module';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
-import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 import { TimeoutMiddleware } from './common/middleware/timeout.middleware';
 
@@ -54,10 +53,6 @@ import { TimeoutMiddleware } from './common/middleware/timeout.middleware';
     {
       provide: APP_FILTER,
       useClass: AllExceptionsFilter,
-    },
-    {
-      provide: APP_FILTER,
-      useClass: HttpExceptionFilter,
     },
   ],
 })

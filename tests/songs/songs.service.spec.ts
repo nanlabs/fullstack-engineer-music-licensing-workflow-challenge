@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { ConfigService } from '@nestjs/config';
 import { SongsService } from '../../src/songs/songs.service';
 import { Song } from '../../src/entities/song.entity';
 import { CreateSongDto } from '../../src/songs/dto/create-song.dto';
@@ -30,6 +31,17 @@ describe('SongsService', () => {
     remove: jest.fn(),
   };
 
+  const mockConfigService = {
+    get: jest.fn((key: string) => {
+      const config: Record<string, any> = {
+        'app.pagination.defaultPage': 1,
+        'app.pagination.defaultLimit': 10,
+        'app.pagination.maxLimit': 100,
+      };
+      return config[key];
+    }),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -37,6 +49,10 @@ describe('SongsService', () => {
         {
           provide: getRepositoryToken(Song),
           useValue: mockRepository,
+        },
+        {
+          provide: ConfigService,
+          useValue: mockConfigService,
         },
       ],
     }).compile();

@@ -1,4 +1,4 @@
-import { AllExceptionsFilter } from '../../src/../../src/common/filters/all-exceptions.filter';
+import { AllExceptionsFilter } from '../../src/common/filters/all-exceptions.filter';
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { ArgumentsHost } from '@nestjs/common';
 import { Request, Response } from 'express';
@@ -14,6 +14,7 @@ describe('AllExceptionsFilter', () => {
     mockRequest = {
       method: 'POST',
       url: '/api/test',
+      headers: { 'x-request-id': 'test-request-id' },
     };
     mockResponse = {
       status: jest.fn().mockReturnThis(),

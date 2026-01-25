@@ -1,4 +1,4 @@
-import { HttpExceptionFilter } from '../../src/../../src/common/filters/http-exception.filter';
+import { HttpExceptionFilter } from '../../src/common/filters/http-exception.filter';
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { ArgumentsHost } from '@nestjs/common';
 import { Request, Response } from 'express';
@@ -14,6 +14,7 @@ describe('HttpExceptionFilter', () => {
     mockRequest = {
       method: 'GET',
       url: '/test',
+      headers: { 'x-request-id': 'test-request-id' },
     };
     mockResponse = {
       status: jest.fn().mockReturnThis(),
