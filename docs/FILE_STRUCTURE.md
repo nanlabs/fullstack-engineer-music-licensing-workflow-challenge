@@ -11,24 +11,34 @@ nanlabs-code-challenge/
 │   │
 │   ├── config/                          # Configuration modules
 │   │   ├── config.module.ts             # Global config module
+│   │   ├── config.validation.ts         # Joi validation schema for env vars
 │   │   ├── database.config.ts           # Database configuration
 │   │   ├── app.config.ts                # Application configuration
 │   │   └── typeorm.config.ts            # TypeORM CLI configuration
 │   │
 │   ├── common/                          # Shared utilities
+│   │   ├── dto/                         # Common DTOs
+│   │   │   └── pagination.dto.ts        # Pagination DTO and interfaces
 │   │   ├── filters/                     # Exception filters
 │   │   │   ├── all-exceptions.filter.ts
 │   │   │   └── http-exception.filter.ts
 │   │   ├── interceptors/                # Request/response interceptors
 │   │   │   ├── logging.interceptor.ts
 │   │   │   └── transform.interceptor.ts
-│   │   └── middleware/                  # Custom middleware
-│   │       └── request-id.middleware.ts
+│   │   ├── interfaces/                  # TypeScript interfaces
+│   │   │   └── exception-response.interface.ts
+│   │   ├── middleware/                  # Custom middleware
+│   │   │   ├── request-id.middleware.ts
+│   │   │   └── timeout.middleware.ts
+│   │   └── utils/                       # Utility functions
+│   │       └── pagination.util.ts       # Pagination helper utility
 │   │
 │   ├── database/                        # Database setup
 │   │   ├── database.module.ts           # Database module
 │   │   ├── migrations/                  # Database migrations
-│   │   │   └── 1700000000000-InitialSchema.ts
+│   │   │   ├── 1700000000000-InitialSchema.ts
+│   │   │   ├── 1700000001000-AddPerformanceIndexes.ts
+│   │   │   └── 1700000002000-AddDatabaseConstraints.ts
 │   │   └── seeds/                       # Database seeds
 │   │       ├── run-seed.ts
 │   │       └── seed-data.ts
@@ -80,7 +90,11 @@ nanlabs-code-challenge/
 │   └── realtime/                          # Real-time events module
 │       ├── realtime.module.ts
 │       ├── realtime.controller.ts
-│       └── realtime.service.ts
+│       ├── realtime.service.ts
+│       ├── dto/                           # Real-time DTOs
+│       │   └── realtime-query.dto.ts      # Query parameter validation DTO
+│       └── interfaces/                    # Real-time interfaces
+│           └── realtime-event.interface.ts
 │
 ├── tests/                                 # Unit tests
 │   ├── common/                            # Common utilities tests
@@ -91,9 +105,11 @@ nanlabs-code-challenge/
 │   │   │   ├── logging.interceptor.spec.ts
 │   │   │   └── transform.interceptor.spec.ts
 │   │   └── middleware/
-│   │       └── request-id.middleware.spec.ts
+│   │       ├── request-id.middleware.spec.ts
+│   │       └── timeout.middleware.spec.ts
 │   ├── health/
-│   │   └── health.controller.spec.ts
+│   │   ├── health.controller.spec.ts
+│   │   └── health.service.spec.ts
 │   ├── movies/
 │   │   ├── movies.controller.spec.ts
 │   │   └── movies.service.spec.ts
@@ -107,6 +123,7 @@ nanlabs-code-challenge/
 │   │   ├── tracks.controller.spec.ts
 │   │   └── tracks.service.spec.ts
 │   └── realtime/
+│       ├── realtime.controller.spec.ts
 │       └── realtime.service.spec.ts
 │
 ├── docs/                                  # Documentation
@@ -120,10 +137,16 @@ nanlabs-code-challenge/
 │   └── FILE_STRUCTURE.md                 # This file
 │
 ├── .dockerignore
+├── .editorconfig                         # EditorConfig for consistent formatting
+├── .env.example                           # Environment variables template
 ├── .eslintrc.js
+├── .gitattributes                         # Git line ending normalization
 ├── .gitignore
-├── .prettierrc
-├── compose.yml                           # Docker Compose configuration
+├── .npmrc                                 # npm configuration
+├── .nvmrc                                 # Node.js version specification
+├── .prettierrc                            # Prettier formatting configuration
+├── .prettierignore                        # Prettier ignore patterns
+├── compose.yml                            # Docker Compose configuration
 ├── docker-entrypoint.sh                  # Docker entrypoint script
 ├── Dockerfile                            # Production Dockerfile
 ├── Dockerfile.dev                        # Development Dockerfile
@@ -161,9 +184,12 @@ feature-name/
 - Application settings (port, environment, CORS)
 
 #### `/src/common` - Shared Utilities
+- **`dto/`**: Common Data Transfer Objects (e.g., pagination)
 - **`filters/`**: Global exception filters for error handling
 - **`interceptors/`**: Request/response interceptors for logging and transformation
-- **`middleware/`**: Custom middleware (e.g., request ID generation)
+- **`interfaces/`**: TypeScript interfaces for type safety
+- **`middleware/`**: Custom middleware (request ID generation, request timeout)
+- **`utils/`**: Utility functions (e.g., pagination helper)
 
 #### `/src/database` - Database Setup
 - **`migrations/`**: TypeORM database migrations
@@ -199,8 +225,10 @@ feature-name/
 
 #### `/src/realtime` - Real-Time Events Module
 - Server-Sent Events (SSE) implementation
-- Real-time event streaming
-- Event filtering capabilities
+- Real-time event streaming with connection management
+- Event filtering capabilities with query parameter validation
+- Mutex-based connection counter for thread-safe operations
+- Type-safe event interfaces
 
 ### `/tests` - Unit Tests
 

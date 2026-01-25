@@ -28,11 +28,11 @@
 
 3. **Verify installation:**
    ```bash
-   curl http://localhost:3000/health
+   curl http://localhost:3000/api/health
    ```
 
 4. **Access Swagger documentation:**
-   Open `http://localhost:3000/docs` in your browser
+   Open `http://localhost:3000/api/docs` in your browser
 
 ## Option 2: Local Development Setup
 
@@ -43,17 +43,19 @@
 
 2. **Set up environment variables:**
    
-   Create a `.env` file in the project root:
+   Copy `.env.example` to `.env` and update values as needed:
+   ```bash
+   cp .env.example .env
+   ```
+   
+   Minimum required variables for local development:
    ```env
-   DB_HOST=localhost
-   DB_PORT=5432
    DB_USERNAME=postgres
    DB_PASSWORD=postgres
    DB_NAME=acme_bros_db
-   DB_SYNC=false
-   NODE_ENV=development
-   PORT=3000
    ```
+   
+   See `.env.example` for all available configuration options with detailed documentation.
 
 3. **Start PostgreSQL:**
    

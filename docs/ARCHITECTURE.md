@@ -17,21 +17,26 @@ The ACME BROS API is built using **NestJS**, a progressive Node.js framework tha
 - **Real-Time Updates**: Server-Sent Events (SSE) for live licensing status updates
 
 ### 🛡️ Production-Ready Features
-- **Configuration Management**: Centralized config with `@nestjs/config`
+- **Configuration Management**: Centralized config with `@nestjs/config` and Joi validation
 - **Health Checks**: Database, memory, and disk monitoring via `@nestjs/terminus`
 - **Rate Limiting**: DDoS protection with `@nestjs/throttler` (100 req/min)
 - **Security Headers**: Helmet middleware for XSS/CSRF protection
-- **Error Handling**: Global exception filters with standardized error responses
+- **Error Handling**: Global exception filters with standardized error responses and type-safe interfaces
 - **Request Logging**: Comprehensive request/response logging with performance metrics
-- **Response Transformation**: Standardized API response format
-- **Request Tracking**: Unique request IDs for correlation
+- **Response Transformation**: Standardized API response format with configurable skip paths
+- **Request Tracking**: Unique request IDs for correlation with UUID validation
+- **Request Timeout**: Configurable request timeout middleware to prevent resource exhaustion
 - **Compression**: Response compression for better performance
+- **Transaction Management**: Atomic operations with TypeORM transactions for data consistency
+- **Connection Management**: Thread-safe SSE connection counter with mutex synchronization
 
 ### 📊 Design Patterns
 - **Repository Pattern**: TypeORM repositories for data access
 - **DTO Pattern**: Data Transfer Objects for validation and transformation
 - **Module Pattern**: Feature-based modules with clear boundaries
 - **Observer Pattern**: Real-time event streaming with RxJS Observables
+- **Utility Pattern**: Shared utilities (PaginationHelper) for code reuse
+- **Mutex Pattern**: Thread-safe connection management for SSE
 
 ## Tech Stack
 

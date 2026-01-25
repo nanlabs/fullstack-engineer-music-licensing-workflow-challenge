@@ -81,7 +81,49 @@ The primary real-time requirement for this API is:
 
 No additional dependencies needed! NestJS supports SSE out of the box.
 
-### Step 2: Create SSE Service
+### Step 2: Create Type-Safe Event Interfaces
+
+```typescript
+// src/realtime/interfaces/realtime-event.interface.ts
+export interface LicensingStatusUpdateData {
+  trackId: string;
+  sceneId: string;
+  songId: string;
+  movieId: string | null;
+  oldStatus: LicensingState;
+  newStatus: LicensingState;
+  notes?: string;
+  updatedBy?: string;
+  track: TrackData;
+}
+
+// ... other event data interfaces
+```
+
+### Step 3: Create Query Validation DTO
+
+```typescript
+// src/realtime/dto/realtime-query.dto.ts
+export class RealtimeQueryDto {
+  @IsOptional()
+  @IsEnum(RealtimeEventType)
+  eventType?: RealtimeEventType;
+
+  @IsOptional()
+  @IsUUID()
+  trackId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  sceneId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  movieId?: string;
+}
+```
+
+### Step 4: Create SSE Service
 
 ```typescript
 // src/realtime/realtime.service.ts
@@ -89,16 +131,22 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Subject, Observable } from 'rxjs';
 import { Track, LicensingState } from '../entities/track.entity';
 
-export interface RealtimeEvent {
-  type: 'licensing_status_update' | 'track_created' | 'track_updated' | 'track_deleted';
-  data: any;
-  timestamp: string;
-}
+// Type-safe interfaces are defined in src/realtime/interfaces/realtime-event.interface.ts
+// This replaces the 'any' type with proper TypeScript interfaces:
+// - LicensingStatusUpdateData
+// - TrackCreatedData
+// - TrackUpdatedData
+// - TrackDeletedData
 
 @Injectable()
-export class RealtimeService {
+export class RealtimeService implements OnModuleDestroy {
   private readonly logger = new Logger(RealtimeService.name);
   private readonly eventSubject = new Subject<RealtimeEvent>();
+
+  onModuleDestroy() {
+    this.eventSubject.complete();
+    this.logger.log('RealtimeService event stream closed');
+  }
 
   /**
    * Get observable stream of real-time events
@@ -231,7 +279,7 @@ export class RealtimeService {
 }
 ```
 
-### Step 3: Create SSE Controller
+### Step 5: Create SSE Controller
 
 ```typescript
 // src/realtime/realtime.controller.ts
@@ -245,8 +293,13 @@ import { map } from 'rxjs/operators';
 @Controller('realtime')
 export class RealtimeController {
   private readonly logger = new Logger(RealtimeController.name);
+  private static activeConnections = 0;
+  private static readonly connectionMutex = { locked: false, queue: [] as Array<() => void> };
 
-  constructor(private readonly realtimeService: RealtimeService) {}
+  constructor(
+    private readonly realtimeService: RealtimeService,
+    private readonly configService: ConfigService,
+  ) {}
 
   @Get('events')
   @ApiOperation({
@@ -289,13 +342,23 @@ export class RealtimeController {
       Connection: { description: 'keep-alive' },
     },
   })
-  streamEvents(
+  async streamEvents(
     @Res() response: Response,
-    @Query('eventType') eventType?: string,
-    @Query('trackId') trackId?: string,
-    @Query('sceneId') sceneId?: string,
-    @Query('movieId') movieId?: string,
-  ): void {
+    @Query() query: RealtimeQueryDto,
+  ): Promise<void> {
+    const { eventType, trackId, sceneId, movieId } = query;
+    
+    // Check connection limit with mutex synchronization
+    const canConnect = await this.incrementConnections();
+    if (!canConnect) {
+      response.status(503).json({
+        success: false,
+        statusCode: 503,
+        message: 'Too many concurrent connections. Please try again later.',
+        timestamp: new Date().toISOString(),
+      });
+      return;
+    }
     // Set SSE headers
     response.setHeader('Content-Type', 'text/event-stream');
     response.setHeader('Cache-Control', 'no-cache');
@@ -352,24 +415,43 @@ export class RealtimeController {
     });
 
     // Send periodic heartbeat to keep connection alive
-    const heartbeatInterval = setInterval(() => {
-      if (!response.closed) {
-        response.write(`: heartbeat\n\n`);
-      } else {
-        clearInterval(heartbeatInterval);
+    // Declare heartbeatTimer before subscription so it's available in error handlers
+    const heartbeatInterval = parseInt(
+      this.configService.get<string>('app.sseHeartbeatInterval') || '30000',
+      10,
+    );
+    const heartbeatTimer = setInterval(() => {
+      try {
+        if (!response.closed) {
+          response.write(`: heartbeat\n\n`);
+        } else {
+          clearInterval(heartbeatTimer);
+          subscription.unsubscribe();
+          await this.decrementConnections();
+        }
+      } catch (error) {
+        clearInterval(heartbeatTimer);
         subscription.unsubscribe();
+        await this.decrementConnections();
       }
-    }, 30000); // Every 30 seconds
+    }, heartbeatInterval);
 
-    // Cleanup on disconnect
-    response.on('close', () => {
-      clearInterval(heartbeatInterval);
-    });
+    // Handle client disconnect and cleanup
+    const cleanup = () => {
+      clearInterval(heartbeatTimer);
+      subscription.unsubscribe();
+      this.decrementConnections().catch((err) => {
+        this.logger.error(`Error decrementing connections: ${err.message}`);
+      });
+    };
+
+    response.on('close', cleanup);
+    response.on('error', cleanup);
   }
 }
 ```
 
-### Step 4: Create Realtime Module
+### Step 6: Create Realtime Module
 
 ```typescript
 // src/realtime/realtime.module.ts
@@ -385,7 +467,7 @@ import { RealtimeController } from './realtime.controller';
 export class RealtimeModule {}
 ```
 
-### Step 5: Integrate with Notification Service
+### Step 7: Integrate with Notification Service
 
 ```typescript
 // src/notifications/strategies/realtime.strategy.ts
@@ -425,7 +507,7 @@ export class RealtimeStrategy implements NotificationStrategy {
 }
 ```
 
-### Step 6: Update Tracks Service
+### Step 8: Update Tracks Service
 
 ```typescript
 // Add to src/tracks/tracks.service.ts
@@ -465,7 +547,7 @@ async remove(id: string): Promise<void> {
 }
 ```
 
-### Step 7: Update App Module
+### Step 9: Update App Module
 
 ```typescript
 // src/app.module.ts
@@ -501,7 +583,7 @@ export class AppModule {}
 
 ```typescript
 // Connect to SSE stream
-const eventSource = new EventSource('http://localhost:3000/realtime/events?eventType=licensing_status_update');
+const eventSource = new EventSource('http://localhost:3000/api/realtime/events?eventType=licensing_status_update');
 
 // Listen for events
 eventSource.addEventListener('licensing_status_update', (event) => {
@@ -552,7 +634,7 @@ export function useRealtimeEvents(
     if (filters?.movieId) params.append('movieId', filters.movieId);
 
     const eventSource = new EventSource(
-      `/realtime/events?${params.toString()}`,
+      `/api/realtime/events?${params.toString()}`,
     );
 
     eventSource.onopen = () => {
@@ -632,13 +714,13 @@ function TrackList({ movieId }: { movieId: string }) {
 
 ```bash
 # Connect to SSE stream
-curl -N http://localhost:3000/realtime/events
+curl -N http://localhost:3000/api/realtime/events
 
 # Filter by event type
-curl -N "http://localhost:3000/realtime/events?eventType=licensing_status_update"
+curl -N "http://localhost:3000/api/realtime/events?eventType=licensing_status_update"
 
 # Filter by movie ID
-curl -N "http://localhost:3000/realtime/events?movieId=550e8400-e29b-41d4-a716-446655440000"
+curl -N "http://localhost:3000/api/realtime/events?movieId=550e8400-e29b-41d4-a716-446655440000"
 ```
 
 ### Unit Test Example
@@ -691,10 +773,11 @@ describe('RealtimeService', () => {
 
 ## 📊 Performance Considerations
 
-1. **Connection Limits**: Each SSE connection consumes server resources. Consider:
-   - Connection pooling
-   - Rate limiting per IP
-   - Maximum concurrent connections
+1. **Connection Limits**: Each SSE connection consumes server resources. Implemented:
+   - ✅ Maximum concurrent connections (configurable via `SSE_MAX_CONNECTIONS`)
+   - ✅ Thread-safe connection counter with mutex synchronization
+   - ✅ Connection limit enforcement (returns 503 when limit reached)
+   - ✅ Automatic cleanup on disconnect
 
 2. **Scaling**: For horizontal scaling, consider:
    - Redis Pub/Sub for multi-instance deployments

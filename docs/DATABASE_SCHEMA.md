@@ -161,11 +161,26 @@ pending → negotiating → approved
 ## Constraints
 
 - **Foreign Keys**: All foreign key relationships use CASCADE delete
+- **Unique Constraints**:
+  - `IDX_movies_title_unique` - Unique movie titles
+  - `IDX_scenes_movieId_sceneNumber_unique` - Unique scene numbers per movie
+  - `IDX_songs_title_artist_unique` - Unique song title/artist combinations
+- **Check Constraints**:
+  - `CHK_scenes_endTime_gt_startTime` - Scene endTime must be greater than startTime
+  - `CHK_tracks_endTime_gt_startTime` - Track endTime must be greater than startTime
+  - `CHK_movies_releaseYear_range` - Release year must be between 1900 and 2100
 - **Indexes**: 
-  - `IDX_scenes_movieId` on Scenes.movieId
-  - `IDX_tracks_sceneId` on Tracks.sceneId
-  - `IDX_tracks_songId` on Tracks.songId
-  - `IDX_licensing_statuses_trackId` on LicensingStatuses.trackId
+  - Performance indexes:
+    - `IDX_tracks_currentLicensingStatus` - Filter tracks by status
+    - `IDX_tracks_sceneId_songId` - Composite index for common queries
+    - `IDX_licensing_statuses_createdAt` - Order status history
+    - `IDX_tracks_createdAt` - Order tracks by creation date
+    - `IDX_movies_createdAt` - Order movies by creation date
+  - Foreign key indexes:
+    - `IDX_scenes_movieId` on Scenes.movieId
+    - `IDX_tracks_sceneId` on Tracks.sceneId
+    - `IDX_tracks_songId` on Tracks.songId
+    - `IDX_licensing_statuses_trackId` on LicensingStatuses.trackId
 
 ## Data Flow
 
@@ -173,6 +188,10 @@ pending → negotiating → approved
 2. **Create Scene** → Associates scene with movie (validates movieId exists)
 3. **Create Song** → Creates a song record
 4. **Create Track** → Associates track with scene and song (validates both exist)
+   - Uses transaction to ensure atomicity
    - Automatically creates initial `pending` licensing status
+   - Emits real-time SSE event for track creation
 5. **Update Licensing Status** → Creates new status entry and updates track's current status
+   - Uses transaction to ensure atomicity
    - Emits real-time SSE event for status change
+6. **Delete Track** → Removes track and emits real-time SSE event

@@ -34,23 +34,29 @@ tests/
 │   ├── filters/
 │   ├── interceptors/
 │   └── middleware/
+│       ├── request-id.middleware.spec.ts
+│       └── timeout.middleware.spec.ts
 ├── health/
+│   ├── health.controller.spec.ts
+│   └── health.service.spec.ts
 ├── movies/
 ├── scenes/
 ├── songs/
 ├── tracks/
 └── realtime/
+    ├── realtime.controller.spec.ts
+    └── realtime.service.spec.ts
 ```
 
 ## Test Coverage
 
 The project aims for comprehensive test coverage including:
-- **Controllers**: All REST endpoints
-- **Services**: Business logic and data operations
-- **Filters**: Exception handling
+- **Controllers**: All REST endpoints (Movies, Scenes, Songs, Tracks, Health, Realtime)
+- **Services**: Business logic and data operations (including HealthService)
+- **Filters**: Exception handling (AllExceptionsFilter, HttpExceptionFilter)
 - **Interceptors**: Request/response transformation and logging
-- **Middleware**: Request processing
-- **Real-time Services**: SSE event emission
+- **Middleware**: Request processing (RequestIdMiddleware, TimeoutMiddleware)
+- **Real-time Services**: SSE event emission and connection management
 
 ## Writing Tests
 

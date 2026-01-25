@@ -7,22 +7,30 @@ Server-Sent Events (SSE) have been implemented to provide real-time updates when
 ## Endpoint
 
 ```
-GET /realtime/events
+GET /api/realtime/events
 ```
 
 ## Query Parameters
 
+All query parameters are validated using DTOs with proper validation decorators:
+
 - `eventType` (optional): Filter by event type (`licensing_status_update`, `track_created`, `track_updated`, `track_deleted`)
+  - Validated as enum using `@IsEnum()`
 - `trackId` (optional): Filter events for a specific track ID
+  - Validated as UUID using `@IsUUID()`
 - `sceneId` (optional): Filter events for a specific scene ID
+  - Validated as UUID using `@IsUUID()`
 - `movieId` (optional): Filter events for a specific movie ID
+  - Validated as UUID using `@IsUUID()`
+
+**Note**: Invalid query parameters will result in a 400 Bad Request response with validation error details.
 
 ## Testing with cURL
 
 ### Basic Connection
 
 ```bash
-curl -N http://localhost:3000/realtime/events
+curl -N http://localhost:3000/api/realtime/events
 ```
 
 ### Filter by Event Type (Licensing Status Updates Only)
@@ -53,7 +61,7 @@ curl -N "http://localhost:3000/realtime/events?eventType=licensing_status_update
 
 ```javascript
 // Connect to SSE stream
-const eventSource = new EventSource('http://localhost:3000/realtime/events?eventType=licensing_status_update');
+const eventSource = new EventSource('http://localhost:3000/api/realtime/events?eventType=licensing_status_update');
 
 // Listen for licensing status update events
 eventSource.addEventListener('licensing_status_update', (event) => {
@@ -117,7 +125,7 @@ export function useLicensingStatusUpdates(filters?: {
     if (filters?.movieId) params.append('movieId', filters.movieId);
 
     const eventSource = new EventSource(
-      `/realtime/events?${params.toString()}`,
+      `/api/realtime/events?${params.toString()}`,
     );
 
     eventSource.onopen = () => {
@@ -190,12 +198,12 @@ When a licensing status is updated, the following event is emitted:
 
 2. **In one terminal, connect to SSE stream:**
    ```bash
-   curl -N "http://localhost:3000/realtime/events?eventType=licensing_status_update"
+   curl -N "http://localhost:3000/api/realtime/events?eventType=licensing_status_update"
    ```
 
 3. **In another terminal, update a track's licensing status:**
    ```bash
-   curl -X PATCH http://localhost:3000/tracks/<track-id>/licensing-status \
+   curl -X PATCH http://localhost:3000/api/tracks/<track-id>/licensing-status \
      -H "Content-Type: application/json" \
      -d '{
        "status": "approved",
@@ -209,14 +217,35 @@ When a licensing status is updated, the following event is emitted:
 ## Features
 
 - ✅ **Automatic reconnection** - EventSource handles reconnection automatically
-- ✅ **Heartbeat** - Connection kept alive with periodic heartbeat messages
-- ✅ **Filtering** - Filter events by type, track, scene, or movie
+- ✅ **Heartbeat** - Connection kept alive with periodic heartbeat messages (configurable via `SSE_HEARTBEAT_INTERVAL`)
+- ✅ **Filtering** - Filter events by type, track, scene, or movie with validated query parameters
+- ✅ **Connection Management** - Thread-safe connection counter with mutex synchronization
+- ✅ **Connection Limits** - Maximum concurrent connections enforced (configurable via `SSE_MAX_CONNECTIONS`, default: 1000)
 - ✅ **Error handling** - Graceful error handling and logging
 - ✅ **Non-blocking** - Real-time events don't block the main API response
+- ✅ **Type Safety** - Type-safe event interfaces instead of `any` types
+- ✅ **Resource Cleanup** - Proper cleanup on disconnect to prevent memory leaks
 
 ## Integration Points
 
 The SSE implementation is automatically triggered when:
-- A track's licensing status is updated via `PATCH /tracks/:id/licensing-status`
+- A track is created via `POST /tracks` - emits `track_created` event
+- A track's licensing status is updated via `PATCH /tracks/:id/licensing-status` - emits `licensing_status_update` event
+- A track is deleted via `DELETE /tracks/:id` - emits `track_deleted` event
 
-The event is emitted **after** the database transaction is committed, ensuring data consistency.
+All events are emitted **after** the database transaction is committed, ensuring data consistency.
+
+## Connection Limits
+
+If the maximum number of concurrent connections is reached, new connection attempts will receive a `503 Service Unavailable` response:
+
+```json
+{
+  "success": false,
+  "statusCode": 503,
+  "message": "Too many concurrent connections. Please try again later.",
+  "timestamp": "2024-01-24T21:30:00.000Z"
+}
+```
+
+The maximum number of connections is configurable via the `SSE_MAX_CONNECTIONS` environment variable (default: 1000).

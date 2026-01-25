@@ -1,18 +1,18 @@
 # API Testing Examples
 
 ## Base URL
-All endpoints use: `http://localhost:3000`
+All endpoints use: `http://localhost:3000/api` (API prefix is configurable via `API_PREFIX` environment variable)
 
 ## Health Checks
 
 ### Check overall health
 ```bash
-curl -X GET http://localhost:3000/health
+curl -X GET http://localhost:3000/api/health
 ```
 
 ### Check database health
 ```bash
-curl -X GET http://localhost:3000/health/database
+curl -X GET http://localhost:3000/api/health/database
 ```
 
 ---
@@ -21,7 +21,7 @@ curl -X GET http://localhost:3000/health/database
 
 ### 1. Create a Movie
 ```bash
-curl -X POST http://localhost:3000/movies \
+curl -X POST http://localhost:3000/api/movies \
   -H "Content-Type: application/json" \
   -d '{
     "title": "The Epic Adventure",
@@ -33,17 +33,17 @@ curl -X POST http://localhost:3000/movies \
 
 ### 2. Get All Movies
 ```bash
-curl -X GET http://localhost:3000/movies
+curl -X GET http://localhost:3000/api/movies
 ```
 
 ### 3. Get Movie by ID
 ```bash
-curl -X GET http://localhost:3000/movies/{MOVIE_ID}
+curl -X GET http://localhost:3000/api/movies/{MOVIE_ID}
 ```
 
 ### 4. Update a Movie
 ```bash
-curl -X PATCH http://localhost:3000/movies/{MOVIE_ID} \
+curl -X PATCH http://localhost:3000/api/movies/{MOVIE_ID} \
   -H "Content-Type: application/json" \
   -d '{
     "title": "Updated Movie Title",
@@ -53,7 +53,7 @@ curl -X PATCH http://localhost:3000/movies/{MOVIE_ID} \
 
 ### 5. Delete a Movie
 ```bash
-curl -X DELETE http://localhost:3000/movies/{MOVIE_ID}
+curl -X DELETE http://localhost:3000/api/movies/{MOVIE_ID}
 ```
 
 ---
@@ -62,7 +62,7 @@ curl -X DELETE http://localhost:3000/movies/{MOVIE_ID}
 
 ### 1. Create a Scene
 ```bash
-curl -X POST http://localhost:3000/scenes \
+curl -X POST http://localhost:3000/api/scenes \
   -H "Content-Type: application/json" \
   -d '{
     "movieId": "{MOVIE_ID}",
@@ -76,22 +76,22 @@ curl -X POST http://localhost:3000/scenes \
 
 ### 2. Get All Scenes
 ```bash
-curl -X GET http://localhost:3000/scenes
+curl -X GET http://localhost:3000/api/scenes
 ```
 
 ### 3. Get Scenes by Movie ID
 ```bash
-curl -X GET "http://localhost:3000/scenes?movieId={MOVIE_ID}"
+curl -X GET "http://localhost:3000/api/scenes?movieId={MOVIE_ID}"
 ```
 
 ### 4. Get Scene by ID
 ```bash
-curl -X GET http://localhost:3000/scenes/{SCENE_ID}
+curl -X GET http://localhost:3000/api/scenes/{SCENE_ID}
 ```
 
 ### 5. Update a Scene
 ```bash
-curl -X PATCH http://localhost:3000/scenes/{SCENE_ID} \
+curl -X PATCH http://localhost:3000/api/scenes/{SCENE_ID} \
   -H "Content-Type: application/json" \
   -d '{
     "title": "Updated Scene Title",
@@ -101,7 +101,7 @@ curl -X PATCH http://localhost:3000/scenes/{SCENE_ID} \
 
 ### 6. Delete a Scene
 ```bash
-curl -X DELETE http://localhost:3000/scenes/{SCENE_ID}
+curl -X DELETE http://localhost:3000/api/scenes/{SCENE_ID}
 ```
 
 ---
@@ -110,7 +110,7 @@ curl -X DELETE http://localhost:3000/scenes/{SCENE_ID}
 
 ### 1. Create a Song
 ```bash
-curl -X POST http://localhost:3000/songs \
+curl -X POST http://localhost:3000/api/songs \
   -H "Content-Type: application/json" \
   -d '{
     "title": "Epic Theme",
@@ -124,17 +124,17 @@ curl -X POST http://localhost:3000/songs \
 
 ### 2. Get All Songs
 ```bash
-curl -X GET http://localhost:3000/songs
+curl -X GET http://localhost:3000/api/songs
 ```
 
 ### 3. Get Song by ID
 ```bash
-curl -X GET http://localhost:3000/songs/{SONG_ID}
+curl -X GET http://localhost:3000/api/songs/{SONG_ID}
 ```
 
 ### 4. Update a Song
 ```bash
-curl -X PATCH http://localhost:3000/songs/{SONG_ID} \
+curl -X PATCH http://localhost:3000/api/songs/{SONG_ID} \
   -H "Content-Type: application/json" \
   -d '{
     "title": "Updated Song Title",
@@ -144,7 +144,7 @@ curl -X PATCH http://localhost:3000/songs/{SONG_ID} \
 
 ### 5. Delete a Song
 ```bash
-curl -X DELETE http://localhost:3000/songs/{SONG_ID}
+curl -X DELETE http://localhost:3000/api/songs/{SONG_ID}
 ```
 
 ---
@@ -153,7 +153,7 @@ curl -X DELETE http://localhost:3000/songs/{SONG_ID}
 
 ### 1. Create a Track
 ```bash
-curl -X POST http://localhost:3000/tracks \
+curl -X POST http://localhost:3000/api/tracks \
   -H "Content-Type: application/json" \
   -d '{
     "sceneId": "{SCENE_ID}",
@@ -165,27 +165,27 @@ curl -X POST http://localhost:3000/tracks \
 
 ### 2. Get All Tracks
 ```bash
-curl -X GET http://localhost:3000/tracks
+curl -X GET http://localhost:3000/api/tracks
 ```
 
 ### 3. Get Tracks by Scene ID
 ```bash
-curl -X GET "http://localhost:3000/tracks?sceneId={SCENE_ID}"
+curl -X GET "http://localhost:3000/api/tracks?sceneId={SCENE_ID}"
 ```
 
 ### 4. Get Tracks by Movie ID
 ```bash
-curl -X GET "http://localhost:3000/tracks?movieId={MOVIE_ID}"
+curl -X GET "http://localhost:3000/api/tracks?movieId={MOVIE_ID}"
 ```
 
 ### 5. Get Track by ID (with Licensing History)
 ```bash
-curl -X GET http://localhost:3000/tracks/{TRACK_ID}
+curl -X GET http://localhost:3000/api/tracks/{TRACK_ID}
 ```
 
 ### 6. Update Licensing Status
 ```bash
-curl -X PATCH http://localhost:3000/tracks/{TRACK_ID}/licensing-status \
+curl -X PATCH http://localhost:3000/api/tracks/{TRACK_ID}/licensing-status \
   -H "Content-Type: application/json" \
   -d '{
     "status": "negotiating",
@@ -198,7 +198,7 @@ curl -X PATCH http://localhost:3000/tracks/{TRACK_ID}/licensing-status \
 
 ### 7. Delete a Track
 ```bash
-curl -X DELETE http://localhost:3000/tracks/{TRACK_ID}
+curl -X DELETE http://localhost:3000/api/tracks/{TRACK_ID}
 ```
 
 ---
@@ -208,22 +208,22 @@ curl -X DELETE http://localhost:3000/tracks/{TRACK_ID}
 ### Subscribe to Real-Time Events (SSE)
 ```bash
 # Connect to all real-time events
-curl -N http://localhost:3000/realtime/events
+curl -N http://localhost:3000/api/realtime/events
 
 # Filter by event type (licensing status updates only)
-curl -N "http://localhost:3000/realtime/events?eventType=licensing_status_update"
+curl -N "http://localhost:3000/api/realtime/events?eventType=licensing_status_update"
 
 # Filter by track ID
-curl -N "http://localhost:3000/realtime/events?trackId={TRACK_ID}"
+curl -N "http://localhost:3000/api/realtime/events?trackId={TRACK_ID}"
 
 # Filter by scene ID
-curl -N "http://localhost:3000/realtime/events?sceneId={SCENE_ID}"
+curl -N "http://localhost:3000/api/realtime/events?sceneId={SCENE_ID}"
 
 # Filter by movie ID
-curl -N "http://localhost:3000/realtime/events?movieId={MOVIE_ID}"
+curl -N "http://localhost:3000/api/realtime/events?movieId={MOVIE_ID}"
 
 # Multiple filters
-curl -N "http://localhost:3000/realtime/events?eventType=licensing_status_update&movieId={MOVIE_ID}"
+curl -N "http://localhost:3000/api/realtime/events?eventType=licensing_status_update&movieId={MOVIE_ID}"
 ```
 
 **Note:** The SSE stream will automatically emit events when licensing status changes occur. See [SSE Usage Guide](./SSE_USAGE.md) for client integration examples.
@@ -246,7 +246,7 @@ MOVIE_RESPONSE=$(curl -s -X POST http://localhost:3000/movies \
 MOVIE_ID=$(echo $MOVIE_RESPONSE | grep -o '"id":"[^"]*' | cut -d'"' -f4)
 
 # 2. Create a Scene
-SCENE_RESPONSE=$(curl -s -X POST http://localhost:3000/scenes \
+SCENE_RESPONSE=$(curl -s -X POST http://localhost:3000/api/scenes \
   -H "Content-Type: application/json" \
   -d "{
     \"movieId\": \"$MOVIE_ID\",
@@ -258,7 +258,7 @@ SCENE_RESPONSE=$(curl -s -X POST http://localhost:3000/scenes \
 SCENE_ID=$(echo $SCENE_RESPONSE | grep -o '"id":"[^"]*' | cut -d'"' -f4)
 
 # 3. Create a Song
-SONG_RESPONSE=$(curl -s -X POST http://localhost:3000/songs \
+SONG_RESPONSE=$(curl -s -X POST http://localhost:3000/api/songs \
   -H "Content-Type: application/json" \
   -d '{
     "title": "Epic Theme",
@@ -267,7 +267,7 @@ SONG_RESPONSE=$(curl -s -X POST http://localhost:3000/songs \
 SONG_ID=$(echo $SONG_RESPONSE | grep -o '"id":"[^"]*' | cut -d'"' -f4)
 
 # 4. Create a Track
-TRACK_RESPONSE=$(curl -s -X POST http://localhost:3000/tracks \
+TRACK_RESPONSE=$(curl -s -X POST http://localhost:3000/api/tracks \
   -H "Content-Type: application/json" \
   -d "{
     \"sceneId\": \"$SCENE_ID\",
@@ -278,7 +278,7 @@ TRACK_RESPONSE=$(curl -s -X POST http://localhost:3000/tracks \
 TRACK_ID=$(echo $TRACK_RESPONSE | grep -o '"id":"[^"]*' | cut -d'"' -f4)
 
 # 5. Update Licensing Status to Negotiating
-curl -X PATCH http://localhost:3000/tracks/$TRACK_ID/licensing-status \
+curl -X PATCH http://localhost:3000/api/tracks/$TRACK_ID/licensing-status \
   -H "Content-Type: application/json" \
   -d '{
     "status": "negotiating",
@@ -287,7 +287,7 @@ curl -X PATCH http://localhost:3000/tracks/$TRACK_ID/licensing-status \
   }'
 
 # 6. Update Licensing Status to Approved
-curl -X PATCH http://localhost:3000/tracks/$TRACK_ID/licensing-status \
+curl -X PATCH http://localhost:3000/api/tracks/$TRACK_ID/licensing-status \
   -H "Content-Type: application/json" \
   -d '{
     "status": "approved",
@@ -296,5 +296,5 @@ curl -X PATCH http://localhost:3000/tracks/$TRACK_ID/licensing-status \
   }'
 
 # 7. Get Track with Full History
-curl -X GET http://localhost:3000/tracks/$TRACK_ID
+curl -X GET http://localhost:3000/api/tracks/$TRACK_ID
 ```
