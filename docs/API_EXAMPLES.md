@@ -15,6 +15,16 @@ curl -X GET http://localhost:3000/api/health
 curl -X GET http://localhost:3000/api/health/database
 ```
 
+### Check readiness probe (Kubernetes)
+```bash
+curl -X GET http://localhost:3000/api/health/ready
+```
+
+### Check liveness probe (Kubernetes)
+```bash
+curl -X GET http://localhost:3000/api/health/live
+```
+
 ---
 
 ## Movies Endpoints
@@ -76,12 +86,19 @@ curl -X POST http://localhost:3000/api/scenes \
 
 ### 2. Get All Scenes
 ```bash
+# Get all scenes with pagination
+curl -X GET "http://localhost:3000/api/scenes?page=1&limit=10"
+
+# Get all scenes (uses default pagination)
 curl -X GET http://localhost:3000/api/scenes
 ```
 
 ### 3. Get Scenes by Movie ID
 ```bash
+# Filter scenes by movie ID (returns array, not paginated)
 curl -X GET "http://localhost:3000/api/scenes?movieId={MOVIE_ID}"
+
+# Note: When using movieId filter, pagination parameters (page, limit) are ignored
 ```
 
 ### 4. Get Scene by ID
@@ -165,17 +182,28 @@ curl -X POST http://localhost:3000/api/tracks \
 
 ### 2. Get All Tracks
 ```bash
+# Get all tracks with pagination
+curl -X GET "http://localhost:3000/api/tracks?page=1&limit=10"
+
+# Get all tracks (uses default pagination)
 curl -X GET http://localhost:3000/api/tracks
 ```
 
 ### 3. Get Tracks by Scene ID
 ```bash
+# Filter tracks by scene ID (returns array, not paginated)
 curl -X GET "http://localhost:3000/api/tracks?sceneId={SCENE_ID}"
+
+# Note: When using sceneId filter, pagination parameters are ignored
 ```
 
 ### 4. Get Tracks by Movie ID
 ```bash
+# Filter tracks by movie ID (returns array, not paginated)
 curl -X GET "http://localhost:3000/api/tracks?movieId={MOVIE_ID}"
+
+# Note: When using movieId filter, pagination parameters are ignored. 
+# sceneId takes precedence over movieId if both are provided.
 ```
 
 ### 5. Get Track by ID (with Licensing History)
@@ -195,6 +223,12 @@ curl -X PATCH http://localhost:3000/api/tracks/{TRACK_ID}/licensing-status \
 ```
 
 **Available statuses:** `pending`, `negotiating`, `approved`, `rejected`, `expired`
+
+**Important Notes:**
+- Status updates are transactional and create a new entry in the licensing status history
+- Updating to the same status will return a 400 error: "Track is already in {status} status"
+- The track's `currentLicensingStatus` field is automatically updated
+- Real-time SSE events are emitted for status changes
 
 ### 7. Delete a Track
 ```bash
@@ -236,7 +270,7 @@ Here's a complete workflow from creating a movie to updating licensing status:
 
 ```bash
 # 1. Create a Movie
-MOVIE_RESPONSE=$(curl -s -X POST http://localhost:3000/movies \
+MOVIE_RESPONSE=$(curl -s -X POST http://localhost:3000/api/movies \
   -H "Content-Type: application/json" \
   -d '{
     "title": "The Epic Adventure",

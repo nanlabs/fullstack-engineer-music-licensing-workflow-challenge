@@ -43,7 +43,7 @@
 │ songId (FK)─────┼──┼──┼──┐
 │ startTime       │  │  │  │
 │ endTime         │  │  │  │
-│ currentStatus   │  │  │  │
+│ currentLicensingStatus │  │  │  │
 │ createdAt       │  │  │  │
 │ updatedAt       │  │  │  │
 └────────┬────────┘  │  │  │
@@ -192,6 +192,8 @@ pending → negotiating → approved
    - Automatically creates initial `pending` licensing status
    - Emits real-time SSE event for track creation
 5. **Update Licensing Status** → Creates new status entry and updates track's current status
+   - Reloads track within transaction to ensure proper entity management
    - Uses transaction to ensure atomicity
+   - Prevents updating to the same status (returns 400 error)
    - Emits real-time SSE event for status change
 6. **Delete Track** → Removes track and emits real-time SSE event
