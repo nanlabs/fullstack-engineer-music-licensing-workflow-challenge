@@ -15,17 +15,21 @@ describe('AppModule', () => {
   });
 
   it('should configure middleware', () => {
+    const mockForRoutes = jest.fn().mockReturnThis();
+    const mockApply = jest.fn().mockReturnValue({
+      forRoutes: mockForRoutes,
+    });
+
     const mockConsumer = {
-      apply: jest.fn().mockReturnThis(),
-      forRoutes: jest.fn().mockReturnThis(),
+      apply: mockApply,
     } as unknown as MiddlewareConsumer;
 
     appModule.configure(mockConsumer);
 
-    expect(mockConsumer.apply).toHaveBeenCalledWith(
+    expect(mockApply).toHaveBeenCalledWith(
       RequestIdMiddleware,
       TimeoutMiddleware,
     );
-    expect(mockConsumer.forRoutes).toHaveBeenCalledWith('*');
+    expect(mockForRoutes).toHaveBeenCalledWith('*');
   });
 });
