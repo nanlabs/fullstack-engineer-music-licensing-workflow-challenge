@@ -146,6 +146,50 @@ describe('MoviesService', () => {
       expect(mockRepository.findAndCount).toHaveBeenCalled();
       expect(result).toEqual(paginatedResult);
     });
+
+    it('should throw BadRequestException for negative page', async () => {
+      await expect(service.findAll(-1, 10)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should throw BadRequestException for page 0', async () => {
+      await expect(service.findAll(0, 10)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should throw BadRequestException for negative limit', async () => {
+      await expect(service.findAll(1, -1)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should throw BadRequestException for limit 0', async () => {
+      await expect(service.findAll(1, 0)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should use default pagination when no parameters provided', async () => {
+      const paginatedResult = {
+        data: [mockMovie],
+        meta: {
+          page: 1,
+          limit: 10,
+          total: 1,
+          totalPages: 1,
+          hasNextPage: false,
+          hasPreviousPage: false,
+        },
+      };
+      mockRepository.findAndCount.mockResolvedValue([[mockMovie], 1]);
+
+      const result = await service.findAll();
+
+      expect(mockRepository.findAndCount).toHaveBeenCalled();
+      expect(result).toEqual(paginatedResult);
+    });
   });
 
   describe('findOne', () => {

@@ -63,27 +63,34 @@ export class MoviesService {
     page?: number,
     limit?: number,
   ): Promise<PaginatedResult<Movie>> {
-    const {
-      page: pageNum,
-      limit: limitNum,
-      skip,
-    } = PaginationHelper.getPaginationOptions(this.configService, page, limit);
+    try {
+      const {
+        page: pageNum,
+        limit: limitNum,
+        skip,
+      } = PaginationHelper.getPaginationOptions(this.configService, page, limit);
 
-    this.logger.log(`Fetching movies - page: ${pageNum}, limit: ${limitNum}`);
+      this.logger.log(`Fetching movies - page: ${pageNum}, limit: ${limitNum}`);
 
-    const [data, total] = await this.movieRepository.findAndCount({
-      relations: ['scenes'],
-      order: { createdAt: 'DESC' },
-      skip,
-      take: limitNum,
-    });
+      const [data, total] = await this.movieRepository.findAndCount({
+        relations: ['scenes'],
+        order: { createdAt: 'DESC' },
+        skip,
+        take: limitNum,
+      });
 
-    return PaginationHelper.createPaginatedResult(
-      data,
-      total,
-      pageNum,
-      limitNum,
-    );
+      return PaginationHelper.createPaginatedResult(
+        data,
+        total,
+        pageNum,
+        limitNum,
+      );
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('must be greater')) {
+        throw new BadRequestException(error.message);
+      }
+      throw error;
+    }
   }
 
   async findOne(id: string): Promise<Movie> {

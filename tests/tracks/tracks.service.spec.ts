@@ -294,6 +294,30 @@ describe('TracksService', () => {
       expect(mockTrackRepository.findAndCount).toHaveBeenCalled();
       expect(result).toEqual(paginatedResult);
     });
+
+    it('should throw BadRequestException for negative page', async () => {
+      await expect(service.findAll(-1, 10)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should throw BadRequestException for page 0', async () => {
+      await expect(service.findAll(0, 10)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should throw BadRequestException for negative limit', async () => {
+      await expect(service.findAll(1, -1)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should throw BadRequestException for limit 0', async () => {
+      await expect(service.findAll(1, 0)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
   });
 
   describe('findByScene', () => {

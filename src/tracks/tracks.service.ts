@@ -116,27 +116,34 @@ export class TracksService {
     page?: number,
     limit?: number,
   ): Promise<PaginatedResult<Track>> {
-    const {
-      page: pageNum,
-      limit: limitNum,
-      skip,
-    } = PaginationHelper.getPaginationOptions(this.configService, page, limit);
+    try {
+      const {
+        page: pageNum,
+        limit: limitNum,
+        skip,
+      } = PaginationHelper.getPaginationOptions(this.configService, page, limit);
 
-    this.logger.log(`Fetching tracks - page: ${pageNum}, limit: ${limitNum}`);
+      this.logger.log(`Fetching tracks - page: ${pageNum}, limit: ${limitNum}`);
 
-    const [data, total] = await this.trackRepository.findAndCount({
-      relations: ['scene', 'scene.movie', 'song', 'licensingStatusHistory'],
-      order: { createdAt: 'DESC' },
-      skip,
-      take: limitNum,
-    });
+      const [data, total] = await this.trackRepository.findAndCount({
+        relations: ['scene', 'scene.movie', 'song', 'licensingStatusHistory'],
+        order: { createdAt: 'DESC' },
+        skip,
+        take: limitNum,
+      });
 
-    return PaginationHelper.createPaginatedResult(
-      data,
-      total,
-      pageNum,
-      limitNum,
-    );
+      return PaginationHelper.createPaginatedResult(
+        data,
+        total,
+        pageNum,
+        limitNum,
+      );
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('must be greater')) {
+        throw new BadRequestException(error.message);
+      }
+      throw error;
+    }
   }
 
   async findByScene(sceneId: string): Promise<Track[]> {

@@ -30,9 +30,24 @@ export class PaginationHelper {
     const maxLimit =
       configService.get<number>('app.pagination.maxLimit') || 100;
 
+    // Validate page: must be >= 1
+    if (page !== undefined && page < 1) {
+      throw new Error('Page must be greater than or equal to 1');
+    }
+
+    // Validate limit: must be >= 1
+    if (limit !== undefined && limit < 1) {
+      throw new Error('Limit must be greater than or equal to 1');
+    }
+
     const pageNum = page || defaultPage;
     const limitNum = Math.min(limit || defaultLimit, maxLimit);
     const skip = (pageNum - 1) * limitNum;
+
+    // Additional validation: skip cannot be negative
+    if (skip < 0) {
+      throw new Error('Invalid pagination parameters: skip cannot be negative');
+    }
 
     return {
       page: pageNum,
