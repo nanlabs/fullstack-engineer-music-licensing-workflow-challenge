@@ -15,7 +15,6 @@ import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { TracksService } from './tracks.service';
 import { CreateTrackDto } from './dto/create-track.dto';
 import { UpdateLicensingStatusDto } from './dto/update-licensing-status.dto';
-import { PaginationDto } from '../common/dto/pagination.dto';
 
 @ApiTags('tracks')
 @Controller('tracks')
@@ -44,11 +43,22 @@ export class TracksController {
     required: false,
     description: 'Filter by movie ID',
   })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: 'Page number',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Items per page',
+  })
   @ApiResponse({ status: 200, description: 'List of tracks' })
   findAll(
     @Query('sceneId', new ParseUUIDPipe({ optional: true })) sceneId?: string,
     @Query('movieId', new ParseUUIDPipe({ optional: true })) movieId?: string,
-    @Query() paginationDto?: PaginationDto,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
   ) {
     if (sceneId) {
       return this.tracksService.findByScene(sceneId);
@@ -56,10 +66,9 @@ export class TracksController {
     if (movieId) {
       return this.tracksService.findByMovie(movieId);
     }
-    return this.tracksService.findAll(
-      paginationDto?.page,
-      paginationDto?.limit,
-    );
+    const pageNum = page ? parseInt(page, 10) : undefined;
+    const limitNum = limit ? parseInt(limit, 10) : undefined;
+    return this.tracksService.findAll(pageNum, limitNum);
   }
 
   @Get(':id')

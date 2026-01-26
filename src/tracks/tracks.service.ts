@@ -203,18 +203,29 @@ export class TracksService {
     await queryRunner.startTransaction();
 
     try {
-      // Create new status entry
+      // Reload track within transaction to ensure it's managed by query runner
+      const trackInTransaction = await queryRunner.manager.findOne(Track, {
+        where: { id: track.id },
+      });
+
+      if (!trackInTransaction) {
+        throw new NotFoundException(`Track with ID ${track.id} not found`);
+      }
+
+      // Create new status entry using the same pattern as create() method
+      // Use repository.create() then save with query runner manager
       const newStatus = this.licensingStatusRepository.create({
-        trackId: track.id,
+        trackId: trackInTransaction.id,
         status: updateLicensingStatusDto.status,
         notes: updateLicensingStatusDto.notes,
         updatedBy: updateLicensingStatusDto.updatedBy || 'system',
       });
-      await queryRunner.manager.save(LicensingStatus, newStatus);
+      // Save through query runner manager to ensure it's part of the transaction
+      const savedStatus = await queryRunner.manager.save(LicensingStatus, newStatus);
 
       // Update track's current status
-      track.currentLicensingStatus = updateLicensingStatusDto.status;
-      await queryRunner.manager.save(Track, track);
+      trackInTransaction.currentLicensingStatus = updateLicensingStatusDto.status;
+      await queryRunner.manager.save(Track, trackInTransaction);
 
       await queryRunner.commitTransaction();
 

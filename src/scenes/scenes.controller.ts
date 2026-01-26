@@ -15,7 +15,6 @@ import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { ScenesService } from './scenes.service';
 import { CreateSceneDto } from './dto/create-scene.dto';
 import { UpdateSceneDto } from './dto/update-scene.dto';
-import { PaginationDto } from '../common/dto/pagination.dto';
 
 @ApiTags('scenes')
 @Controller('scenes')
@@ -39,18 +38,28 @@ export class ScenesController {
     required: false,
     description: 'Filter by movie ID',
   })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: 'Page number',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Items per page',
+  })
   @ApiResponse({ status: 200, description: 'List of scenes' })
   findAll(
     @Query('movieId', new ParseUUIDPipe({ optional: true })) movieId?: string,
-    @Query() paginationDto?: PaginationDto,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
   ) {
     if (movieId) {
       return this.scenesService.findByMovie(movieId);
     }
-    return this.scenesService.findAll(
-      paginationDto?.page,
-      paginationDto?.limit,
-    );
+    const pageNum = page ? parseInt(page, 10) : undefined;
+    const limitNum = limit ? parseInt(limit, 10) : undefined;
+    return this.scenesService.findAll(pageNum, limitNum);
   }
 
   @Get(':id')

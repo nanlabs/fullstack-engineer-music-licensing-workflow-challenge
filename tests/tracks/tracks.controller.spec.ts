@@ -73,7 +73,6 @@ describe('TracksController', () => {
 
   describe('findAll', () => {
     it('should return all tracks when no query params', async () => {
-      const paginationDto = { page: 1, limit: 10 };
       const paginatedResult = {
         data: [mockTrack],
         meta: {
@@ -87,9 +86,31 @@ describe('TracksController', () => {
       };
       mockTracksService.findAll.mockResolvedValue(paginatedResult);
 
-      const result = await controller.findAll(undefined, undefined, paginationDto);
+      const result = await controller.findAll(undefined, undefined, '1', '10');
 
       expect(service.findAll).toHaveBeenCalledWith(1, 10);
+      expect(service.findByScene).not.toHaveBeenCalled();
+      expect(service.findByMovie).not.toHaveBeenCalled();
+      expect(result).toEqual(paginatedResult);
+    });
+
+    it('should return all tracks with default pagination when page/limit not provided', async () => {
+      const paginatedResult = {
+        data: [mockTrack],
+        meta: {
+          page: 1,
+          limit: 10,
+          total: 1,
+          totalPages: 1,
+          hasNextPage: false,
+          hasPreviousPage: false,
+        },
+      };
+      mockTracksService.findAll.mockResolvedValue(paginatedResult);
+
+      const result = await controller.findAll(undefined, undefined, undefined, undefined);
+
+      expect(service.findAll).toHaveBeenCalledWith(undefined, undefined);
       expect(service.findByScene).not.toHaveBeenCalled();
       expect(service.findByMovie).not.toHaveBeenCalled();
       expect(result).toEqual(paginatedResult);
@@ -98,7 +119,7 @@ describe('TracksController', () => {
     it('should return tracks by scene when sceneId query param provided', async () => {
       mockTracksService.findByScene.mockResolvedValue([mockTrack]);
 
-      const result = await controller.findAll('scene-1', undefined, undefined);
+      const result = await controller.findAll('scene-1', undefined, undefined, undefined);
 
       expect(service.findByScene).toHaveBeenCalledWith('scene-1');
       expect(service.findAll).not.toHaveBeenCalled();
@@ -109,7 +130,7 @@ describe('TracksController', () => {
     it('should return tracks by movie when movieId query param provided', async () => {
       mockTracksService.findByMovie.mockResolvedValue([mockTrack]);
 
-      const result = await controller.findAll(undefined, 'movie-1', undefined);
+      const result = await controller.findAll(undefined, 'movie-1', undefined, undefined);
 
       expect(service.findByMovie).toHaveBeenCalledWith('movie-1');
       expect(service.findAll).not.toHaveBeenCalled();
@@ -120,7 +141,7 @@ describe('TracksController', () => {
     it('should prioritize sceneId over movieId when both provided', async () => {
       mockTracksService.findByScene.mockResolvedValue([mockTrack]);
 
-      const result = await controller.findAll('scene-1', 'movie-1', undefined);
+      const result = await controller.findAll('scene-1', 'movie-1', undefined, undefined);
 
       expect(service.findByScene).toHaveBeenCalledWith('scene-1');
       expect(service.findByMovie).not.toHaveBeenCalled();

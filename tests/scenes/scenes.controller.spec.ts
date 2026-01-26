@@ -73,7 +73,6 @@ describe('ScenesController', () => {
 
   describe('findAll', () => {
     it('should return all scenes when no movieId query param', async () => {
-      const paginationDto = { page: 1, limit: 10 };
       const paginatedResult = {
         data: [mockScene],
         meta: {
@@ -87,9 +86,30 @@ describe('ScenesController', () => {
       };
       mockScenesService.findAll.mockResolvedValue(paginatedResult);
 
-      const result = await controller.findAll(undefined, paginationDto);
+      const result = await controller.findAll(undefined, '1', '10');
 
       expect(service.findAll).toHaveBeenCalledWith(1, 10);
+      expect(service.findByMovie).not.toHaveBeenCalled();
+      expect(result).toEqual(paginatedResult);
+    });
+
+    it('should return all scenes with default pagination when page/limit not provided', async () => {
+      const paginatedResult = {
+        data: [mockScene],
+        meta: {
+          page: 1,
+          limit: 10,
+          total: 1,
+          totalPages: 1,
+          hasNextPage: false,
+          hasPreviousPage: false,
+        },
+      };
+      mockScenesService.findAll.mockResolvedValue(paginatedResult);
+
+      const result = await controller.findAll(undefined, undefined, undefined);
+
+      expect(service.findAll).toHaveBeenCalledWith(undefined, undefined);
       expect(service.findByMovie).not.toHaveBeenCalled();
       expect(result).toEqual(paginatedResult);
     });
@@ -97,7 +117,7 @@ describe('ScenesController', () => {
     it('should return scenes by movie when movieId query param provided', async () => {
       mockScenesService.findByMovie.mockResolvedValue([mockScene]);
 
-      const result = await controller.findAll('movie-1', undefined);
+      const result = await controller.findAll('movie-1', undefined, undefined);
 
       expect(service.findByMovie).toHaveBeenCalledWith('movie-1');
       expect(service.findAll).not.toHaveBeenCalled();
