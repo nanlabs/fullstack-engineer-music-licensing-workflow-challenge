@@ -383,6 +383,55 @@ See [Installation Guide](./docs/INSTALLATION.md) for complete list of scripts.
 - **Efficient Queries**: Optimized TypeORM queries with proper relations
 - **Indexing**: Database indexes on foreign keys and frequently queried fields
 
+## 🔄 CI/CD Pipeline
+
+This project includes automated CI/CD pipelines using GitHub Actions:
+
+### Continuous Integration
+
+The CI pipeline runs automatically on:
+- Every push to `main`, `develop`, or `feature/**` branches
+- Every pull request to `main` or `develop`
+
+**CI Pipeline includes:**
+- ✅ **Lint**: Code quality checks with ESLint
+- ✅ **Unit Tests**: All unit tests with coverage reporting
+- ✅ **Integration Tests**: End-to-end workflow tests
+- ✅ **Build**: Application compilation verification
+- ✅ **Security Scan**: Dependency vulnerability scanning
+- ✅ **Coverage Check**: Enforces 90% test coverage threshold
+
+### Workflows
+
+- **`.github/workflows/ci.yml`**: Main CI pipeline
+- **`.github/workflows/codeql.yml`**: Security analysis
+- **`.github/workflows/dependency-review.yml`**: Dependency security review
+- **`.github/workflows/release.yml`**: Automated releases
+
+### Test Coverage
+
+Current test coverage: **91.27%** ✅
+
+The CI pipeline enforces a minimum coverage threshold of 90%. Coverage reports are uploaded to Codecov.
+
+### Running Tests Locally
+
+```bash
+# Run all tests
+npm test
+
+# Run tests with coverage
+npm run test:cov
+
+# Run integration tests
+npm test -- tests/integration/
+
+# Run specific test file
+npm test -- tests/movies/movies.service.spec.ts
+```
+
+See [TESTING.md](./docs/TESTING.md) for more details.
+
 ## 📝 License
 
 See `LICENSE` file for details.
