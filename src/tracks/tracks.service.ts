@@ -221,10 +221,11 @@ export class TracksService {
         updatedBy: updateLicensingStatusDto.updatedBy || 'system',
       });
       // Save through query runner manager to ensure it's part of the transaction
-      const savedStatus = await queryRunner.manager.save(LicensingStatus, newStatus);
+      await queryRunner.manager.save(LicensingStatus, newStatus);
 
       // Update track's current status
-      trackInTransaction.currentLicensingStatus = updateLicensingStatusDto.status;
+      trackInTransaction.currentLicensingStatus =
+        updateLicensingStatusDto.status;
       await queryRunner.manager.save(Track, trackInTransaction);
 
       await queryRunner.commitTransaction();

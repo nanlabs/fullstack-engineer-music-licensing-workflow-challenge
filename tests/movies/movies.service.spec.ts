@@ -4,7 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { MoviesService } from '../../src/movies/movies.service';
 import { Movie } from '../../src/entities/movie.entity';
 import { CreateMovieDto } from '../../src/movies/dto/create-movie.dto';
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundException, BadRequestException } from '@nestjs/common';
 
 describe('MoviesService', () => {
   let service: MoviesService;
@@ -39,6 +39,7 @@ describe('MoviesService', () => {
     manager: {
       save: jest.fn(),
       remove: jest.fn(),
+      findOne: jest.fn(),
     },
   };
 
@@ -184,6 +185,73 @@ describe('MoviesService', () => {
       expect(mockQueryRunner.manager.save).toHaveBeenCalled();
       expect(result).toEqual(updatedMovie);
     });
+
+    it('should rollback transaction on error and rethrow NotFoundException', async () => {
+      const updateDto = { title: 'Updated Title' };
+      const notFoundError = new NotFoundException('Movie not found');
+
+      mockRepository.findOne.mockRejectedValue(notFoundError);
+
+      await expect(service.update('1', updateDto)).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(mockQueryRunner.rollbackTransaction).toHaveBeenCalled();
+      expect(mockQueryRunner.release).toHaveBeenCalled();
+    });
+
+    it('should rollback transaction on error and rethrow BadRequestException', async () => {
+      const updateDto = { title: 'Updated Title' };
+      const badRequestError = new BadRequestException('Invalid data');
+
+      mockRepository.findOne.mockResolvedValue(mockMovie);
+      mockQueryRunner.manager.save.mockRejectedValue(badRequestError);
+
+      await expect(service.update('1', updateDto)).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(mockQueryRunner.rollbackTransaction).toHaveBeenCalled();
+      expect(mockQueryRunner.release).toHaveBeenCalled();
+    });
+
+    it('should rollback transaction on generic error and throw BadRequestException', async () => {
+      const updateDto = { title: 'Updated Title' };
+      const genericError = new Error('Database connection failed');
+
+      mockRepository.findOne.mockResolvedValue(mockMovie);
+      mockQueryRunner.manager.save.mockRejectedValue(genericError);
+
+      await expect(service.update('1', updateDto)).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(mockQueryRunner.rollbackTransaction).toHaveBeenCalled();
+      expect(mockQueryRunner.release).toHaveBeenCalled();
+    });
+
+    it('should handle rollback when transaction is not active', async () => {
+      const updateDto = { title: 'Updated Title' };
+      const genericError = new Error('Database error');
+      mockQueryRunner.isTransactionActive = false;
+
+      mockRepository.findOne.mockResolvedValue(mockMovie);
+      mockQueryRunner.manager.save.mockRejectedValue(genericError);
+
+      await expect(service.update('1', updateDto)).rejects.toThrow();
+      expect(mockQueryRunner.rollbackTransaction).not.toHaveBeenCalled();
+      expect(mockQueryRunner.release).toHaveBeenCalled();
+    });
+
+    it('should handle non-Error exceptions', async () => {
+      const updateDto = { title: 'Updated Title' };
+      const stringError = 'String error';
+
+      mockRepository.findOne.mockResolvedValue(mockMovie);
+      mockQueryRunner.manager.save.mockRejectedValue(stringError);
+
+      await expect(service.update('1', updateDto)).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(mockQueryRunner.rollbackTransaction).toHaveBeenCalled();
+    });
   });
 
   describe('remove', () => {
@@ -196,6 +264,49 @@ describe('MoviesService', () => {
       expect(mockRepository.findOne).toHaveBeenCalled();
       expect(mockQueryRunner.manager.remove).toHaveBeenCalledWith(Movie, mockMovie);
       expect(mockQueryRunner.commitTransaction).toHaveBeenCalled();
+    });
+
+    it('should rollback transaction on error and rethrow NotFoundException', async () => {
+      const notFoundError = new NotFoundException('Movie not found');
+
+      mockRepository.findOne.mockRejectedValue(notFoundError);
+
+      await expect(service.remove('1')).rejects.toThrow(NotFoundException);
+      expect(mockQueryRunner.rollbackTransaction).toHaveBeenCalled();
+      expect(mockQueryRunner.release).toHaveBeenCalled();
+    });
+
+    it('should rollback transaction on generic error and throw BadRequestException', async () => {
+      const genericError = new Error('Database connection failed');
+
+      mockRepository.findOne.mockResolvedValue(mockMovie);
+      mockQueryRunner.manager.remove.mockRejectedValue(genericError);
+
+      await expect(service.remove('1')).rejects.toThrow(BadRequestException);
+      expect(mockQueryRunner.rollbackTransaction).toHaveBeenCalled();
+      expect(mockQueryRunner.release).toHaveBeenCalled();
+    });
+
+    it('should handle rollback when transaction is not active', async () => {
+      const genericError = new Error('Database error');
+      mockQueryRunner.isTransactionActive = false;
+
+      mockRepository.findOne.mockResolvedValue(mockMovie);
+      mockQueryRunner.manager.remove.mockRejectedValue(genericError);
+
+      await expect(service.remove('1')).rejects.toThrow();
+      expect(mockQueryRunner.rollbackTransaction).not.toHaveBeenCalled();
+      expect(mockQueryRunner.release).toHaveBeenCalled();
+    });
+
+    it('should handle non-Error exceptions', async () => {
+      const stringError = 'String error';
+
+      mockRepository.findOne.mockResolvedValue(mockMovie);
+      mockQueryRunner.manager.remove.mockRejectedValue(stringError);
+
+      await expect(service.remove('1')).rejects.toThrow(BadRequestException);
+      expect(mockQueryRunner.rollbackTransaction).toHaveBeenCalled();
     });
   });
 });

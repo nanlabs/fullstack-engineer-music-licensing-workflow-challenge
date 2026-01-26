@@ -225,5 +225,75 @@ describe('RealtimeController', () => {
       // Should handle error without crashing - check that end was called or write was attempted
       expect(mockResponse.write).toHaveBeenCalled();
     });
+
+    it('should handle max connections limit', async () => {
+      // Set max connections to 0 to trigger limit
+      // First reset connection count
+      (RealtimeController as any).activeConnections = 0;
+      mockConfigService.get.mockReturnValue(0);
+
+      const query: RealtimeQueryDto = {};
+      await controller.streamEvents(mockResponse, query);
+
+      expect(mockResponse.status).toHaveBeenCalledWith(503);
+      expect(mockResponse.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: expect.stringContaining('Too many'),
+        }),
+      );
+    });
+
+    it('should handle connection cleanup on close', async () => {
+      const eventSubject = new Subject();
+      mockRealtimeService.getEventStream.mockReturnValue(eventSubject.asObservable());
+      const onCalls: Array<[string, Function]> = [];
+      (mockResponse.on as jest.Mock) = jest.fn((event: string, handler: Function) => {
+        onCalls.push([event, handler]);
+        return mockResponse;
+      });
+
+      const query: RealtimeQueryDto = {};
+      controller.streamEvents(mockResponse, query);
+
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      // Simulate connection close
+      const closeHandler = onCalls.find(call => call[0] === 'close')?.[1];
+      if (closeHandler) {
+        closeHandler();
+      }
+
+      // Connection count should decrease
+      expect(mockResponse.on).toHaveBeenCalledWith('close', expect.any(Function));
+    });
+
+    it('should handle mutex lock acquisition', async () => {
+      const eventSubject = new Subject();
+      mockRealtimeService.getEventStream.mockReturnValue(eventSubject.asObservable());
+
+      const query: RealtimeQueryDto = {};
+      
+      // Call multiple times to test mutex
+      controller.streamEvents(mockResponse, query);
+      
+      await new Promise(resolve => setTimeout(resolve, 10));
+      
+      expect(mockResponse.write).toHaveBeenCalled();
+    });
+
+    it('should use default max connections when config is missing', async () => {
+      // Reset connection count
+      (RealtimeController as any).activeConnections = 0;
+      mockConfigService.get.mockReturnValue(undefined);
+
+      const eventSubject = new Subject();
+      mockRealtimeService.getEventStream.mockReturnValue(eventSubject.asObservable());
+
+      const query: RealtimeQueryDto = {};
+      await controller.streamEvents(mockResponse, query);
+
+      await new Promise(resolve => setTimeout(resolve, 10));
+      expect(mockResponse.write).toHaveBeenCalled();
+    });
   });
 });

@@ -110,6 +110,60 @@ describe('HealthController', () => {
       expect(healthCheckService.check).toHaveBeenCalled();
       expect(result).toEqual(mockResult);
     });
+
+    it('should use default values when config is not provided', async () => {
+      const mockResult = {
+        status: 'ok',
+        info: {
+          database: { status: 'up' },
+          memory_heap: { status: 'up' },
+          memory_rss: { status: 'up' },
+          storage: { status: 'up' },
+        },
+      };
+
+      const mockConfigServiceWithoutValues = {
+        get: jest.fn().mockReturnValue(undefined),
+      };
+
+      const moduleWithoutConfig = await Test.createTestingModule({
+        controllers: [HealthController],
+        providers: [
+          {
+            provide: HealthCheckService,
+            useValue: mockHealthCheckService,
+          },
+          {
+            provide: TypeOrmHealthIndicator,
+            useValue: mockDbIndicator,
+          },
+          {
+            provide: MemoryHealthIndicator,
+            useValue: mockMemoryIndicator,
+          },
+          {
+            provide: DiskHealthIndicator,
+            useValue: mockDiskIndicator,
+          },
+          {
+            provide: ConfigService,
+            useValue: mockConfigServiceWithoutValues,
+          },
+        ],
+      }).compile();
+
+      const controllerWithoutConfig = moduleWithoutConfig.get<HealthController>(
+        HealthController,
+      );
+
+      mockHealthCheckService.check.mockResolvedValue(mockResult);
+
+      const result = await controllerWithoutConfig.check();
+
+      expect(healthCheckService.check).toHaveBeenCalled();
+      expect(result).toEqual(mockResult);
+      await moduleWithoutConfig.close();
+    });
   });
 
   describe('checkDatabase', () => {
@@ -166,6 +220,57 @@ describe('HealthController', () => {
 
       expect(healthCheckService.check).toHaveBeenCalled();
       expect(result).toEqual(mockResult);
+    });
+
+    it('should use default liveness memory threshold when config is not provided', async () => {
+      const mockResult = {
+        status: 'ok',
+        info: {
+          memory_heap: { status: 'up' },
+        },
+      };
+
+      const mockConfigServiceWithoutValues = {
+        get: jest.fn().mockReturnValue(undefined),
+      };
+
+      const moduleWithoutConfig = await Test.createTestingModule({
+        controllers: [HealthController],
+        providers: [
+          {
+            provide: HealthCheckService,
+            useValue: mockHealthCheckService,
+          },
+          {
+            provide: TypeOrmHealthIndicator,
+            useValue: mockDbIndicator,
+          },
+          {
+            provide: MemoryHealthIndicator,
+            useValue: mockMemoryIndicator,
+          },
+          {
+            provide: DiskHealthIndicator,
+            useValue: mockDiskIndicator,
+          },
+          {
+            provide: ConfigService,
+            useValue: mockConfigServiceWithoutValues,
+          },
+        ],
+      }).compile();
+
+      const controllerWithoutConfig = moduleWithoutConfig.get<HealthController>(
+        HealthController,
+      );
+
+      mockHealthCheckService.check.mockResolvedValue(mockResult);
+
+      const result = await controllerWithoutConfig.checkLive();
+
+      expect(healthCheckService.check).toHaveBeenCalled();
+      expect(result).toEqual(mockResult);
+      await moduleWithoutConfig.close();
     });
   });
 });

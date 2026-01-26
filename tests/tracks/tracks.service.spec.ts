@@ -86,6 +86,7 @@ describe('TracksService', () => {
     isTransactionActive: true,
     manager: {
       save: jest.fn(),
+      findOne: jest.fn(),
     },
   };
 
@@ -405,6 +406,11 @@ describe('TracksService', () => {
       mockTrackRepository.findOne
         .mockResolvedValueOnce(mockTrack)
         .mockResolvedValueOnce(updatedTrack);
+      // Mock queryRunner.manager.findOne to return track in transaction
+      mockQueryRunner.manager.findOne.mockResolvedValue({
+        ...mockTrack,
+        id: '1',
+      });
       mockLicensingStatusRepository.create.mockReturnValue(newStatus);
       mockQueryRunner.manager.save
         .mockResolvedValueOnce(newStatus)
@@ -456,6 +462,11 @@ describe('TracksService', () => {
       };
 
       mockTrackRepository.findOne.mockResolvedValue(trackWithPendingStatus);
+      // Mock queryRunner.manager.findOne to return track in transaction
+      mockQueryRunner.manager.findOne.mockResolvedValue({
+        ...trackWithPendingStatus,
+        id: '1',
+      });
       mockLicensingStatusRepository.create.mockReturnValue({
         id: 'status-2',
         trackId: '1',
