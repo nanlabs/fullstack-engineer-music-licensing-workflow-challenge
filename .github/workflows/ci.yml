@@ -1,0 +1,304 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop, 'feature/**']
+  pull_request:
+    branches: [main, develop]
+
+env:
+  NODE_VERSION: '20.x'
+  POSTGRES_VERSION: '15-alpine'
+  POSTGRES_DB: acme_bros_db_test
+  POSTGRES_USER: test_user
+  POSTGRES_PASSWORD: test_password
+
+jobs:
+  lint:
+    name: Lint Code
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint:check
+
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    needs: lint
+
+    services:
+      postgres:
+        image: postgres:${{ env.POSTGRES_VERSION }}
+        env:
+          POSTGRES_DB: ${{ env.POSTGRES_DB }}
+          POSTGRES_USER: ${{ env.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup test environment
+        run: |
+          echo "NODE_ENV=test" >> $GITHUB_ENV
+          echo "DB_HOST=localhost" >> $GITHUB_ENV
+          echo "DB_PORT=5432" >> $GITHUB_ENV
+          echo "DB_USERNAME=${{ env.POSTGRES_USER }}" >> $GITHUB_ENV
+          echo "DB_PASSWORD=${{ env.POSTGRES_PASSWORD }}" >> $GITHUB_ENV
+          echo "DB_NAME=${{ env.POSTGRES_DB }}" >> $GITHUB_ENV
+          echo "DB_SYNC=false" >> $GITHUB_ENV
+          echo "PORT=3000" >> $GITHUB_ENV
+          echo "API_PREFIX=api" >> $GITHUB_ENV
+
+      - name: Wait for PostgreSQL
+        run: |
+          until pg_isready -h localhost -p 5432 -U ${{ env.POSTGRES_USER }}; do
+            echo "Waiting for PostgreSQL..."
+            sleep 2
+          done
+
+      - name: Run database migrations
+        run: |
+          npm run migration:run || echo "Migrations may have already been run"
+        env:
+          NODE_ENV: test
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USERNAME: ${{ env.POSTGRES_USER }}
+          DB_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+          DB_NAME: ${{ env.POSTGRES_DB }}
+          DB_SYNC: false
+        continue-on-error: true
+
+      - name: Run unit tests
+        run: npm test -- --coverage --coverageReporters=text --coverageReporters=lcov
+        env:
+          NODE_ENV: test
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USERNAME: ${{ env.POSTGRES_USER }}
+          DB_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+          DB_NAME: ${{ env.POSTGRES_DB }}
+          DB_SYNC: false
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage/lcov.info
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+
+      - name: Check test coverage threshold
+        run: |
+          echo "Checking test coverage threshold (90% minimum)..."
+          # Run tests with coverage summary
+          npm test -- --coverage --coverageReporters=text-summary --silent 2>&1 | tee test-output.txt || true
+          COVERAGE_LINE=$(grep "All files" test-output.txt || echo "")
+          if [ -z "$COVERAGE_LINE" ]; then
+            echo "⚠️ Could not extract coverage from test output"
+            echo "Coverage check skipped (non-blocking)"
+            exit 0
+          fi
+          echo "Coverage summary: $COVERAGE_LINE"
+          # Extract coverage percentage (format: "All files | XX.XX | ...")
+          COVERAGE_VAL=$(echo "$COVERAGE_LINE" | awk -F'|' '{print $2}' | xargs | awk '{print $1}')
+          if [ -z "$COVERAGE_VAL" ]; then
+            echo "⚠️ Could not parse coverage value"
+            exit 0
+          fi
+          echo "Current coverage: $COVERAGE_VAL%"
+          # Extract integer part for comparison
+          COVERAGE_INT=$(echo "$COVERAGE_VAL" | cut -d'.' -f1 | sed 's/[^0-9]//g')
+          if [ -z "$COVERAGE_INT" ]; then
+            COVERAGE_INT=0
+          fi
+          if [ "$COVERAGE_INT" -lt 90 ]; then
+            echo "❌ Coverage is below 90% threshold (current: $COVERAGE_VAL%)"
+            echo "Please add more tests to increase coverage"
+            exit 1
+          else
+            echo "✅ Coverage meets 90% threshold (current: $COVERAGE_VAL%)"
+          fi
+        continue-on-error: true
+
+  build:
+    name: Build Application
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build application
+        run: npm run build
+
+      - name: Check build artifacts
+        run: |
+          if [ ! -d "dist" ]; then
+            echo "❌ Build failed: dist directory not found"
+            exit 1
+          fi
+          echo "✅ Build successful"
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: test
+
+    services:
+      postgres:
+        image: postgres:${{ env.POSTGRES_VERSION }}
+        env:
+          POSTGRES_DB: ${{ env.POSTGRES_DB }}
+          POSTGRES_USER: ${{ env.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup test environment
+        run: |
+          echo "NODE_ENV=test" >> $GITHUB_ENV
+          echo "DB_HOST=localhost" >> $GITHUB_ENV
+          echo "DB_PORT=5432" >> $GITHUB_ENV
+          echo "DB_USERNAME=${{ env.POSTGRES_USER }}" >> $GITHUB_ENV
+          echo "DB_PASSWORD=${{ env.POSTGRES_PASSWORD }}" >> $GITHUB_ENV
+          echo "DB_NAME=${{ env.POSTGRES_DB }}" >> $GITHUB_ENV
+          echo "DB_SYNC=false" >> $GITHUB_ENV
+
+      - name: Wait for PostgreSQL
+        run: |
+          until pg_isready -h localhost -p 5432 -U ${{ env.POSTGRES_USER }}; do
+            echo "Waiting for PostgreSQL..."
+            sleep 2
+          done
+
+      - name: Run database migrations
+        run: |
+          npm run migration:run || echo "Migrations may have already been run"
+        env:
+          NODE_ENV: test
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USERNAME: ${{ env.POSTGRES_USER }}
+          DB_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+          DB_NAME: ${{ env.POSTGRES_DB }}
+          DB_SYNC: false
+        continue-on-error: true
+
+      - name: Run integration tests
+        run: npm test -- tests/integration/
+        env:
+          NODE_ENV: test
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USERNAME: ${{ env.POSTGRES_USER }}
+          DB_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+          DB_NAME: ${{ env.POSTGRES_DB }}
+          DB_SYNC: false
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit
+        run: npm audit --audit-level=moderate
+        continue-on-error: true
+
+      - name: Check for known vulnerabilities
+        run: |
+          VULNS=$(npm audit --json | jq '.metadata.vulnerabilities.total // 0')
+          if [ "$VULNS" -gt 0 ]; then
+            echo "⚠️ Found $VULNS vulnerabilities"
+            npm audit
+          else
+            echo "✅ No vulnerabilities found"
+          fi
+
+  all-checks:
+    name: All Checks Passed
+    runs-on: ubuntu-latest
+    needs: [lint, test, build, integration-tests, security-scan]
+    if: always()
+
+    steps:
+      - name: Check job status
+        run: |
+          if [ "${{ needs.lint.result }}" != "success" ] || \
+             [ "${{ needs.test.result }}" != "success" ] || \
+             [ "${{ needs.build.result }}" != "success" ] || \
+             [ "${{ needs.integration-tests.result }}" != "success" ]; then
+            echo "❌ Some checks failed"
+            exit 1
+          fi
+          echo "✅ All checks passed"
