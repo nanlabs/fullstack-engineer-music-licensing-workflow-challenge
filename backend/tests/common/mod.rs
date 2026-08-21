@@ -6,10 +6,15 @@
 // Each integration test binary uses a different subset of this harness.
 #![allow(dead_code)]
 
-use axum::body::to_bytes;
-use axum::http::{header, Request, StatusCode};
+use std::sync::Arc;
+use std::time::Duration;
+
+use axum::body::{to_bytes, Body, Bytes};
+use axum::http::{header, HeaderMap, Request, StatusCode};
+use futures::StreamExt;
 use music_licensing_api::api::{self, AppState};
 use music_licensing_api::config::Config;
+use music_licensing_api::infrastructure::event_listener::{self, EventStreams, ListenerStatus};
 use music_licensing_api::infrastructure::{db, seed};
 use serde_json::Value;
 use sqlx::PgPool;
@@ -24,6 +29,10 @@ pub struct TestDatabase {
     _container: ContainerAsync<Postgres>,
     pub config: Config,
     pub pool: PgPool,
+    /// The fan-out the default router streams from. No listener is attached to
+    /// it, so tests that do not care about live delivery pay nothing for it,
+    /// and a stream opened against it correctly reports itself unavailable.
+    pub events: Arc<EventStreams>,
 }
 
 /// Starts an empty database with no migrations applied.
@@ -57,10 +66,13 @@ pub async fn start_database() -> TestDatabase {
         .await
         .expect("failed to connect to the test database");
 
+    let events = Arc::new(EventStreams::new(config.sse_max_connections));
+
     TestDatabase {
         _container: container,
         config,
         pool,
+        events,
     }
 }
 
@@ -116,16 +128,45 @@ pub fn with_env<const N: usize, T>(vars: [(&str, &str); N], body: impl FnOnce() 
 
 /// Builds the router the binary would serve for this configuration.
 pub fn router(database: &TestDatabase) -> axum::Router {
+    router_with_events(database, Arc::clone(&database.events))
+}
+
+/// Builds a router that streams from a specific fan-out, for the real-time
+/// tests that need a connected listener, a tiny buffer, or a low connection cap.
+pub fn router_with_events(database: &TestDatabase, events: Arc<EventStreams>) -> axum::Router {
     api::router(
-        AppState::new(database.pool.clone(), &database.config),
+        AppState::new(database.pool.clone(), &database.config, events),
         &database.config,
     )
+}
+
+/// Builds a fan-out with a live `PgListener` attached and waits for it to
+/// connect, so a test never races the listener's first `LISTEN`.
+pub async fn connected_event_streams(
+    database: &TestDatabase,
+    streams: EventStreams,
+) -> Arc<EventStreams> {
+    let streams = Arc::new(streams);
+    // The task is left running; it stops when the test's runtime is dropped.
+    let _listener = event_listener::spawn(&database.config.database, Arc::clone(&streams));
+
+    for _ in 0..200 {
+        if streams.listener_status() == ListenerStatus::Connected {
+            return streams;
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
+
+    panic!("the event listener did not connect");
 }
 
 /// Builds a router from a modified configuration, for tests that need the
 /// application wired differently (a disabled dev-token endpoint, another key).
 pub fn router_with(database: &TestDatabase, config: &Config) -> axum::Router {
-    api::router(AppState::new(database.pool.clone(), config), config)
+    api::router(
+        AppState::new(database.pool.clone(), config, Arc::clone(&database.events)),
+        config,
+    )
 }
 
 /// Sends a request and returns its status, headers, and body.
@@ -237,4 +278,137 @@ pub async fn drain_pages(database: &TestDatabase, path: &str, limit: u32) -> (Ve
     }
 
     (items, requests)
+}
+
+/// Opens an authenticated SSE stream and returns the raw response parts.
+///
+/// The body is deliberately not drained here: a stream ends only when the
+/// server closes it, and the tests need to read it frame by frame.
+pub async fn open_stream(
+    router: axum::Router,
+    path: &str,
+    token: &str,
+) -> (StatusCode, HeaderMap, Body) {
+    let response = router
+        .oneshot(
+            Request::builder()
+                .uri(path)
+                .header(header::AUTHORIZATION, format!("Bearer {token}"))
+                .header(header::ACCEPT, "text/event-stream")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("router call failed");
+
+    let status = response.status();
+    let headers = response.headers().clone();
+
+    (status, headers, response.into_body())
+}
+
+/// Reads an already-open SSE body one frame at a time.
+///
+/// Frames are the wire form — comment lines included — so that a test can tell
+/// a heartbeat apart from an event rather than having both parsed away.
+pub struct EventStream {
+    body: axum::body::BodyDataStream,
+    buffer: String,
+    ended: bool,
+}
+
+/// One parsed SSE frame.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StreamFrame {
+    pub raw: String,
+}
+
+impl StreamFrame {
+    /// Whether this frame is a comment — which is all a heartbeat is.
+    pub fn is_comment(&self) -> bool {
+        self.raw.lines().all(|line| line.starts_with(':'))
+    }
+
+    pub fn event_type(&self) -> Option<&str> {
+        self.raw
+            .lines()
+            .find_map(|line| line.strip_prefix("event:"))
+            .map(str::trim)
+    }
+
+    /// The `data:` payload, parsed. Panics on a frame that carries none.
+    pub fn data(&self) -> Value {
+        let data = self
+            .raw
+            .lines()
+            .find_map(|line| line.strip_prefix("data:"))
+            .unwrap_or_else(|| panic!("frame carries no data: {:?}", self.raw));
+
+        serde_json::from_str(data.trim()).expect("event data is JSON")
+    }
+}
+
+impl EventStream {
+    pub fn new(body: Body) -> Self {
+        Self {
+            body: body.into_data_stream(),
+            buffer: String::new(),
+            ended: false,
+        }
+    }
+
+    /// Returns the next frame, or `None` if the server closed the stream.
+    /// Panics if neither happens within `within`.
+    pub async fn next_frame(&mut self, within: Duration) -> Option<StreamFrame> {
+        tokio::time::timeout(within, self.read_frame())
+            .await
+            .expect("timed out waiting for the stream to emit or close")
+    }
+
+    /// Asserts the server closes the stream, and that it emits nothing first.
+    pub async fn expect_closed(&mut self, within: Duration) {
+        match self.next_frame(within).await {
+            None => {}
+            Some(frame) => panic!("expected a closed stream, got frame {:?}", frame.raw),
+        }
+    }
+
+    /// Asserts the stream stays open and silent for the whole window.
+    pub async fn expect_silent(&mut self, during: Duration) {
+        if let Ok(frame) = tokio::time::timeout(during, self.read_frame()).await {
+            panic!("expected silence, got {frame:?}");
+        }
+    }
+
+    async fn read_frame(&mut self) -> Option<StreamFrame> {
+        loop {
+            if let Some(index) = self.buffer.find("\n\n") {
+                let raw: String = self.buffer.drain(..index).collect();
+                self.buffer.drain(.."\n\n".len());
+                return Some(StreamFrame {
+                    raw: raw.trim_end().to_string(),
+                });
+            }
+
+            if self.ended {
+                return None;
+            }
+
+            match self.body.next().await {
+                Some(Ok(chunk)) => self.buffer.push_str(&chunk_to_string(chunk)),
+                Some(Err(error)) => panic!("stream failed: {error}"),
+                None => self.ended = true,
+            }
+        }
+    }
+}
+
+fn chunk_to_string(chunk: Bytes) -> String {
+    String::from_utf8(chunk.to_vec()).expect("SSE frames are UTF-8")
+}
+
+/// Drains an error response body opened as a stream.
+pub async fn body_json(body: Body) -> Value {
+    let bytes = to_bytes(body, usize::MAX).await.unwrap();
+    serde_json::from_slice(&bytes).unwrap_or(Value::Null)
 }

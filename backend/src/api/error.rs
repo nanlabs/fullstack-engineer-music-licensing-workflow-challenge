@@ -18,8 +18,9 @@ pub enum ProblemCode {
     VersionConflict,
     TrackIntervalOutOfBounds,
     SceneOutsideMovie,
-    WriteContention,
     DatabaseUnavailable,
+    SseTemporarilyUnavailable,
+    SseConnectionLimitReached,
     ValidationFailed,
     InternalError,
 }
@@ -33,8 +34,9 @@ impl ProblemCode {
             Self::VersionConflict => "version_conflict",
             Self::TrackIntervalOutOfBounds => "track_interval_out_of_bounds",
             Self::SceneOutsideMovie => "scene_outside_movie",
-            Self::WriteContention => "write_contention",
             Self::DatabaseUnavailable => "database_unavailable",
+            Self::SseTemporarilyUnavailable => "sse_temporarily_unavailable",
+            Self::SseConnectionLimitReached => "sse_connection_limit_reached",
             Self::ValidationFailed => "validation_failed",
             Self::InternalError => "internal_error",
         }
@@ -48,8 +50,9 @@ impl ProblemCode {
             Self::VersionConflict => StatusCode::CONFLICT,
             Self::TrackIntervalOutOfBounds => StatusCode::UNPROCESSABLE_ENTITY,
             Self::SceneOutsideMovie => StatusCode::UNPROCESSABLE_ENTITY,
-            Self::WriteContention => StatusCode::SERVICE_UNAVAILABLE,
             Self::DatabaseUnavailable => StatusCode::SERVICE_UNAVAILABLE,
+            Self::SseTemporarilyUnavailable => StatusCode::SERVICE_UNAVAILABLE,
+            Self::SseConnectionLimitReached => StatusCode::SERVICE_UNAVAILABLE,
             Self::ValidationFailed => StatusCode::UNPROCESSABLE_ENTITY,
             Self::InternalError => StatusCode::INTERNAL_SERVER_ERROR,
         }
@@ -63,8 +66,9 @@ impl ProblemCode {
             Self::VersionConflict => "Version conflict",
             Self::TrackIntervalOutOfBounds => "Track interval out of bounds",
             Self::SceneOutsideMovie => "Scene outside movie",
-            Self::WriteContention => "Write contention",
             Self::DatabaseUnavailable => "Database unavailable",
+            Self::SseTemporarilyUnavailable => "Event stream temporarily unavailable",
+            Self::SseConnectionLimitReached => "Event stream connection limit reached",
             Self::ValidationFailed => "Validation failed",
             Self::InternalError => "Internal server error",
         }
@@ -226,11 +230,6 @@ impl From<crate::application::tracks::TrackError> for ApiError {
                      Re-read the track and retry."
                 ),
             ),
-            TrackError::WriteContention => Self::new(
-                ProblemCode::WriteContention,
-                "The track is being modified by another request. Retry shortly.",
-            )
-            .retryable_in(2),
             TrackError::Database(error) => error.into(),
         }
     }

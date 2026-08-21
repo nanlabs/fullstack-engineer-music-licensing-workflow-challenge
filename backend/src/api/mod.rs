@@ -3,6 +3,7 @@
 pub mod auth;
 pub mod catalog;
 pub mod error;
+pub mod events;
 pub mod health;
 pub mod pagination;
 pub mod tracks;
@@ -23,6 +24,7 @@ use tower_http::trace::{DefaultOnResponse, TraceLayer};
 use tracing::Level;
 
 use crate::config::Config;
+use crate::infrastructure::event_listener::EventStreams;
 
 /// Maximum accepted request body, matching the plan's 1 MiB limit.
 const MAX_BODY_BYTES: usize = 1024 * 1024;
@@ -36,13 +38,18 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 pub struct AppState {
     pub pool: PgPool,
     pub auth: Arc<auth::AuthContext>,
+    /// The process-wide event fan-out. Passed in rather than built here,
+    /// because the listener task that feeds it is owned by the server and
+    /// outlives any single router.
+    pub events: Arc<EventStreams>,
 }
 
 impl AppState {
-    pub fn new(pool: PgPool, config: &Config) -> Self {
+    pub fn new(pool: PgPool, config: &Config, events: Arc<EventStreams>) -> Self {
         Self {
             pool,
             auth: Arc::new(auth::AuthContext::from_config(config)),
+            events,
         }
     }
 }
@@ -103,8 +110,22 @@ pub fn router(state: AppState, config: &Config) -> Router {
             REQUEST_TIMEOUT,
         ));
 
+    // Deliberately outside the request timeout and the body limit: a stream is
+    // meant to stay open, and cutting it off after 30 seconds would be the
+    // timeout layer mistaking success for a stalled request.
+    let streams = Router::new()
+        .route(
+            "/movies/{movie_id}/track-events",
+            get(events::stream_movie_events),
+        )
+        .route(
+            "/scenes/{scene_id}/track-events",
+            get(events::stream_scene_events),
+        );
+
     health
         .merge(api)
+        .merge(streams)
         .fallback(error::not_found_fallback)
         .layer(cors_layer(config))
         .layer(PropagateRequestIdLayer::x_request_id())

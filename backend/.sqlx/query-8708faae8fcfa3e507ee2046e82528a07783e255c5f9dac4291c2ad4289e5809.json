@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "UPDATE tracks\n           SET licensing_state = $2,\n               version = version + 1,\n               updated_at = clock_timestamp()\n           WHERE id = $1\n           RETURNING id, scene_id, song_id, scene_start_ms, scene_end_ms,\n                     licensing_state, version, created_at, updated_at",
+  "query": "UPDATE tracks\n           SET scene_id = $2,\n               song_id = $3,\n               scene_start_ms = $4,\n               scene_end_ms = $5,\n               licensing_state = $6,\n               version = version + 1,\n               updated_at = clock_timestamp()\n           WHERE id = $1 AND version = $7\n           RETURNING id, scene_id, song_id, scene_start_ms, scene_end_ms,\n                     licensing_state, version, created_at, updated_at",
   "describe": {
     "columns": [
       {
@@ -52,7 +52,12 @@
     "parameters": {
       "Left": [
         "Uuid",
-        "Text"
+        "Uuid",
+        "Uuid",
+        "Int4",
+        "Int4",
+        "Text",
+        "Int4"
       ]
     },
     "nullable": [
@@ -67,5 +72,5 @@
       false
     ]
   },
-  "hash": "8f611e69ddd215a791a04b1fbe8d25e97db0ecc85df857e3a7af5e77bd54eb7f"
+  "hash": "8708faae8fcfa3e507ee2046e82528a07783e255c5f9dac4291c2ad4289e5809"
 }

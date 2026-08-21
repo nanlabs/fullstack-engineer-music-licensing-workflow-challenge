@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT t.id, t.scene_id, t.song_id, t.scene_start_ms, t.scene_end_ms,\n                  t.licensing_state, t.version, t.created_at, t.updated_at,\n                  s.movie_id\n           FROM tracks t\n           JOIN scenes s ON s.id = t.scene_id\n           WHERE t.id = $1\n           FOR UPDATE OF t",
+  "query": "SELECT t.id, t.scene_id, t.song_id, t.scene_start_ms, t.scene_end_ms,\n                  t.licensing_state, t.version, t.created_at, t.updated_at,\n                  sc.movie_id,\n                  so.title AS song_title, so.artist_name AS song_artist_name\n           FROM tracks t\n           JOIN scenes sc ON sc.id = t.scene_id\n           JOIN songs so ON so.id = t.song_id\n           WHERE t.id = $1",
   "describe": {
     "columns": [
       {
@@ -52,6 +52,16 @@
         "ordinal": 9,
         "name": "movie_id",
         "type_info": "Uuid"
+      },
+      {
+        "ordinal": 10,
+        "name": "song_title",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 11,
+        "name": "song_artist_name",
+        "type_info": "Text"
       }
     ],
     "parameters": {
@@ -69,8 +79,10 @@
       false,
       false,
       false,
+      false,
+      false,
       false
     ]
   },
-  "hash": "15e6c2fccb179ec74a23a25370dcbd7c5f134aeff1e603ac287dedf6ffa88889"
+  "hash": "d895ea4ad5323274246b12537b13f07db4626f8a958f06db34c456edfa9d5e1c"
 }

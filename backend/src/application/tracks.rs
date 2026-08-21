@@ -1,8 +1,15 @@
 //! Track use cases.
 //!
-//! This layer owns the transaction boundary: a track change and the event that
-//! records it commit together or not at all. There is no path that writes one
-//! without the other.
+//! This layer owns the transaction boundary: a track change, the event that
+//! records it, and the notification that delivers it commit together or not at
+//! all. There is no path that writes one without the others, and no path that
+//! notifies about a change that was rolled back.
+//!
+//! Concurrent writers are handled by the track's `version`, not by locking:
+//! every update carries the version the caller decided against, and the
+//! database applies it only if the track is still on that version. A caller
+//! that lost the race is told so with a `409` instead of overwriting the
+//! winner.
 
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
@@ -11,6 +18,7 @@ use uuid::Uuid;
 use crate::domain::actor::Actor;
 use crate::domain::event::{NewTrackEvent, TrackDefinition};
 use crate::domain::track::{InvalidInterval, LicensingState, SceneInterval, Track};
+use crate::infrastructure::notifications::{self, TrackChangeNotification};
 use crate::infrastructure::track_repository::{self as repository, StoredEvent, TrackWithSong};
 
 #[derive(Debug, thiserror::Error)]
@@ -34,26 +42,8 @@ pub enum TrackError {
     },
     #[error("expected version {expected} but the track is at version {actual}")]
     VersionConflict { expected: i32, actual: i32 },
-    /// A lock wait exceeded `lock_timeout`: the request is retryable.
-    #[error("write contention while updating the track")]
-    WriteContention,
     #[error(transparent)]
     Database(#[from] sqlx::Error),
-}
-
-impl TrackError {
-    /// Classifies a database error, separating retryable lock contention from
-    /// genuine failures.
-    fn from_database(error: sqlx::Error) -> Self {
-        // 55P03 lock_not_available: someone else holds the row we waited for.
-        if let Some(code) = error.as_database_error().and_then(|error| error.code()) {
-            if code == "55P03" {
-                return Self::WriteContention;
-            }
-        }
-
-        Self::Database(error)
-    }
 }
 
 /// What a caller asked to create.
@@ -75,29 +65,23 @@ pub async fn create_track(
     actor: &Actor,
     request: NewTrack,
 ) -> Result<Track, TrackError> {
-    let mut transaction = repository::begin_write(pool)
-        .await
-        .map_err(TrackError::from_database)?;
-
-    // Reference rows are locked before the track is written, so the interval is
-    // validated against a scene duration that cannot change under us.
-    let scene = repository::lock_scene(&mut transaction, request.scene_id)
-        .await
-        .map_err(TrackError::from_database)?
+    // The scene supplies the duration the interval is validated against, and
+    // the song supplies the summary the notification carries.
+    let scene = repository::find_scene(pool, request.scene_id)
+        .await?
         .ok_or(TrackError::SceneNotFound(request.scene_id))?;
 
-    if !repository::lock_song(&mut transaction, request.song_id)
-        .await
-        .map_err(TrackError::from_database)?
-    {
-        return Err(TrackError::SongNotFound(request.song_id));
-    }
+    let song = repository::find_song(pool, request.song_id)
+        .await?
+        .ok_or(TrackError::SongNotFound(request.song_id))?;
 
     let interval = SceneInterval::new(
         request.scene_start_ms,
         request.scene_end_ms,
         scene.duration_ms,
     )?;
+
+    let mut transaction = pool.begin().await?;
 
     let track_id = Uuid::new_v4();
     let track = repository::insert_track(
@@ -108,8 +92,7 @@ pub async fn create_track(
         interval,
         LicensingState::Pending,
     )
-    .await
-    .map_err(TrackError::from_database)?;
+    .await?;
 
     let event = NewTrackEvent::created(
         track.id,
@@ -123,14 +106,11 @@ pub async fn create_track(
         },
     );
 
-    repository::insert_event(&mut transaction, &event)
-        .await
-        .map_err(TrackError::from_database)?;
+    let event_id = repository::insert_event(&mut transaction, &event).await?;
 
-    transaction
-        .commit()
-        .await
-        .map_err(TrackError::from_database)?;
+    publish_change(&mut transaction, event_id, &event, &track, &song).await?;
+
+    transaction.commit().await?;
 
     tracing::info!(
         track_id = %track.id,
@@ -149,6 +129,13 @@ pub struct TrackRevision {
     pub song_id: Uuid,
     pub scene_start_ms: i32,
     pub scene_end_ms: i32,
+}
+
+/// Whether a track already holds the definition a revision asks for.
+fn matches_revision(track: &Track, revision: &TrackRevision, interval: SceneInterval) -> bool {
+    track.scene_id == revision.scene_id
+        && track.song_id == revision.song_id
+        && track.interval == interval
 }
 
 /// Revises a track's definition.
@@ -185,37 +172,26 @@ pub async fn revise_track(
     revision: TrackRevision,
     expected_version: i32,
 ) -> Result<Track, TrackError> {
-    let mut transaction = repository::begin_write(pool)
-        .await
-        .map_err(TrackError::from_database)?;
-
-    let locked = repository::lock_track(&mut transaction, track_id)
-        .await
-        .map_err(TrackError::from_database)?
+    let context = repository::find_track_context(pool, track_id)
+        .await?
         .ok_or(TrackError::TrackNotFound(track_id))?;
 
-    let current = locked.track;
+    let current = context.track;
 
-    // The target scene is read and locked before anything is written, so the
-    // interval is validated against a duration that cannot change under us.
-    let scene = repository::lock_scene(&mut transaction, revision.scene_id)
-        .await
-        .map_err(TrackError::from_database)?
+    let scene = repository::find_scene(pool, revision.scene_id)
+        .await?
         .ok_or(TrackError::SceneNotFound(revision.scene_id))?;
 
-    if scene.movie_id != locked.movie_id {
+    if scene.movie_id != context.movie_id {
         return Err(TrackError::SceneOutsideMovie {
             scene_id: revision.scene_id,
-            movie_id: locked.movie_id,
+            movie_id: context.movie_id,
         });
     }
 
-    if !repository::lock_song(&mut transaction, revision.song_id)
-        .await
-        .map_err(TrackError::from_database)?
-    {
-        return Err(TrackError::SongNotFound(revision.song_id));
-    }
+    let song = repository::find_song(pool, revision.song_id)
+        .await?
+        .ok_or(TrackError::SongNotFound(revision.song_id))?;
 
     let interval = SceneInterval::new(
         revision.scene_start_ms,
@@ -224,16 +200,7 @@ pub async fn revise_track(
     )?;
 
     // Nothing material differs: the caller already has what they asked for.
-    let unchanged = current.scene_id == revision.scene_id
-        && current.song_id == revision.song_id
-        && current.interval == interval;
-
-    if unchanged {
-        transaction
-            .rollback()
-            .await
-            .map_err(TrackError::from_database)?;
-
+    if matches_revision(&current, &revision, interval) {
         tracing::debug!(track_id = %track_id, "revision matches current definition; no-op");
         return Ok(current);
     }
@@ -252,6 +219,8 @@ pub async fn revise_track(
         licensing_state: current.licensing_state,
     };
 
+    let mut transaction = pool.begin().await?;
+
     let updated = repository::update_definition(
         &mut transaction,
         track_id,
@@ -259,13 +228,32 @@ pub async fn revise_track(
         revision.song_id,
         interval,
         LicensingState::Pending,
+        expected_version,
     )
-    .await
-    .map_err(TrackError::from_database)?;
+    .await?;
+
+    // The track moved between the read above and this write. Re-read to decide
+    // which it was: the winner may have applied the very revision we wanted, in
+    // which case the caller's intent holds and this is still a no-op.
+    let Some(updated) = updated else {
+        drop(transaction);
+
+        let latest = find_track(pool, track_id).await?;
+
+        if matches_revision(&latest, &revision, interval) {
+            tracing::debug!(track_id = %track_id, "revision applied concurrently; no-op");
+            return Ok(latest);
+        }
+
+        return Err(TrackError::VersionConflict {
+            expected: expected_version,
+            actual: latest.version,
+        });
+    };
 
     let event = NewTrackEvent::revised(
         updated.id,
-        locked.movie_id,
+        context.movie_id,
         updated.version,
         actor.clone(),
         previous,
@@ -277,14 +265,11 @@ pub async fn revise_track(
         },
     );
 
-    repository::insert_event(&mut transaction, &event)
-        .await
-        .map_err(TrackError::from_database)?;
+    let event_id = repository::insert_event(&mut transaction, &event).await?;
 
-    transaction
-        .commit()
-        .await
-        .map_err(TrackError::from_database)?;
+    publish_change(&mut transaction, event_id, &event, &updated, &song).await?;
+
+    transaction.commit().await?;
 
     tracing::info!(
         track_id = %updated.id,
@@ -323,26 +308,14 @@ pub async fn set_licensing_state(
     desired: LicensingState,
     expected_version: i32,
 ) -> Result<Track, TrackError> {
-    let mut transaction = repository::begin_write(pool)
-        .await
-        .map_err(TrackError::from_database)?;
-
-    let locked = repository::lock_track(&mut transaction, track_id)
-        .await
-        .map_err(TrackError::from_database)?
+    let context = repository::find_track_context(pool, track_id)
+        .await?
         .ok_or(TrackError::TrackNotFound(track_id))?;
 
-    let current = locked.track;
+    let current = context.track;
 
     // 1. Already in the requested state: nothing to do, and nothing to record.
     if current.licensing_state == desired {
-        // The read lock is released by rolling back rather than committing,
-        // since no work was done.
-        transaction
-            .rollback()
-            .await
-            .map_err(TrackError::from_database)?;
-
         tracing::debug!(
             track_id = %track_id,
             state = current.licensing_state.as_str(),
@@ -367,27 +340,49 @@ pub async fn set_licensing_state(
         });
     }
 
-    let updated = repository::update_licensing_state(&mut transaction, track_id, desired)
-        .await
-        .map_err(TrackError::from_database)?;
+    let mut transaction = pool.begin().await?;
+
+    let updated =
+        repository::update_licensing_state(&mut transaction, track_id, desired, expected_version)
+            .await?;
+
+    // Someone else moved the track between the read above and this write. If
+    // they moved it where we were headed, rule 1 applies after the fact and the
+    // caller still gets what they asked for.
+    let Some(updated) = updated else {
+        drop(transaction);
+
+        let latest = find_track(pool, track_id).await?;
+
+        if latest.licensing_state == desired {
+            tracing::debug!(
+                track_id = %track_id,
+                state = latest.licensing_state.as_str(),
+                "licensing state set concurrently; no-op"
+            );
+            return Ok(latest);
+        }
+
+        return Err(TrackError::VersionConflict {
+            expected: expected_version,
+            actual: latest.version,
+        });
+    };
 
     let event = NewTrackEvent::licensing_state_changed(
         updated.id,
-        locked.movie_id,
+        context.movie_id,
         updated.version,
         actor.clone(),
         current.licensing_state,
         desired,
     );
 
-    repository::insert_event(&mut transaction, &event)
-        .await
-        .map_err(TrackError::from_database)?;
+    let event_id = repository::insert_event(&mut transaction, &event).await?;
 
-    transaction
-        .commit()
-        .await
-        .map_err(TrackError::from_database)?;
+    publish_change(&mut transaction, event_id, &event, &updated, &context.song).await?;
+
+    transaction.commit().await?;
 
     tracing::info!(
         track_id = %updated.id,
@@ -399,6 +394,27 @@ pub async fn set_licensing_state(
     );
 
     Ok(updated)
+}
+
+/// Queues the live-delivery notification for a change that is about to commit.
+///
+/// It is deliberately the last statement before `COMMIT`: PostgreSQL holds a
+/// queued notification until the transaction commits, so a subscriber can never
+/// be told about a change that was rolled back, and never learns of one before
+/// a REST read would show it.
+///
+/// The notification carries the committed track representation in full, so no
+/// connected client has to read the database to apply it.
+async fn publish_change(
+    transaction: &mut sqlx::Transaction<'static, sqlx::Postgres>,
+    event_id: i64,
+    event: &NewTrackEvent,
+    track: &Track,
+    song: &crate::domain::catalog::Song,
+) -> Result<(), TrackError> {
+    let notification = TrackChangeNotification::new(event_id, event, track, song);
+
+    Ok(notifications::publish(transaction, &notification).await?)
 }
 
 pub async fn find_track(pool: &PgPool, track_id: Uuid) -> Result<Track, TrackError> {

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, movie_id, duration_ms\n           FROM scenes\n           WHERE id = $1\n           FOR SHARE",
+  "query": "SELECT id, title, artist_name FROM songs WHERE id = $1",
   "describe": {
     "columns": [
       {
@@ -10,13 +10,13 @@
       },
       {
         "ordinal": 1,
-        "name": "movie_id",
-        "type_info": "Uuid"
+        "name": "title",
+        "type_info": "Text"
       },
       {
         "ordinal": 2,
-        "name": "duration_ms",
-        "type_info": "Int4"
+        "name": "artist_name",
+        "type_info": "Text"
       }
     ],
     "parameters": {
@@ -30,5 +30,5 @@
       false
     ]
   },
-  "hash": "a070749dee74ac5ed7917bdfcc8306e1b6516f8477668c32be121e44c3751a1d"
+  "hash": "34b8eb66a0309c1f2e086828c8ebab0070376b4247fef04de1d400ad77cf4ccb"
 }
