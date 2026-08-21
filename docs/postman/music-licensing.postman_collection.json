@@ -1,0 +1,543 @@
+{
+  "info": {
+    "name": "Music Licensing Workflow API",
+    "description": "Manual walkthrough of the music licensing backend.\n\nImport, then run **Auth > Issue dev token** first: it stores `access_token` as a collection variable, and every other request inherits bearer auth from the collection. Nothing else needs the token pasted in.\n\nRequests that produce IDs save them too, so the folders run top to bottom without copying anything by hand:\n\n- `Catalog` saves `movie_id`, `scene_id`, `song_id`\n- `Tracks > Create track` saves `track_id` and `expected_version`\n- every successful mutation refreshes `expected_version`\n\nSSE streams are not included: Postman buffers HTTP responses, so a stream that never ends shows nothing. Use `curl -N` for those — see `docs/manual-testing.md`.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "movie_id",
+      "value": "2be7da9d-1699-59aa-9253-94cb1c8642be",
+      "type": "string"
+    },
+    {
+      "key": "scene_id",
+      "value": "5aac1849-60e2-5eba-8374-445cd6bc2689",
+      "type": "string"
+    },
+    {
+      "key": "other_scene_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "song_id",
+      "value": "98f464ba-4d53-5214-9210-4364d49dde43",
+      "type": "string"
+    },
+    {
+      "key": "track_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "expected_version",
+      "value": "1",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Liveness",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health/live",
+              "host": ["{{baseUrl}}"],
+              "path": ["health", "live"]
+            },
+            "description": "Process is up. Deliberately does not touch the database, so a database outage does not get the container killed and restarted."
+          },
+          "response": []
+        },
+        {
+          "name": "Readiness",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health/ready",
+              "host": ["{{baseUrl}}"],
+              "path": ["health", "ready"]
+            },
+            "description": "Reports whether the database is reachable."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Issue dev token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('access_token', body.access_token);",
+                  "console.log('token stored for', body.actor_name, body.actor_id);",
+                  "",
+                  "pm.test('token issued', () => {",
+                  "    pm.response.to.have.status(201);",
+                  "    pm.expect(body.access_token).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Nicolas\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/dev-token",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "dev-token"]
+            },
+            "description": "Run this first. Issues a signed token without credentials and stores it as `access_token`.\n\nMounted only when `DEV_TOKEN_ENDPOINT_ENABLED` is set. When it is not, the route does not exist at all — a 404 rather than a 403, so its absence leaks nothing."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Catalog",
+      "item": [
+        {
+          "name": "List movies",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.items.length) {",
+                  "    pm.collectionVariables.set('movie_id', body.items[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/movies",
+              "host": ["{{baseUrl}}"],
+              "path": ["movies"]
+            },
+            "description": "Collections come back as `{ items, next_cursor }`. Pass a non-null `next_cursor` back as `?cursor=` to page."
+          },
+          "response": []
+        },
+        {
+          "name": "List scenes of a movie",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.items.length) {",
+                  "    pm.collectionVariables.set('scene_id', body.items[0].id);",
+                  "}",
+                  "if (body.items.length > 1) {",
+                  "    // A second scene in the same movie, for the relocation case.",
+                  "    pm.collectionVariables.set('other_scene_id', body.items[1].id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/movies/{{movie_id}}/scenes",
+              "host": ["{{baseUrl}}"],
+              "path": ["movies", "{{movie_id}}", "scenes"]
+            },
+            "description": "Saves the first scene as `scene_id` and the second as `other_scene_id`, which the relocation request uses."
+          },
+          "response": []
+        },
+        {
+          "name": "List songs",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.items.length) {",
+                  "    pm.collectionVariables.set('song_id', body.items[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/songs",
+              "host": ["{{baseUrl}}"],
+              "path": ["songs"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Tracks",
+      "item": [
+        {
+          "name": "Create track",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('track_id', body.id);",
+                  "pm.collectionVariables.set('expected_version', body.version);",
+                  "",
+                  "pm.test('starts pending at version 1', () => {",
+                  "    pm.response.to.have.status(201);",
+                  "    pm.expect(body.licensing_state).to.eql('pending');",
+                  "    pm.expect(body.version).to.eql(1);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"scene_id\": \"{{scene_id}}\",\n  \"song_id\": \"{{song_id}}\",\n  \"scene_start_ms\": 1000,\n  \"scene_end_ms\": 5000\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tracks",
+              "host": ["{{baseUrl}}"],
+              "path": ["tracks"]
+            },
+            "description": "Places a song in a scene. Always starts `pending` at version 1.\n\nNo idempotency key: retrying after an ambiguous failure may create a second track. That is deliberate — duplicate tracks are legitimate, since the same song may be used twice in a scene for different reasons."
+          },
+          "response": []
+        },
+        {
+          "name": "Get track",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tracks/{{track_id}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["tracks", "{{track_id}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Set licensing state",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    pm.collectionVariables.set('expected_version', pm.response.json().version);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"licensing_state\": \"in_negotiation\",\n  \"expected_version\": {{expected_version}}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tracks/{{track_id}}/licensing-state",
+              "host": ["{{baseUrl}}"],
+              "path": ["tracks", "{{track_id}}", "licensing-state"]
+            },
+            "description": "Moves the track through the workflow. `expected_version` refreshes itself from the response, so you can send this repeatedly, changing only `licensing_state`.\n\nThe transition table:\n\n```\npending        -> in_negotiation | cancelled\nin_negotiation -> licensed | rejected | cancelled\nlicensed       -> (terminal)\nrejected       -> (terminal)\ncancelled      -> (terminal)\n```\n\nTry: `in_negotiation`, then `licensed`."
+          },
+          "response": []
+        },
+        {
+          "name": "Revise track",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    pm.collectionVariables.set('expected_version', pm.response.json().version);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"scene_id\": \"{{scene_id}}\",\n  \"song_id\": \"{{song_id}}\",\n  \"scene_start_ms\": 2000,\n  \"scene_end_ms\": 6000,\n  \"expected_version\": {{expected_version}}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tracks/{{track_id}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["tracks", "{{track_id}}"]
+            },
+            "description": "Sets the track's complete definition. `PUT`, not `PATCH`: no field-by-field merging — see ADR 0001.\n\nAny material change resets `licensing_state` to `pending`, **including from a terminal state**, because permission was granted for a specific use and this is no longer that use. The previous definition and state are preserved in the revision event.\n\nSending the definition it already has is a no-op: no reset, no version bump, no event."
+          },
+          "response": []
+        },
+        {
+          "name": "Revise track (relocate to another scene)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    pm.collectionVariables.set('expected_version', pm.response.json().version);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"scene_id\": \"{{other_scene_id}}\",\n  \"song_id\": \"{{song_id}}\",\n  \"scene_start_ms\": 1000,\n  \"scene_end_ms\": 4000,\n  \"expected_version\": {{expected_version}}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tracks/{{track_id}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["tracks", "{{track_id}}"]
+            },
+            "description": "Moves the track to another scene of the same movie. Run **List scenes of a movie** first so `other_scene_id` is set.\n\nWith both scenes' SSE streams open in a terminal, this change appears on **both** — the scene it left and the scene it arrived in.\n\nMoving a track to a scene of a *different* movie is refused with `422 scene_outside_movie`: that is a different piece of work, and the track's history belongs to the movie it was created under."
+          },
+          "response": []
+        },
+        {
+          "name": "Track history",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tracks/{{track_id}}/history",
+              "host": ["{{baseUrl}}"],
+              "path": ["tracks", "{{track_id}}", "history"]
+            },
+            "description": "The immutable event log for one track, oldest first. Nothing ever updates or deletes these rows.\n\nPaginated by event id rather than timestamp: timestamps can tie, ids cannot."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Lists",
+      "item": [
+        {
+          "name": "Tracks in a scene",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/scenes/{{scene_id}}/tracks",
+              "host": ["{{baseUrl}}"],
+              "path": ["scenes", "{{scene_id}}", "tracks"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Tracks in a movie (filtered)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/movies/{{movie_id}}/tracks?licensing_state=pending,licensed&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["movies", "{{movie_id}}", "tracks"],
+              "query": [
+                {
+                  "key": "licensing_state",
+                  "value": "pending,licensed",
+                  "description": "Comma-separated. Omit to include every state, cancelled tracks included — a cancelled use is still part of the record."
+                },
+                { "key": "limit", "value": "10" },
+                {
+                  "key": "cursor",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Pass the previous response's next_cursor to page."
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Error cases",
+      "description": "Every error is `application/problem+json` (RFC 9457) with a stable machine-readable `code`. Branch on the code, not on prose or bare status.",
+      "item": [
+        {
+          "name": "409 version_conflict",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"licensing_state\": \"cancelled\",\n  \"expected_version\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tracks/{{track_id}}/licensing-state",
+              "host": ["{{baseUrl}}"],
+              "path": ["tracks", "{{track_id}}", "licensing-state"]
+            },
+            "description": "A stale version **and** a different intent. Run this after at least one successful state change, so version 1 is genuinely stale.\n\nThe detail names the version the track is actually at, so the client can re-read and retry."
+          },
+          "response": []
+        },
+        {
+          "name": "200 no-op at any version",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"licensing_state\": \"in_negotiation\",\n  \"expected_version\": 99\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tracks/{{track_id}}/licensing-state",
+              "host": ["{{baseUrl}}"],
+              "path": ["tracks", "{{track_id}}", "licensing-state"]
+            },
+            "description": "Asking for the state the track is **already in** succeeds whatever `expected_version` says — no version bump, no event.\n\nThis is what makes the endpoint safely retryable: a client whose response was lost repeats its request and gets success, rather than a 409 it cannot act on. Set `licensing_state` here to whatever state the track is currently in."
+          },
+          "response": []
+        },
+        {
+          "name": "422 invalid_state_transition",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"licensing_state\": \"licensed\",\n  \"expected_version\": {{expected_version}}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tracks/{{track_id}}/licensing-state",
+              "host": ["{{baseUrl}}"],
+              "path": ["tracks", "{{track_id}}", "licensing-state"]
+            },
+            "description": "`pending` cannot jump straight to an outcome. Run this on a freshly created or freshly revised track."
+          },
+          "response": []
+        },
+        {
+          "name": "422 track_interval_out_of_bounds",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"scene_id\": \"{{scene_id}}\",\n  \"song_id\": \"{{song_id}}\",\n  \"scene_start_ms\": 0,\n  \"scene_end_ms\": 99999999\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tracks",
+              "host": ["{{baseUrl}}"],
+              "path": ["tracks"]
+            },
+            "description": "The interval must fit inside the scene's duration. This is a cross-table rule, validated against the scene the track is being placed in."
+          },
+          "response": []
+        },
+        {
+          "name": "404 resource_not_found",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tracks/00000000-0000-0000-0000-000000000000",
+              "host": ["{{baseUrl}}"],
+              "path": ["tracks", "00000000-0000-0000-0000-000000000000"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "401 invalid_token",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tracks/{{track_id}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["tracks", "{{track_id}}"]
+            },
+            "description": "No bearer token. The response carries a `WWW-Authenticate` header, which RFC 9110 requires on a 401."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
