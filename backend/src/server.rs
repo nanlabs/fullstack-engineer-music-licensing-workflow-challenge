@@ -10,7 +10,7 @@ use crate::infrastructure::db;
 /// Binds the configured address and serves until a shutdown signal arrives.
 pub async fn serve(config: &Config) -> anyhow::Result<()> {
     let pool = db::build_pool(config);
-    let router = api::router(AppState { pool: pool.clone() }, config);
+    let router = api::router(AppState::new(pool.clone(), config), config);
 
     let listener = TcpListener::bind(config.bind_address).await?;
     tracing::info!(

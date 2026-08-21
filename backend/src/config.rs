@@ -12,6 +12,9 @@ use std::time::Duration;
 /// Minimum accepted `JWT_SECRET` length, in bytes.
 const MIN_JWT_SECRET_BYTES: usize = 32;
 
+const DEFAULT_JWT_ISSUER: &str = "music-licensing-api";
+const DEFAULT_JWT_AUDIENCE: &str = "music-licensing-clients";
+
 #[derive(Debug, thiserror::Error)]
 pub enum ConfigError {
     #[error("{name} is required but not set")]
@@ -30,6 +33,13 @@ impl Secret {
     pub fn expose(&self) -> &str {
         &self.0
     }
+
+    /// Builds a secret directly, for tests that construct a `Config` by hand
+    /// rather than through the environment.
+    #[cfg(test)]
+    pub fn for_test(value: &str) -> Self {
+        Self(value.to_string())
+    }
 }
 
 impl fmt::Debug for Secret {
@@ -45,6 +55,11 @@ pub struct Config {
     pub database_max_connections: u32,
     pub database_acquire_timeout: Duration,
     pub jwt_secret: Secret,
+    /// Expected `iss` claim, and the issuer stamped on development tokens.
+    pub jwt_issuer: String,
+    /// Expected `aud` claim, and the audience stamped on development tokens.
+    pub jwt_audience: String,
+    pub jwt_token_ttl: Duration,
     pub dev_token_endpoint_enabled: bool,
     pub cors_allowed_origins: Vec<String>,
     pub sse_max_connections: usize,
@@ -85,6 +100,18 @@ impl Config {
             });
         }
 
+        // Issuer and audience have defaults because they are contract labels,
+        // not secrets; a deployment fronted by a real identity provider
+        // overrides them to match the tokens that provider issues.
+        let jwt_issuer = optional("JWT_ISSUER")?.unwrap_or_else(|| DEFAULT_JWT_ISSUER.to_string());
+        let jwt_audience =
+            optional("JWT_AUDIENCE")?.unwrap_or_else(|| DEFAULT_JWT_AUDIENCE.to_string());
+
+        let jwt_token_ttl = optional("JWT_TOKEN_TTL")?
+            .map(|value| parse_duration("JWT_TOKEN_TTL", &value))
+            .transpose()?
+            .unwrap_or_else(|| Duration::from_secs(3600));
+
         let dev_token_endpoint_enabled = optional("DEV_TOKEN_ENDPOINT_ENABLED")?
             .map(|value| parse_bool("DEV_TOKEN_ENDPOINT_ENABLED", &value))
             .transpose()?
@@ -109,6 +136,9 @@ impl Config {
             database_max_connections,
             database_acquire_timeout,
             jwt_secret: Secret(jwt_secret),
+            jwt_issuer,
+            jwt_audience,
+            jwt_token_ttl,
             dev_token_endpoint_enabled,
             cors_allowed_origins,
             sse_max_connections,

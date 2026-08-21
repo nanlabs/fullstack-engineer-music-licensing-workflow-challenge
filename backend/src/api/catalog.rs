@@ -3,6 +3,10 @@
 //! DTOs are declared separately from the domain types on purpose: the wire
 //! format is a contract with clients, and it should not shift because a domain
 //! type gained a field.
+//!
+//! Every handler here declares `AuthenticatedActor`, which is what makes the
+//! route require a bearer token. The catalog does not otherwise use the actor:
+//! it is reference data, and there are no per-actor permissions.
 
 use axum::extract::{Path, Query, State};
 use axum::Json;
@@ -10,6 +14,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::api::auth::AuthenticatedActor;
 use crate::api::error::ApiError;
 use crate::api::pagination::{Page, PageQuery};
 use crate::api::AppState;
@@ -94,6 +99,7 @@ struct SongCursor {
 /// `GET /movies`, ordered by `(created_at, id)`.
 pub async fn list_movies(
     State(state): State<AppState>,
+    _actor: AuthenticatedActor,
     Query(page): Query<PageQuery>,
 ) -> Result<Json<Page<MovieDto>>, ApiError> {
     let limit = page.limit()?;
@@ -117,6 +123,7 @@ pub async fn list_movies(
 /// scenes arrive in story order.
 pub async fn list_scenes(
     State(state): State<AppState>,
+    _actor: AuthenticatedActor,
     Path(movie_id): Path<Uuid>,
     Query(page): Query<PageQuery>,
 ) -> Result<Json<Page<SceneDto>>, ApiError> {
@@ -140,6 +147,7 @@ pub async fn list_scenes(
 /// `GET /songs`, ordered by `(title, id)`.
 pub async fn list_songs(
     State(state): State<AppState>,
+    _actor: AuthenticatedActor,
     Query(page): Query<PageQuery>,
 ) -> Result<Json<Page<SongDto>>, ApiError> {
     let limit = page.limit()?;

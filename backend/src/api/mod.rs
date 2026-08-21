@@ -1,5 +1,6 @@
 //! Axum routes, DTOs, middleware, errors, and SSE streams.
 
+pub mod auth;
 pub mod catalog;
 pub mod error;
 pub mod health;
@@ -7,9 +8,11 @@ pub mod pagination;
 
 use std::time::Duration;
 
-use axum::extract::{DefaultBodyLimit, MatchedPath};
+use std::sync::Arc;
+
+use axum::extract::{DefaultBodyLimit, FromRef, MatchedPath};
 use axum::http::{header, HeaderValue, Method, Request, StatusCode};
-use axum::routing::get;
+use axum::routing::{get, post};
 use axum::Router;
 use sqlx::PgPool;
 use tower_http::cors::CorsLayer;
@@ -31,6 +34,24 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 #[derive(Clone)]
 pub struct AppState {
     pub pool: PgPool,
+    pub auth: Arc<auth::AuthContext>,
+}
+
+impl AppState {
+    pub fn new(pool: PgPool, config: &Config) -> Self {
+        Self {
+            pool,
+            auth: Arc::new(auth::AuthContext::from_config(config)),
+        }
+    }
+}
+
+/// Lets the `AuthenticatedActor` extractor reach the keys without knowing about
+/// the rest of the application state.
+impl FromRef<AppState> for Arc<auth::AuthContext> {
+    fn from_ref(state: &AppState) -> Self {
+        Arc::clone(&state.auth)
+    }
 }
 
 /// Builds the application router.
@@ -42,7 +63,21 @@ pub fn router(state: AppState, config: &Config) -> Router {
         .route("/health/live", get(health::live))
         .route("/health/ready", get(health::ready));
 
+    // Mounted only when development issuance is enabled. When it is not, the
+    // route simply does not exist, so callers get the ordinary
+    // `404 resource_not_found` rather than a signal that it is there but shut.
+    let dev_token = if config.dev_token_endpoint_enabled {
+        tracing::warn!(
+            "POST /auth/dev-token is enabled; this issues tokens without credentials \
+             and must be disabled outside development"
+        );
+        Router::new().route("/auth/dev-token", post(auth::issue_dev_token))
+    } else {
+        Router::new()
+    };
+
     let api = Router::new()
+        .merge(dev_token)
         .route("/movies", get(catalog::list_movies))
         .route("/movies/{movie_id}/scenes", get(catalog::list_scenes))
         .route("/songs", get(catalog::list_songs))

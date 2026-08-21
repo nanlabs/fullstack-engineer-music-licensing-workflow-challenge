@@ -12,6 +12,7 @@ const PROBLEM_JSON: &str = "application/problem+json";
 /// Stable problem codes. New variants are added as later phases need them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ProblemCode {
+    InvalidToken,
     ResourceNotFound,
     DatabaseUnavailable,
     ValidationFailed,
@@ -21,6 +22,7 @@ pub enum ProblemCode {
 impl ProblemCode {
     pub fn as_str(self) -> &'static str {
         match self {
+            Self::InvalidToken => "invalid_token",
             Self::ResourceNotFound => "resource_not_found",
             Self::DatabaseUnavailable => "database_unavailable",
             Self::ValidationFailed => "validation_failed",
@@ -30,6 +32,7 @@ impl ProblemCode {
 
     fn status(self) -> StatusCode {
         match self {
+            Self::InvalidToken => StatusCode::UNAUTHORIZED,
             Self::ResourceNotFound => StatusCode::NOT_FOUND,
             Self::DatabaseUnavailable => StatusCode::SERVICE_UNAVAILABLE,
             Self::ValidationFailed => StatusCode::UNPROCESSABLE_ENTITY,
@@ -39,6 +42,7 @@ impl ProblemCode {
 
     fn title(self) -> &'static str {
         match self {
+            Self::InvalidToken => "Invalid token",
             Self::ResourceNotFound => "Resource not found",
             Self::DatabaseUnavailable => "Database unavailable",
             Self::ValidationFailed => "Validation failed",
@@ -53,6 +57,8 @@ pub struct ApiError {
     detail: String,
     /// Present on retryable problems; rendered as the `Retry-After` header.
     retry_after_seconds: Option<u32>,
+    /// Set on authentication failures; rendered as `WWW-Authenticate`.
+    bearer_challenge: bool,
 }
 
 impl ApiError {
@@ -61,11 +67,18 @@ impl ApiError {
             code,
             detail: detail.into(),
             retry_after_seconds: None,
+            bearer_challenge: false,
         }
     }
 
     pub fn retryable_in(mut self, seconds: u32) -> Self {
         self.retry_after_seconds = Some(seconds);
+        self
+    }
+
+    /// Adds the `WWW-Authenticate` header RFC 9110 requires on a `401`.
+    pub fn with_bearer_challenge(mut self) -> Self {
+        self.bearer_challenge = true;
         self
     }
 
@@ -149,6 +162,12 @@ impl IntoResponse for ApiError {
         response
             .headers_mut()
             .insert(header::CONTENT_TYPE, HeaderValue::from_static(PROBLEM_JSON));
+
+        if self.bearer_challenge {
+            response
+                .headers_mut()
+                .insert(header::WWW_AUTHENTICATE, HeaderValue::from_static("Bearer"));
+        }
 
         if let Some(seconds) = self.retry_after_seconds {
             response.headers_mut().insert(

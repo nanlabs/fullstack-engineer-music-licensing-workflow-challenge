@@ -7,7 +7,7 @@
 #![allow(dead_code)]
 
 use axum::body::to_bytes;
-use axum::http::{Request, StatusCode};
+use axum::http::{header, Request, StatusCode};
 use music_licensing_api::api::{self, AppState};
 use music_licensing_api::config::Config;
 use music_licensing_api::infrastructure::{db, seed};
@@ -47,6 +47,7 @@ pub async fn start_database() -> TestDatabase {
             ("DATABASE_URL", database_url.as_str()),
             ("JWT_SECRET", "test-secret-that-is-long-enough-to-pass"),
             ("CORS_ALLOWED_ORIGINS", "http://localhost:3000"),
+            ("DEV_TOKEN_ENDPOINT_ENABLED", "true"),
         ],
         Config::from_env,
     )
@@ -113,30 +114,91 @@ pub fn with_env<const N: usize, T>(vars: [(&str, &str); N], body: impl FnOnce() 
     result
 }
 
-/// Issues a GET against a freshly built router, returning status and body.
-pub async fn get(database: &TestDatabase, path: &str) -> (StatusCode, Value) {
-    let router = api::router(
-        AppState {
-            pool: database.pool.clone(),
-        },
+/// Builds the router the binary would serve for this configuration.
+pub fn router(database: &TestDatabase) -> axum::Router {
+    api::router(
+        AppState::new(database.pool.clone(), &database.config),
         &database.config,
-    );
+    )
+}
 
-    let response = router
-        .oneshot(
-            Request::builder()
-                .uri(path)
-                .body(axum::body::Body::empty())
-                .unwrap(),
-        )
-        .await
-        .expect("router call failed");
+/// Builds a router from a modified configuration, for tests that need the
+/// application wired differently (a disabled dev-token endpoint, another key).
+pub fn router_with(database: &TestDatabase, config: &Config) -> axum::Router {
+    api::router(AppState::new(database.pool.clone(), config), config)
+}
+
+/// Sends a request and returns its status, headers, and body.
+pub async fn send(
+    database: &TestDatabase,
+    request: Request<axum::body::Body>,
+) -> (StatusCode, axum::http::HeaderMap, Value) {
+    send_to(router(database), request).await
+}
+
+/// Sends a request to an explicitly built router.
+pub async fn send_to(
+    router: axum::Router,
+    request: Request<axum::body::Body>,
+) -> (StatusCode, axum::http::HeaderMap, Value) {
+    let response = router.oneshot(request).await.expect("router call failed");
 
     let status = response.status();
+    let headers = response.headers().clone();
     let bytes = to_bytes(response.into_body(), usize::MAX).await.unwrap();
     let body = serde_json::from_slice(&bytes).unwrap_or(Value::Null);
 
+    (status, headers, body)
+}
+
+/// Mints a development token for a display name through the real endpoint.
+pub async fn token_for(database: &TestDatabase, name: &str) -> String {
+    let (status, _, body) = send(
+        database,
+        Request::builder()
+            .method("POST")
+            .uri("/auth/dev-token")
+            .header(header::CONTENT_TYPE, "application/json")
+            .body(axum::body::Body::from(
+                serde_json::json!({ "name": name }).to_string(),
+            ))
+            .unwrap(),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::CREATED, "token issuance failed: {body}");
+
+    body["access_token"]
+        .as_str()
+        .expect("access_token")
+        .to_string()
+}
+
+/// A token for the default test actor. Most tests do not care who is calling.
+pub async fn default_token(database: &TestDatabase) -> String {
+    token_for(database, "Test Actor").await
+}
+
+/// Issues an authenticated GET, returning status and body.
+pub async fn get(database: &TestDatabase, path: &str) -> (StatusCode, Value) {
+    let token = default_token(database).await;
+    let (status, _, body) = get_with_token(database, path, Some(&token)).await;
     (status, body)
+}
+
+/// Issues a GET with an explicit token, or none at all.
+pub async fn get_with_token(
+    database: &TestDatabase,
+    path: &str,
+    token: Option<&str>,
+) -> (StatusCode, axum::http::HeaderMap, Value) {
+    let mut builder = Request::builder().uri(path);
+
+    if let Some(token) = token {
+        builder = builder.header(header::AUTHORIZATION, format!("Bearer {token}"));
+    }
+
+    send(database, builder.body(axum::body::Body::empty()).unwrap()).await
 }
 
 /// Issues a GET that is expected to succeed, returning the body.
