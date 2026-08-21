@@ -86,6 +86,43 @@ impl ApiError {
     }
 }
 
+/// Maps database failures onto client-visible problems.
+///
+/// A pool-acquisition timeout is retryable and gets its own code: it means the
+/// service is saturated, not that the request was wrong. Everything else is an
+/// internal error, logged with detail but reported without it, so that SQL
+/// state never reaches a client.
+impl From<sqlx::Error> for ApiError {
+    fn from(error: sqlx::Error) -> Self {
+        match error {
+            sqlx::Error::PoolTimedOut => {
+                tracing::warn!("database pool acquisition timed out");
+                Self::database_unavailable()
+            }
+            other => {
+                tracing::error!(error = %other, "unexpected database error");
+                Self::new(
+                    ProblemCode::InternalError,
+                    "The request could not be completed.",
+                )
+            }
+        }
+    }
+}
+
+impl From<crate::application::catalog::CatalogError> for ApiError {
+    fn from(error: crate::application::catalog::CatalogError) -> Self {
+        use crate::application::catalog::CatalogError;
+
+        match error {
+            CatalogError::MovieNotFound(id) => {
+                Self::not_found(format!("Movie `{id}` does not exist."))
+            }
+            CatalogError::Database(error) => error.into(),
+        }
+    }
+}
+
 /// The wire representation. `type` is omitted rather than pointing at a URI
 /// that does not resolve; RFC 9457 defines its default as `about:blank`.
 #[derive(Debug, Serialize)]

@@ -5,7 +5,7 @@
 use std::process::ExitCode;
 
 use music_licensing_api::config::Config;
-use music_licensing_api::infrastructure::db;
+use music_licensing_api::infrastructure::{db, seed};
 use music_licensing_api::{server, telemetry};
 
 #[tokio::main]
@@ -53,10 +53,16 @@ async fn migrate(config: &Config) -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn seed(_config: &Config) -> anyhow::Result<()> {
-    // The deterministic development seed arrives with the catalog APIs. Until
-    // then this is a successful no-op rather than an error, so that the compose
-    // chain (postgres -> migrate -> seed -> api) still starts the API.
-    tracing::warn!("no seed data is defined yet; nothing to insert");
+async fn seed(config: &Config) -> anyhow::Result<()> {
+    let pool = db::connect_for_command(config).await?;
+    let summary = seed::apply(&pool).await?;
+    pool.close().await;
+
+    tracing::info!(
+        movies = summary.movies,
+        scenes = summary.scenes,
+        songs = summary.songs,
+        "seed data applied"
+    );
     Ok(())
 }

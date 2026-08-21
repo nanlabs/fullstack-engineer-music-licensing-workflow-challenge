@@ -1,7 +1,9 @@
 //! Axum routes, DTOs, middleware, errors, and SSE streams.
 
+pub mod catalog;
 pub mod error;
 pub mod health;
+pub mod pagination;
 
 use std::time::Duration;
 
@@ -41,6 +43,9 @@ pub fn router(state: AppState, config: &Config) -> Router {
         .route("/health/ready", get(health::ready));
 
     let api = Router::new()
+        .route("/movies", get(catalog::list_movies))
+        .route("/movies/{movie_id}/scenes", get(catalog::list_scenes))
+        .route("/songs", get(catalog::list_songs))
         .layer(DefaultBodyLimit::max(MAX_BODY_BYTES))
         .layer(TimeoutLayer::with_status_code(
             StatusCode::REQUEST_TIMEOUT,
