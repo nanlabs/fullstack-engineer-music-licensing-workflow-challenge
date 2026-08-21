@@ -14,6 +14,9 @@ const PROBLEM_JSON: &str = "application/problem+json";
 pub enum ProblemCode {
     InvalidToken,
     ResourceNotFound,
+    TrackIntervalOutOfBounds,
+    SceneOutsideMovie,
+    WriteContention,
     DatabaseUnavailable,
     ValidationFailed,
     InternalError,
@@ -24,6 +27,9 @@ impl ProblemCode {
         match self {
             Self::InvalidToken => "invalid_token",
             Self::ResourceNotFound => "resource_not_found",
+            Self::TrackIntervalOutOfBounds => "track_interval_out_of_bounds",
+            Self::SceneOutsideMovie => "scene_outside_movie",
+            Self::WriteContention => "write_contention",
             Self::DatabaseUnavailable => "database_unavailable",
             Self::ValidationFailed => "validation_failed",
             Self::InternalError => "internal_error",
@@ -34,6 +40,9 @@ impl ProblemCode {
         match self {
             Self::InvalidToken => StatusCode::UNAUTHORIZED,
             Self::ResourceNotFound => StatusCode::NOT_FOUND,
+            Self::TrackIntervalOutOfBounds => StatusCode::UNPROCESSABLE_ENTITY,
+            Self::SceneOutsideMovie => StatusCode::UNPROCESSABLE_ENTITY,
+            Self::WriteContention => StatusCode::SERVICE_UNAVAILABLE,
             Self::DatabaseUnavailable => StatusCode::SERVICE_UNAVAILABLE,
             Self::ValidationFailed => StatusCode::UNPROCESSABLE_ENTITY,
             Self::InternalError => StatusCode::INTERNAL_SERVER_ERROR,
@@ -44,6 +53,9 @@ impl ProblemCode {
         match self {
             Self::InvalidToken => "Invalid token",
             Self::ResourceNotFound => "Resource not found",
+            Self::TrackIntervalOutOfBounds => "Track interval out of bounds",
+            Self::SceneOutsideMovie => "Scene outside movie",
+            Self::WriteContention => "Write contention",
             Self::DatabaseUnavailable => "Database unavailable",
             Self::ValidationFailed => "Validation failed",
             Self::InternalError => "Internal server error",
@@ -132,6 +144,44 @@ impl From<crate::application::catalog::CatalogError> for ApiError {
                 Self::not_found(format!("Movie `{id}` does not exist."))
             }
             CatalogError::Database(error) => error.into(),
+        }
+    }
+}
+
+impl From<crate::application::tracks::TrackError> for ApiError {
+    fn from(error: crate::application::tracks::TrackError) -> Self {
+        use crate::application::tracks::TrackError;
+        use crate::domain::track::InvalidInterval;
+
+        match error {
+            TrackError::SceneNotFound(id) => {
+                Self::not_found(format!("Scene `{id}` does not exist."))
+            }
+            TrackError::SongNotFound(id) => Self::not_found(format!("Song `{id}` does not exist.")),
+            TrackError::TrackNotFound(id) => {
+                Self::not_found(format!("Track `{id}` does not exist."))
+            }
+            TrackError::InvalidInterval(invalid) => {
+                // Bounds problems get their own code because a client can fix
+                // them by adjusting the interval, unlike a generic validation
+                // failure.
+                let detail = match invalid {
+                    InvalidInterval::NegativeStart => "`scene_start_ms` must not be negative.",
+                    InvalidInterval::NotOrdered => {
+                        "`scene_start_ms` must be less than `scene_end_ms`."
+                    }
+                    InvalidInterval::BeyondSceneEnd => {
+                        "`scene_end_ms` must not exceed the scene duration."
+                    }
+                };
+                Self::new(ProblemCode::TrackIntervalOutOfBounds, detail)
+            }
+            TrackError::WriteContention => Self::new(
+                ProblemCode::WriteContention,
+                "The track is being modified by another request. Retry shortly.",
+            )
+            .retryable_in(2),
+            TrackError::Database(error) => error.into(),
         }
     }
 }

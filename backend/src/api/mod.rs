@@ -5,6 +5,7 @@ pub mod catalog;
 pub mod error;
 pub mod health;
 pub mod pagination;
+pub mod tracks;
 
 use std::time::Duration;
 
@@ -81,6 +82,8 @@ pub fn router(state: AppState, config: &Config) -> Router {
         .route("/movies", get(catalog::list_movies))
         .route("/movies/{movie_id}/scenes", get(catalog::list_scenes))
         .route("/songs", get(catalog::list_songs))
+        .route("/tracks", post(tracks::create_track))
+        .route("/tracks/{track_id}", get(tracks::get_track))
         .layer(DefaultBodyLimit::max(MAX_BODY_BYTES))
         .layer(TimeoutLayer::with_status_code(
             StatusCode::REQUEST_TIMEOUT,

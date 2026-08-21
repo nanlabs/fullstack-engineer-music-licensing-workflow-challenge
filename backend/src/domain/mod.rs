@@ -4,3 +4,5 @@
 
 pub mod actor;
 pub mod catalog;
+pub mod event;
+pub mod track;
