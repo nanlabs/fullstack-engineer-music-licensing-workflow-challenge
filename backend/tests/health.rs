@@ -106,6 +106,7 @@ async fn readiness_reports_a_healthy_database() {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["status"], "ready");
     assert_eq!(body["database"], "ready");
+    assert_eq!(body["event_listener"], "reconnecting");
 }
 
 #[tokio::test]
@@ -121,6 +122,7 @@ async fn readiness_fails_when_the_database_is_gone() {
     assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE);
     assert_eq!(body["status"], "not_ready");
     assert_eq!(body["database"], "unavailable");
+    assert_eq!(body["event_listener"], "reconnecting");
 }
 
 #[tokio::test]

@@ -75,6 +75,18 @@ impl Scope {
 
 /// `GET /movies/{movie_id}/track-events` — every change to any track in the
 /// movie, across all of its scenes.
+#[utoipa::path(
+    get,
+    path = "/movies/{movie_id}/track-events",
+    tag = "Event streams",
+    params(("movie_id" = Uuid, Path, description = "Movie identifier")),
+    responses(
+        (status = 200, description = "Live stream of complete track change notifications", body = crate::infrastructure::notifications::TrackChangeNotification, content_type = "text/event-stream"),
+        (status = 401, description = "Missing or invalid bearer token", body = crate::api::error::ProblemBody),
+        (status = 404, description = "Movie not found", body = crate::api::error::ProblemBody),
+        (status = 503, description = "Listener unavailable or connection cap reached", body = crate::api::error::ProblemBody)
+    )
+)]
 pub async fn stream_movie_events(
     State(state): State<AppState>,
     _actor: AuthenticatedActor,
@@ -93,6 +105,18 @@ pub async fn stream_movie_events(
 
 /// `GET /scenes/{scene_id}/track-events` — changes to the tracks of one scene,
 /// including tracks moving into or out of it.
+#[utoipa::path(
+    get,
+    path = "/scenes/{scene_id}/track-events",
+    tag = "Event streams",
+    params(("scene_id" = Uuid, Path, description = "Scene identifier")),
+    responses(
+        (status = 200, description = "Live stream of complete track change notifications", body = crate::infrastructure::notifications::TrackChangeNotification, content_type = "text/event-stream"),
+        (status = 401, description = "Missing or invalid bearer token", body = crate::api::error::ProblemBody),
+        (status = 404, description = "Scene not found", body = crate::api::error::ProblemBody),
+        (status = 503, description = "Listener unavailable or connection cap reached", body = crate::api::error::ProblemBody)
+    )
+)]
 pub async fn stream_scene_events(
     State(state): State<AppState>,
     _actor: AuthenticatedActor,

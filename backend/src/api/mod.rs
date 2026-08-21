@@ -5,6 +5,7 @@ pub mod catalog;
 pub mod error;
 pub mod events;
 pub mod health;
+pub mod openapi;
 pub mod pagination;
 pub mod tracks;
 
@@ -22,6 +23,8 @@ use tower_http::request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetReques
 use tower_http::timeout::TimeoutLayer;
 use tower_http::trace::{DefaultOnResponse, TraceLayer};
 use tracing::Level;
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
 
 use crate::config::Config;
 use crate::infrastructure::event_listener::EventStreams;
@@ -84,6 +87,17 @@ pub fn router(state: AppState, config: &Config) -> Router {
         Router::new()
     };
 
+    // The existing development switch also controls interactive API docs. It
+    // keeps Swagger UI out of deployments where unauthenticated token issuance
+    // is disabled, without adding a second environment flag that can drift.
+    let development_docs = if config.dev_token_endpoint_enabled {
+        Router::new().merge(
+            SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", openapi::ApiDoc::openapi()),
+        )
+    } else {
+        Router::new()
+    };
+
     let api = Router::new()
         .merge(dev_token)
         .route("/movies", get(catalog::list_movies))
@@ -124,6 +138,7 @@ pub fn router(state: AppState, config: &Config) -> Router {
         );
 
     health
+        .merge(development_docs)
         .merge(api)
         .merge(streams)
         .fallback(error::not_found_fallback)

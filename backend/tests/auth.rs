@@ -4,8 +4,8 @@ mod common;
 
 use axum::http::{header, Request, StatusCode};
 use common::{
-    default_token, get_with_token, router_with, seeded_database, send, send_to, token_for,
-    TestDatabase,
+    default_token, get_with_token, router_with, seeded_database, send, send_to, start_database,
+    token_for, TestDatabase,
 };
 use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
 use serde_json::json;
@@ -295,6 +295,43 @@ async fn a_disabled_dev_token_endpoint_is_absent_rather_than_forbidden() {
         StatusCode::NOT_FOUND,
         "a disabled endpoint must not advertise its existence"
     );
+    assert_eq!(body["code"], "resource_not_found");
+}
+
+#[tokio::test]
+async fn development_openapi_is_generated_and_public() {
+    let database = start_database().await;
+
+    let (status, _, body) = send(
+        &database,
+        Request::builder()
+            .uri("/api-docs/openapi.json")
+            .body(axum::body::Body::empty())
+            .unwrap(),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["info"]["title"], "Music Licensing Workflow API");
+    assert!(body["paths"]["/tracks/{track_id}"].is_object());
+}
+
+#[tokio::test]
+async fn development_documentation_is_absent_when_development_mode_is_disabled() {
+    let database = start_database().await;
+    let mut config = database.config.clone();
+    config.dev_token_endpoint_enabled = false;
+
+    let (status, _, body) = send_to(
+        router_with(&database, &config),
+        Request::builder()
+            .uri("/api-docs/openapi.json")
+            .body(axum::body::Body::empty())
+            .unwrap(),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::NOT_FOUND);
     assert_eq!(body["code"], "resource_not_found");
 }
 

@@ -12,6 +12,7 @@ use axum::extract::{Path, Query, State};
 use axum::Json;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::api::auth::AuthenticatedActor;
@@ -21,7 +22,7 @@ use crate::api::AppState;
 use crate::application::catalog;
 use crate::domain::catalog::{Movie, Scene, Song};
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct MovieDto {
     pub id: Uuid,
     pub title: String,
@@ -38,7 +39,7 @@ impl From<Movie> for MovieDto {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct SceneDto {
     pub id: Uuid,
     pub movie_id: Uuid,
@@ -59,7 +60,7 @@ impl From<Scene> for SceneDto {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct SongDto {
     pub id: Uuid,
     pub title: String,
@@ -97,6 +98,18 @@ struct SongCursor {
 }
 
 /// `GET /movies`, ordered by `(created_at, id)`.
+#[utoipa::path(
+    get,
+    path = "/movies",
+    tag = "Catalog",
+    params(crate::api::pagination::PageQuery),
+    responses(
+        (status = 200, description = "Movies in creation order", body = crate::api::pagination::Page<MovieDto>),
+        (status = 401, description = "Missing or invalid bearer token", body = crate::api::error::ProblemBody),
+        (status = 422, description = "Invalid pagination parameters", body = crate::api::error::ProblemBody),
+        (status = 503, description = "Database unavailable", body = crate::api::error::ProblemBody)
+    )
+)]
 pub async fn list_movies(
     State(state): State<AppState>,
     _actor: AuthenticatedActor,
@@ -121,6 +134,22 @@ pub async fn list_movies(
 
 /// `GET /movies/{movie_id}/scenes`, ordered by `(sequence_number, id)` so
 /// scenes arrive in story order.
+#[utoipa::path(
+    get,
+    path = "/movies/{movie_id}/scenes",
+    tag = "Catalog",
+    params(
+        ("movie_id" = Uuid, Path, description = "Movie identifier"),
+        crate::api::pagination::PageQuery
+    ),
+    responses(
+        (status = 200, description = "Scenes in story order", body = crate::api::pagination::Page<SceneDto>),
+        (status = 401, description = "Missing or invalid bearer token", body = crate::api::error::ProblemBody),
+        (status = 404, description = "Movie not found", body = crate::api::error::ProblemBody),
+        (status = 422, description = "Invalid pagination parameters", body = crate::api::error::ProblemBody),
+        (status = 503, description = "Database unavailable", body = crate::api::error::ProblemBody)
+    )
+)]
 pub async fn list_scenes(
     State(state): State<AppState>,
     _actor: AuthenticatedActor,
@@ -145,6 +174,18 @@ pub async fn list_scenes(
 }
 
 /// `GET /songs`, ordered by `(title, id)`.
+#[utoipa::path(
+    get,
+    path = "/songs",
+    tag = "Catalog",
+    params(crate::api::pagination::PageQuery),
+    responses(
+        (status = 200, description = "Songs in title order", body = crate::api::pagination::Page<SongDto>),
+        (status = 401, description = "Missing or invalid bearer token", body = crate::api::error::ProblemBody),
+        (status = 422, description = "Invalid pagination parameters", body = crate::api::error::ProblemBody),
+        (status = 503, description = "Database unavailable", body = crate::api::error::ProblemBody)
+    )
+)]
 pub async fn list_songs(
     State(state): State<AppState>,
     _actor: AuthenticatedActor,

@@ -6,6 +6,7 @@
 use axum::http::{header, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use serde::Serialize;
+use utoipa::ToSchema;
 
 const PROBLEM_JSON: &str = "application/problem+json";
 
@@ -237,8 +238,8 @@ impl From<crate::application::tracks::TrackError> for ApiError {
 
 /// The wire representation. `type` is omitted rather than pointing at a URI
 /// that does not resolve; RFC 9457 defines its default as `about:blank`.
-#[derive(Debug, Serialize)]
-struct ProblemBody<'a> {
+#[derive(Debug, Serialize, ToSchema)]
+pub struct ProblemBody<'a> {
     title: &'a str,
     status: u16,
     detail: &'a str,

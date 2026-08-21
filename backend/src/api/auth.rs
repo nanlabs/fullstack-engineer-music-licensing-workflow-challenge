@@ -23,6 +23,7 @@ use axum::http::{header, StatusCode};
 use axum::Json;
 use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::api::error::{ApiError, ProblemCode};
@@ -166,12 +167,12 @@ where
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct DevTokenRequest {
     pub name: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct DevTokenResponse {
     pub access_token: String,
     pub token_type: &'static str,
@@ -182,6 +183,18 @@ pub struct DevTokenResponse {
 }
 
 /// `POST /auth/dev-token` — issues a development token for a display name.
+#[utoipa::path(
+    post,
+    path = "/auth/dev-token",
+    tag = "Authentication",
+    security(()),
+    request_body = DevTokenRequest,
+    responses(
+        (status = 201, description = "Development token issued", body = DevTokenResponse),
+        (status = 422, description = "Invalid display name", body = crate::api::error::ProblemBody),
+        (status = 500, description = "Token signing failed", body = crate::api::error::ProblemBody)
+    )
+)]
 pub async fn issue_dev_token(
     State(state): State<AppState>,
     Json(request): Json<DevTokenRequest>,

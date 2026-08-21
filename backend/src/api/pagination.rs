@@ -10,6 +10,7 @@ use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use utoipa::{IntoParams, ToSchema};
 
 use crate::api::error::{ApiError, ProblemCode};
 
@@ -21,7 +22,8 @@ pub const MAX_LIMIT: u32 = 100;
 const CURSOR_VERSION: u8 = 1;
 
 /// Query parameters accepted by every collection endpoint.
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, IntoParams)]
+#[into_params(parameter_in = Query)]
 pub struct PageQuery {
     pub limit: Option<u32>,
     pub cursor: Option<String>,
@@ -86,7 +88,7 @@ pub fn decode_cursor<K: DeserializeOwned>(raw: &str) -> Result<K, ApiError> {
 }
 
 /// One page of results. `next_cursor` is null on the final page.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct Page<T> {
     pub items: Vec<T>,
     pub next_cursor: Option<String>,

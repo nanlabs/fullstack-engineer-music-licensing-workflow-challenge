@@ -10,6 +10,7 @@ use axum::http::StatusCode;
 use axum::Json;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use utoipa::{IntoParams, ToSchema};
 use uuid::Uuid;
 
 use crate::api::auth::AuthenticatedActor;
@@ -25,7 +26,7 @@ use crate::infrastructure::track_repository::{StoredEvent, TrackWithSong};
 /// `duration_ms` is derived rather than stored, and `version` is exposed
 /// because clients need it for the optimistic-concurrency preconditions that
 /// the update endpoints will require.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct TrackDto {
     pub id: Uuid,
     pub scene_id: Uuid,
@@ -56,7 +57,7 @@ impl From<Track> for TrackDto {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct CreateTrackRequest {
     pub scene_id: Uuid,
     pub song_id: Uuid,
@@ -70,6 +71,19 @@ pub struct CreateTrackRequest {
 /// ambiguous failure may create a second track. That is deliberate, because
 /// duplicate tracks are legitimate and cannot be told apart from a retry by
 /// their fields alone.
+#[utoipa::path(
+    post,
+    path = "/tracks",
+    tag = "Tracks",
+    request_body = CreateTrackRequest,
+    responses(
+        (status = 201, description = "Track created with a pending licensing state", body = TrackDto),
+        (status = 401, description = "Missing or invalid bearer token", body = crate::api::error::ProblemBody),
+        (status = 404, description = "Scene or song not found", body = crate::api::error::ProblemBody),
+        (status = 422, description = "Track interval is invalid", body = crate::api::error::ProblemBody),
+        (status = 503, description = "Database unavailable", body = crate::api::error::ProblemBody)
+    )
+)]
 pub async fn create_track(
     State(state): State<AppState>,
     AuthenticatedActor(actor): AuthenticatedActor,
@@ -94,14 +108,14 @@ pub async fn create_track(
 ///
 /// The song summary is embedded so a client rendering a scene's tracks does not
 /// have to fetch and join the song catalogue itself.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct TrackWithSongDto {
     #[serde(flatten)]
     pub track: TrackDto,
     pub song: SongSummaryDto,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct SongSummaryDto {
     pub id: Uuid,
     pub title: String,
@@ -122,7 +136,7 @@ impl From<TrackWithSong> for TrackWithSongDto {
 }
 
 /// A complete desired definition for an existing track.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct ReviseTrackRequest {
     pub scene_id: Uuid,
     pub song_id: Uuid,
@@ -138,6 +152,21 @@ pub struct ReviseTrackRequest {
 /// specific use; a revised track is a different use and needs its own
 /// permission. Revising a cancelled track revives it. The previous outcome
 /// stays visible in the track's history.
+#[utoipa::path(
+    put,
+    path = "/tracks/{track_id}",
+    tag = "Tracks",
+    params(("track_id" = Uuid, Path, description = "Track identifier")),
+    request_body = ReviseTrackRequest,
+    responses(
+        (status = 200, description = "Track definition replaced", body = TrackDto),
+        (status = 401, description = "Missing or invalid bearer token", body = crate::api::error::ProblemBody),
+        (status = 404, description = "Track, scene, or song not found", body = crate::api::error::ProblemBody),
+        (status = 409, description = "Expected version is stale", body = crate::api::error::ProblemBody),
+        (status = 422, description = "Invalid revision", body = crate::api::error::ProblemBody),
+        (status = 503, description = "Database unavailable or write contention", body = crate::api::error::ProblemBody)
+    )
+)]
 pub async fn revise_track(
     State(state): State<AppState>,
     AuthenticatedActor(actor): AuthenticatedActor,
@@ -162,7 +191,8 @@ pub async fn revise_track(
 }
 
 /// Query parameters accepted by the track collections.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, IntoParams)]
+#[into_params(parameter_in = Query)]
 pub struct TrackListQuery {
     pub limit: Option<u32>,
     pub cursor: Option<String>,
@@ -231,6 +261,22 @@ fn track_page(rows: Vec<TrackWithSong>, limit: u32) -> Page<TrackWithSongDto> {
 }
 
 /// `GET /scenes/{scene_id}/tracks`.
+#[utoipa::path(
+    get,
+    path = "/scenes/{scene_id}/tracks",
+    tag = "Tracks",
+    params(
+        ("scene_id" = Uuid, Path, description = "Scene identifier"),
+        TrackListQuery
+    ),
+    responses(
+        (status = 200, description = "Tracks in the scene", body = crate::api::pagination::Page<TrackWithSongDto>),
+        (status = 401, description = "Missing or invalid bearer token", body = crate::api::error::ProblemBody),
+        (status = 404, description = "Scene not found", body = crate::api::error::ProblemBody),
+        (status = 422, description = "Invalid filter or pagination parameters", body = crate::api::error::ProblemBody),
+        (status = 503, description = "Database unavailable", body = crate::api::error::ProblemBody)
+    )
+)]
 pub async fn list_scene_tracks(
     State(state): State<AppState>,
     _actor: AuthenticatedActor,
@@ -250,6 +296,22 @@ pub async fn list_scene_tracks(
 }
 
 /// `GET /movies/{movie_id}/tracks` — every track in the movie, across scenes.
+#[utoipa::path(
+    get,
+    path = "/movies/{movie_id}/tracks",
+    tag = "Tracks",
+    params(
+        ("movie_id" = Uuid, Path, description = "Movie identifier"),
+        TrackListQuery
+    ),
+    responses(
+        (status = 200, description = "Tracks in the movie", body = crate::api::pagination::Page<TrackWithSongDto>),
+        (status = 401, description = "Missing or invalid bearer token", body = crate::api::error::ProblemBody),
+        (status = 404, description = "Movie not found", body = crate::api::error::ProblemBody),
+        (status = 422, description = "Invalid filter or pagination parameters", body = crate::api::error::ProblemBody),
+        (status = 503, description = "Database unavailable", body = crate::api::error::ProblemBody)
+    )
+)]
 pub async fn list_movie_tracks(
     State(state): State<AppState>,
     _actor: AuthenticatedActor,
@@ -269,7 +331,7 @@ pub async fn list_movie_tracks(
 }
 
 /// One entry of a track's history.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct TrackEventDto {
     pub id: i64,
     pub track_id: Uuid,
@@ -306,6 +368,22 @@ impl From<StoredEvent> for TrackEventDto {
 ///
 /// Paginated by event id rather than timestamp: ids are unique and follow this
 /// track's commit order, while timestamps can tie.
+#[utoipa::path(
+    get,
+    path = "/tracks/{track_id}/history",
+    tag = "Tracks",
+    params(
+        ("track_id" = Uuid, Path, description = "Track identifier"),
+        crate::api::pagination::PageQuery
+    ),
+    responses(
+        (status = 200, description = "Immutable track event history", body = crate::api::pagination::Page<TrackEventDto>),
+        (status = 401, description = "Missing or invalid bearer token", body = crate::api::error::ProblemBody),
+        (status = 404, description = "Track not found", body = crate::api::error::ProblemBody),
+        (status = 422, description = "Invalid pagination parameters", body = crate::api::error::ProblemBody),
+        (status = 503, description = "Database unavailable", body = crate::api::error::ProblemBody)
+    )
+)]
 pub async fn list_track_history(
     State(state): State<AppState>,
     _actor: AuthenticatedActor,
@@ -336,7 +414,7 @@ struct HistoryCursor {
 /// "make it `licensed`, and I believed it was at version 3" as one statement.
 /// The resource already exposes an integer version, so entity tags would add
 /// ceremony without adding meaning.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct SetLicensingStateRequest {
     pub licensing_state: String,
     pub expected_version: i32,
@@ -348,6 +426,21 @@ pub struct SetLicensingStateRequest {
 /// concern, and repeating the request leaves the server in the same place it
 /// left it the first time. Repeating a *successful* request is a no-op — no
 /// second version bump, no second event.
+#[utoipa::path(
+    put,
+    path = "/tracks/{track_id}/licensing-state",
+    tag = "Tracks",
+    params(("track_id" = Uuid, Path, description = "Track identifier")),
+    request_body = SetLicensingStateRequest,
+    responses(
+        (status = 200, description = "Licensing state applied or already current", body = TrackDto),
+        (status = 401, description = "Missing or invalid bearer token", body = crate::api::error::ProblemBody),
+        (status = 404, description = "Track not found", body = crate::api::error::ProblemBody),
+        (status = 409, description = "Expected version is stale", body = crate::api::error::ProblemBody),
+        (status = 422, description = "Unknown state or invalid transition", body = crate::api::error::ProblemBody),
+        (status = 503, description = "Database unavailable or write contention", body = crate::api::error::ProblemBody)
+    )
+)]
 pub async fn set_licensing_state(
     State(state): State<AppState>,
     AuthenticatedActor(actor): AuthenticatedActor,
@@ -387,6 +480,18 @@ const LICENSING_STATE_NAMES: [&str; 5] = [
 ];
 
 /// `GET /tracks/{track_id}`.
+#[utoipa::path(
+    get,
+    path = "/tracks/{track_id}",
+    tag = "Tracks",
+    params(("track_id" = Uuid, Path, description = "Track identifier")),
+    responses(
+        (status = 200, description = "Current track state", body = TrackDto),
+        (status = 401, description = "Missing or invalid bearer token", body = crate::api::error::ProblemBody),
+        (status = 404, description = "Track not found", body = crate::api::error::ProblemBody),
+        (status = 503, description = "Database unavailable", body = crate::api::error::ProblemBody)
+    )
+)]
 pub async fn get_track(
     State(state): State<AppState>,
     _actor: AuthenticatedActor,

@@ -12,6 +12,7 @@
 
 use serde::{Deserialize, Serialize};
 use sqlx::{Postgres, Transaction};
+use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::domain::catalog::Song;
@@ -33,7 +34,7 @@ pub const CHANNEL: &str = "track_events";
 const MAX_PAYLOAD_BYTES: usize = 7_500;
 
 /// One committed track change, ready to be delivered.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct TrackChangeNotification {
     /// The id of the audit event this change wrote. Present for correlation
     /// with `GET /tracks/{id}/history`; it is not a replay cursor, because the
@@ -53,7 +54,7 @@ pub struct TrackChangeNotification {
 /// The field set mirrors `api::tracks::TrackWithSongDto` exactly, so a client
 /// can apply a streamed track wherever it would apply a fetched one. A unit
 /// test in `api::events` pins the two shapes together.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct TrackSnapshot {
     pub id: Uuid,
     pub scene_id: Uuid,
@@ -68,7 +69,7 @@ pub struct TrackSnapshot {
     pub song: SongSummary,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct SongSummary {
     pub id: Uuid,
     pub title: String,
