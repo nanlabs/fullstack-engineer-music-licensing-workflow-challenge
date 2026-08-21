@@ -6,7 +6,7 @@ use sqlx::migrate::Migrator;
 use sqlx::postgres::PgPoolOptions;
 use sqlx::PgPool;
 
-use crate::config::Config;
+use crate::config::DatabaseConfig;
 
 /// Migrations are embedded in the binary so that `migrate` needs nothing from
 /// the filesystem at runtime.
@@ -17,21 +17,21 @@ pub static MIGRATOR: Migrator = sqlx::migrate!("./migrations");
 /// The pool is created lazily: startup does not block on the database, and an
 /// unavailable database surfaces through the readiness probe rather than
 /// preventing the process from starting.
-pub fn build_pool(config: &Config) -> PgPool {
+pub fn build_pool(config: &DatabaseConfig) -> PgPool {
     PgPoolOptions::new()
-        .max_connections(config.database_max_connections)
-        .acquire_timeout(config.database_acquire_timeout)
-        .connect_lazy(config.database_url.expose())
+        .max_connections(config.max_connections)
+        .acquire_timeout(config.acquire_timeout)
+        .connect_lazy(config.url.expose())
         .expect("DATABASE_URL was validated at startup")
 }
 
 /// Builds a small, eagerly connected pool for the one-shot `migrate` and `seed`
 /// commands, which should fail immediately when the database is unreachable.
-pub async fn connect_for_command(config: &Config) -> Result<PgPool, sqlx::Error> {
+pub async fn connect_for_command(config: &DatabaseConfig) -> Result<PgPool, sqlx::Error> {
     PgPoolOptions::new()
         .max_connections(1)
         .acquire_timeout(Duration::from_secs(30))
-        .connect(config.database_url.expose())
+        .connect(config.url.expose())
         .await
 }
 

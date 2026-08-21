@@ -239,9 +239,11 @@ mod tests {
         // token rules, not configuration parsing.
         Config {
             bind_address: "127.0.0.1:0".parse().unwrap(),
-            database_url: crate::config::Secret::for_test("postgres://unused"),
-            database_max_connections: 1,
-            database_acquire_timeout: Duration::from_secs(1),
+            database: crate::config::DatabaseConfig {
+                url: crate::config::Secret::for_test("postgres://unused"),
+                max_connections: 1,
+                acquire_timeout: Duration::from_secs(1),
+            },
             jwt_secret: crate::config::Secret::for_test("a-test-secret-of-sufficient-length!!"),
             jwt_issuer: "music-licensing-api".to_string(),
             jwt_audience: "music-licensing-clients".to_string(),

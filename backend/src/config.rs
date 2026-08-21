@@ -48,12 +48,47 @@ impl fmt::Debug for Secret {
     }
 }
 
+/// Everything needed to reach the database, and nothing else.
+///
+/// Split out so that the one-shot `migrate` and `seed` commands can start with
+/// only a connection string: a migration job has no business requiring the
+/// application's signing secret.
+#[derive(Debug, Clone)]
+pub struct DatabaseConfig {
+    pub url: Secret,
+    pub max_connections: u32,
+    pub acquire_timeout: Duration,
+}
+
+impl DatabaseConfig {
+    pub fn from_env() -> Result<Self, ConfigError> {
+        let url = Secret(required("DATABASE_URL")?);
+
+        let max_connections = optional_parsed("DATABASE_MAX_CONNECTIONS")?.unwrap_or(10);
+        if max_connections == 0 {
+            return Err(ConfigError::Invalid {
+                name: "DATABASE_MAX_CONNECTIONS",
+                reason: "must be at least 1".to_string(),
+            });
+        }
+
+        let acquire_timeout = optional("DATABASE_ACQUIRE_TIMEOUT")?
+            .map(|value| parse_duration("DATABASE_ACQUIRE_TIMEOUT", &value))
+            .transpose()?
+            .unwrap_or_else(|| Duration::from_secs(2));
+
+        Ok(Self {
+            url,
+            max_connections,
+            acquire_timeout,
+        })
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Config {
     pub bind_address: SocketAddr,
-    pub database_url: Secret,
-    pub database_max_connections: u32,
-    pub database_acquire_timeout: Duration,
+    pub database: DatabaseConfig,
     pub jwt_secret: Secret,
     /// Expected `iss` claim, and the issuer stamped on development tokens.
     pub jwt_issuer: String,
@@ -77,20 +112,7 @@ impl Config {
             .transpose()?
             .unwrap_or_else(|| SocketAddr::from(([0, 0, 0, 0], 8080)));
 
-        let database_url = Secret(required("DATABASE_URL")?);
-
-        let database_max_connections = optional_parsed("DATABASE_MAX_CONNECTIONS")?.unwrap_or(10);
-        if database_max_connections == 0 {
-            return Err(ConfigError::Invalid {
-                name: "DATABASE_MAX_CONNECTIONS",
-                reason: "must be at least 1".to_string(),
-            });
-        }
-
-        let database_acquire_timeout = optional("DATABASE_ACQUIRE_TIMEOUT")?
-            .map(|value| parse_duration("DATABASE_ACQUIRE_TIMEOUT", &value))
-            .transpose()?
-            .unwrap_or_else(|| Duration::from_secs(2));
+        let database = DatabaseConfig::from_env()?;
 
         let jwt_secret = required("JWT_SECRET")?;
         if jwt_secret.len() < MIN_JWT_SECRET_BYTES {
@@ -132,9 +154,7 @@ impl Config {
 
         Ok(Self {
             bind_address,
-            database_url,
-            database_max_connections,
-            database_acquire_timeout,
+            database,
             jwt_secret: Secret(jwt_secret),
             jwt_issuer,
             jwt_audience,

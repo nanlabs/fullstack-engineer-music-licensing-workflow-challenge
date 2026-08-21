@@ -53,7 +53,7 @@ pub async fn start_database() -> TestDatabase {
     )
     .expect("test configuration is valid");
 
-    let pool = db::connect_for_command(&config)
+    let pool = db::connect_for_command(&config.database)
         .await
         .expect("failed to connect to the test database");
 
