@@ -8,10 +8,10 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::api::auth::AuthenticatedActor;
-use crate::api::error::ApiError;
+use crate::api::error::{ApiError, ProblemCode};
 use crate::api::AppState;
 use crate::application::tracks::{self, NewTrack};
-use crate::domain::track::Track;
+use crate::domain::track::{LicensingState, Track};
 
 /// The representation returned by every track endpoint.
 ///
@@ -82,6 +82,63 @@ pub async fn create_track(
 
     Ok((StatusCode::CREATED, Json(track.into())))
 }
+
+/// The desired licensing state, plus the version it was decided against.
+///
+/// The precondition travels in the body rather than an `If-Match` header
+/// because it belongs beside the intent it qualifies: the server evaluates
+/// "make it `licensed`, and I believed it was at version 3" as one statement.
+/// The resource already exposes an integer version, so entity tags would add
+/// ceremony without adding meaning.
+#[derive(Debug, Deserialize)]
+pub struct SetLicensingStateRequest {
+    pub licensing_state: String,
+    pub expected_version: i32,
+}
+
+/// `PUT /tracks/{track_id}/licensing-state` — sets the complete desired state.
+///
+/// `PUT` rather than `PATCH`: the body is the whole desired state of one
+/// concern, and repeating the request leaves the server in the same place it
+/// left it the first time. Repeating a *successful* request is a no-op — no
+/// second version bump, no second event.
+pub async fn set_licensing_state(
+    State(state): State<AppState>,
+    AuthenticatedActor(actor): AuthenticatedActor,
+    Path(track_id): Path<Uuid>,
+    Json(request): Json<SetLicensingStateRequest>,
+) -> Result<Json<TrackDto>, ApiError> {
+    let desired = LicensingState::parse(&request.licensing_state).ok_or_else(|| {
+        ApiError::new(
+            ProblemCode::ValidationFailed,
+            format!(
+                "`{}` is not a licensing state. Expected one of: {}.",
+                request.licensing_state,
+                LICENSING_STATE_NAMES.join(", ")
+            ),
+        )
+    })?;
+
+    let track = tracks::set_licensing_state(
+        &state.pool,
+        &actor,
+        track_id,
+        desired,
+        request.expected_version,
+    )
+    .await?;
+
+    Ok(Json(track.into()))
+}
+
+/// Every accepted spelling, for error messages.
+const LICENSING_STATE_NAMES: [&str; 5] = [
+    "pending",
+    "in_negotiation",
+    "licensed",
+    "rejected",
+    "cancelled",
+];
 
 /// `GET /tracks/{track_id}`.
 pub async fn get_track(

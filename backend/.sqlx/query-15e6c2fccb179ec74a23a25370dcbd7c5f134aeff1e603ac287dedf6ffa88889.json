@@ -1,0 +1,76 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT t.id, t.scene_id, t.song_id, t.scene_start_ms, t.scene_end_ms,\n                  t.licensing_state, t.version, t.created_at, t.updated_at,\n                  s.movie_id\n           FROM tracks t\n           JOIN scenes s ON s.id = t.scene_id\n           WHERE t.id = $1\n           FOR UPDATE OF t",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "scene_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "song_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
+        "name": "scene_start_ms",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "scene_end_ms",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 5,
+        "name": "licensing_state",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "version",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 7,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 8,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 9,
+        "name": "movie_id",
+        "type_info": "Uuid"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "15e6c2fccb179ec74a23a25370dcbd7c5f134aeff1e603ac287dedf6ffa88889"
+}

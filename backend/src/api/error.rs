@@ -14,6 +14,8 @@ const PROBLEM_JSON: &str = "application/problem+json";
 pub enum ProblemCode {
     InvalidToken,
     ResourceNotFound,
+    InvalidStateTransition,
+    VersionConflict,
     TrackIntervalOutOfBounds,
     SceneOutsideMovie,
     WriteContention,
@@ -27,6 +29,8 @@ impl ProblemCode {
         match self {
             Self::InvalidToken => "invalid_token",
             Self::ResourceNotFound => "resource_not_found",
+            Self::InvalidStateTransition => "invalid_state_transition",
+            Self::VersionConflict => "version_conflict",
             Self::TrackIntervalOutOfBounds => "track_interval_out_of_bounds",
             Self::SceneOutsideMovie => "scene_outside_movie",
             Self::WriteContention => "write_contention",
@@ -40,6 +44,8 @@ impl ProblemCode {
         match self {
             Self::InvalidToken => StatusCode::UNAUTHORIZED,
             Self::ResourceNotFound => StatusCode::NOT_FOUND,
+            Self::InvalidStateTransition => StatusCode::UNPROCESSABLE_ENTITY,
+            Self::VersionConflict => StatusCode::CONFLICT,
             Self::TrackIntervalOutOfBounds => StatusCode::UNPROCESSABLE_ENTITY,
             Self::SceneOutsideMovie => StatusCode::UNPROCESSABLE_ENTITY,
             Self::WriteContention => StatusCode::SERVICE_UNAVAILABLE,
@@ -53,6 +59,8 @@ impl ProblemCode {
         match self {
             Self::InvalidToken => "Invalid token",
             Self::ResourceNotFound => "Resource not found",
+            Self::InvalidStateTransition => "Invalid state transition",
+            Self::VersionConflict => "Version conflict",
             Self::TrackIntervalOutOfBounds => "Track interval out of bounds",
             Self::SceneOutsideMovie => "Scene outside movie",
             Self::WriteContention => "Write contention",
@@ -176,6 +184,38 @@ impl From<crate::application::tracks::TrackError> for ApiError {
                 };
                 Self::new(ProblemCode::TrackIntervalOutOfBounds, detail)
             }
+            TrackError::InvalidStateTransition { from, to } => {
+                let allowed = from
+                    .allowed_transitions()
+                    .iter()
+                    .map(|state| state.as_str())
+                    .collect::<Vec<_>>();
+
+                // The detail names what *is* allowed, so a client can recover
+                // without consulting the documentation.
+                let detail = if allowed.is_empty() {
+                    format!(
+                        "`{}` is terminal; revise the track to start a new licensing proposition.",
+                        from.as_str()
+                    )
+                } else {
+                    format!(
+                        "`{}` cannot become `{}`; allowed: {}.",
+                        from.as_str(),
+                        to.as_str(),
+                        allowed.join(", ")
+                    )
+                };
+
+                Self::new(ProblemCode::InvalidStateTransition, detail)
+            }
+            TrackError::VersionConflict { expected, actual } => Self::new(
+                ProblemCode::VersionConflict,
+                format!(
+                    "`expected_version` was {expected} but the track is at version {actual}. \
+                     Re-read the track and retry."
+                ),
+            ),
             TrackError::WriteContention => Self::new(
                 ProblemCode::WriteContention,
                 "The track is being modified by another request. Retry shortly.",

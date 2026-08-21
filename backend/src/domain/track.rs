@@ -106,6 +106,42 @@ impl LicensingState {
             _ => None,
         }
     }
+
+    /// The states this one may move to through the state endpoint.
+    ///
+    /// The table is deliberately explicit rather than derived from an ordering:
+    /// licensing is a negotiation, not a ladder.
+    ///
+    /// | From | To |
+    /// |---|---|
+    /// | `Pending` | `InNegotiation`, `Cancelled` |
+    /// | `InNegotiation` | `Licensed`, `Rejected`, `Cancelled` |
+    /// | `Licensed`, `Rejected`, `Cancelled` | nothing |
+    ///
+    /// `Licensed` and `Rejected` are outcomes of a negotiation that must have
+    /// happened, which is why neither is reachable straight from `Pending`.
+    /// The three terminal states are terminal only for *this* endpoint: a
+    /// revision may still restart the proposition.
+    pub fn allowed_transitions(self) -> &'static [LicensingState] {
+        match self {
+            Self::Pending => &[Self::InNegotiation, Self::Cancelled],
+            Self::InNegotiation => &[Self::Licensed, Self::Rejected, Self::Cancelled],
+            Self::Licensed | Self::Rejected | Self::Cancelled => &[],
+        }
+    }
+
+    /// Whether this state may move to `target`.
+    ///
+    /// Assigning a state to itself is *not* a transition: callers treat that as
+    /// an idempotent no-op before ever asking this question.
+    pub fn can_transition_to(self, target: Self) -> bool {
+        self.allowed_transitions().contains(&target)
+    }
+
+    /// Whether the state endpoint can move this state anywhere at all.
+    pub fn is_terminal(self) -> bool {
+        self.allowed_transitions().is_empty()
+    }
 }
 
 /// A track as it currently stands.
@@ -191,5 +227,73 @@ mod tests {
 
         assert_eq!(LicensingState::parse("InNegotiation"), None);
         assert_eq!(LicensingState::parse("unknown"), None);
+    }
+
+    #[test]
+    fn pending_may_only_open_a_negotiation_or_be_cancelled() {
+        let from = LicensingState::Pending;
+
+        assert!(from.can_transition_to(LicensingState::InNegotiation));
+        assert!(from.can_transition_to(LicensingState::Cancelled));
+
+        // Licensing or rejecting without negotiating would record an outcome
+        // that never happened.
+        assert!(!from.can_transition_to(LicensingState::Licensed));
+        assert!(!from.can_transition_to(LicensingState::Rejected));
+    }
+
+    #[test]
+    fn a_negotiation_may_conclude_in_any_of_three_ways() {
+        let from = LicensingState::InNegotiation;
+
+        assert!(from.can_transition_to(LicensingState::Licensed));
+        assert!(from.can_transition_to(LicensingState::Rejected));
+        assert!(from.can_transition_to(LicensingState::Cancelled));
+        assert!(!from.can_transition_to(LicensingState::Pending));
+    }
+
+    #[test]
+    fn terminal_states_have_no_way_out_through_the_state_endpoint() {
+        for terminal in [
+            LicensingState::Licensed,
+            LicensingState::Rejected,
+            LicensingState::Cancelled,
+        ] {
+            assert!(terminal.is_terminal(), "{terminal:?} must be terminal");
+
+            for target in [
+                LicensingState::Pending,
+                LicensingState::InNegotiation,
+                LicensingState::Licensed,
+                LicensingState::Rejected,
+                LicensingState::Cancelled,
+            ] {
+                assert!(
+                    !terminal.can_transition_to(target),
+                    "{terminal:?} must not reach {target:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn no_state_transitions_to_itself() {
+        // Self-assignment is handled as an idempotent no-op, so it must never
+        // appear in the table as a real transition.
+        for state in [
+            LicensingState::Pending,
+            LicensingState::InNegotiation,
+            LicensingState::Licensed,
+            LicensingState::Rejected,
+            LicensingState::Cancelled,
+        ] {
+            assert!(!state.can_transition_to(state), "{state:?} -> itself");
+        }
+    }
+
+    #[test]
+    fn only_pending_and_in_negotiation_are_live() {
+        assert!(!LicensingState::Pending.is_terminal());
+        assert!(!LicensingState::InNegotiation.is_terminal());
     }
 }

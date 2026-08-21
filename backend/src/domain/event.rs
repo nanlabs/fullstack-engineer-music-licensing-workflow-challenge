@@ -79,6 +79,34 @@ impl NewTrackEvent {
             }),
         }
     }
+
+    /// Builds the event recorded when licensing moves between states.
+    ///
+    /// Both the previous and the new state are recorded, so history reads as a
+    /// sequence of decisions without needing the neighbouring rows.
+    pub fn licensing_state_changed(
+        track_id: Uuid,
+        movie_id: Uuid,
+        track_version: i32,
+        actor: Actor,
+        from: LicensingState,
+        to: LicensingState,
+    ) -> Self {
+        Self {
+            track_id,
+            movie_id,
+            track_version,
+            event_type: TrackEventType::LicensingStateChanged,
+            actor,
+            previous_scene_id: None,
+            new_scene_id: None,
+            payload: serde_json::json!({
+                "payload_schema_version": PAYLOAD_SCHEMA_VERSION,
+                "from_licensing_state": from.as_str(),
+                "to_licensing_state": to.as_str(),
+            }),
+        }
+    }
 }
 
 pub fn definition_json(definition: &TrackDefinition) -> serde_json::Value {

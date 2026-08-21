@@ -13,7 +13,7 @@ use std::sync::Arc;
 
 use axum::extract::{DefaultBodyLimit, FromRef, MatchedPath};
 use axum::http::{header, HeaderValue, Method, Request, StatusCode};
-use axum::routing::{get, post};
+use axum::routing::{get, post, put};
 use axum::Router;
 use sqlx::PgPool;
 use tower_http::cors::CorsLayer;
@@ -84,6 +84,10 @@ pub fn router(state: AppState, config: &Config) -> Router {
         .route("/songs", get(catalog::list_songs))
         .route("/tracks", post(tracks::create_track))
         .route("/tracks/{track_id}", get(tracks::get_track))
+        .route(
+            "/tracks/{track_id}/licensing-state",
+            put(tracks::set_licensing_state),
+        )
         .layer(DefaultBodyLimit::max(MAX_BODY_BYTES))
         .layer(TimeoutLayer::with_status_code(
             StatusCode::REQUEST_TIMEOUT,

@@ -157,6 +157,88 @@ pub async fn insert_track(
     row.into_domain()
 }
 
+/// A track locked for update, together with the movie its scene belongs to.
+pub struct LockedTrack {
+    pub track: Track,
+    pub movie_id: Uuid,
+}
+
+/// Reads a track and holds an exclusive lock on it for the rest of the
+/// transaction.
+///
+/// This is what serialises competing writers: two requests that reach the same
+/// track queue here, so each one evaluates its precondition against a version
+/// that cannot change underneath it. `lock_timeout` bounds the wait.
+pub async fn lock_track(
+    transaction: &mut Transaction<'static, Postgres>,
+    track_id: Uuid,
+) -> Result<Option<LockedTrack>, sqlx::Error> {
+    // Only the track row is locked FOR UPDATE; the joined scene is read without
+    // a lock, because the movie a scene belongs to never changes.
+    let row = sqlx::query!(
+        r#"SELECT t.id, t.scene_id, t.song_id, t.scene_start_ms, t.scene_end_ms,
+                  t.licensing_state, t.version, t.created_at, t.updated_at,
+                  s.movie_id
+           FROM tracks t
+           JOIN scenes s ON s.id = t.scene_id
+           WHERE t.id = $1
+           FOR UPDATE OF t"#,
+        track_id,
+    )
+    .fetch_optional(&mut **transaction)
+    .await?;
+
+    let Some(row) = row else {
+        return Ok(None);
+    };
+
+    let track = TrackRow {
+        id: row.id,
+        scene_id: row.scene_id,
+        song_id: row.song_id,
+        scene_start_ms: row.scene_start_ms,
+        scene_end_ms: row.scene_end_ms,
+        licensing_state: row.licensing_state,
+        version: row.version,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+    }
+    .into_domain()?;
+
+    Ok(Some(LockedTrack {
+        track,
+        movie_id: row.movie_id,
+    }))
+}
+
+/// Writes a new licensing state and bumps the version.
+///
+/// `updated_at` is set from `clock_timestamp()` rather than `now()`, which
+/// would return the time the transaction began, and rather than a trigger,
+/// which would hide the behaviour from this code.
+pub async fn update_licensing_state(
+    transaction: &mut Transaction<'static, Postgres>,
+    track_id: Uuid,
+    licensing_state: LicensingState,
+) -> Result<Track, sqlx::Error> {
+    let row = sqlx::query_as!(
+        TrackRow,
+        r#"UPDATE tracks
+           SET licensing_state = $2,
+               version = version + 1,
+               updated_at = clock_timestamp()
+           WHERE id = $1
+           RETURNING id, scene_id, song_id, scene_start_ms, scene_end_ms,
+                     licensing_state, version, created_at, updated_at"#,
+        track_id,
+        licensing_state.as_str(),
+    )
+    .fetch_one(&mut **transaction)
+    .await?;
+
+    row.into_domain()
+}
+
 /// Appends an event. Nothing ever updates or deletes these rows.
 pub async fn insert_event(
     transaction: &mut Transaction<'static, Postgres>,

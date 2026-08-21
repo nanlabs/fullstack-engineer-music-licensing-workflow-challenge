@@ -22,6 +22,13 @@ pub enum TrackError {
     TrackNotFound(Uuid),
     #[error(transparent)]
     InvalidInterval(#[from] InvalidInterval),
+    #[error("cannot move licensing state from {from:?} to {to:?}")]
+    InvalidStateTransition {
+        from: LicensingState,
+        to: LicensingState,
+    },
+    #[error("expected version {expected} but the track is at version {actual}")]
+    VersionConflict { expected: i32, actual: i32 },
     /// A lock wait exceeded `lock_timeout`: the request is retryable.
     #[error("write contention while updating the track")]
     WriteContention,
@@ -128,6 +135,109 @@ pub async fn create_track(
     );
 
     Ok(track)
+}
+
+/// Sets a track's licensing state.
+///
+/// The rules, in the order they are evaluated:
+///
+/// 1. **Already there** — the track is in the requested state. This succeeds as
+///    a no-op without bumping the version or writing an event, *whatever*
+///    `expected_version` says. A retry whose desired result already holds has
+///    nothing to disagree about, so it is not a conflict.
+/// 2. **Stale version** — the caller's `expected_version` is not the current
+///    one, and they are asking for something other than the current state.
+///    Their intent was formed against a track that has since moved, so this is
+///    a `409`.
+/// 3. **Illegal transition** — the move is not in the transition table.
+/// 4. Otherwise the change commits: version incremented, event appended.
+///
+/// Step 1 preceding step 2 is what makes the endpoint safely retryable: a
+/// client that never sees its response can repeat the request and get success
+/// rather than a conflict it cannot act on.
+pub async fn set_licensing_state(
+    pool: &PgPool,
+    actor: &Actor,
+    track_id: Uuid,
+    desired: LicensingState,
+    expected_version: i32,
+) -> Result<Track, TrackError> {
+    let mut transaction = repository::begin_write(pool)
+        .await
+        .map_err(TrackError::from_database)?;
+
+    let locked = repository::lock_track(&mut transaction, track_id)
+        .await
+        .map_err(TrackError::from_database)?
+        .ok_or(TrackError::TrackNotFound(track_id))?;
+
+    let current = locked.track;
+
+    // 1. Already in the requested state: nothing to do, and nothing to record.
+    if current.licensing_state == desired {
+        // The read lock is released by rolling back rather than committing,
+        // since no work was done.
+        transaction
+            .rollback()
+            .await
+            .map_err(TrackError::from_database)?;
+
+        tracing::debug!(
+            track_id = %track_id,
+            state = current.licensing_state.as_str(),
+            "licensing state already set; no-op"
+        );
+        return Ok(current);
+    }
+
+    // 2. The caller's intent was formed against a different version.
+    if current.version != expected_version {
+        return Err(TrackError::VersionConflict {
+            expected: expected_version,
+            actual: current.version,
+        });
+    }
+
+    // 3. The transition table has the final say.
+    if !current.licensing_state.can_transition_to(desired) {
+        return Err(TrackError::InvalidStateTransition {
+            from: current.licensing_state,
+            to: desired,
+        });
+    }
+
+    let updated = repository::update_licensing_state(&mut transaction, track_id, desired)
+        .await
+        .map_err(TrackError::from_database)?;
+
+    let event = NewTrackEvent::licensing_state_changed(
+        updated.id,
+        locked.movie_id,
+        updated.version,
+        actor.clone(),
+        current.licensing_state,
+        desired,
+    );
+
+    repository::insert_event(&mut transaction, &event)
+        .await
+        .map_err(TrackError::from_database)?;
+
+    transaction
+        .commit()
+        .await
+        .map_err(TrackError::from_database)?;
+
+    tracing::info!(
+        track_id = %updated.id,
+        from = current.licensing_state.as_str(),
+        to = desired.as_str(),
+        version = updated.version,
+        actor_id = %actor.id,
+        "licensing state changed"
+    );
+
+    Ok(updated)
 }
 
 pub async fn find_track(pool: &PgPool, track_id: Uuid) -> Result<Track, TrackError> {
