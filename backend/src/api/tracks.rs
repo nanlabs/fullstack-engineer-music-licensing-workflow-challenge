@@ -1,6 +1,11 @@
 //! Track endpoints.
+//!
+//! The two mutating endpoints use `PUT` with the precondition carried in the
+//! body rather than `PATCH` with `If-Match`. That decision, its costs, and the
+//! retry guarantees it buys are recorded in
+//! `docs/adr/0001-put-for-track-mutations.md`.
 
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::Json;
 use chrono::{DateTime, Utc};
@@ -9,9 +14,11 @@ use uuid::Uuid;
 
 use crate::api::auth::AuthenticatedActor;
 use crate::api::error::{ApiError, ProblemCode};
+use crate::api::pagination::{Page, PageQuery};
 use crate::api::AppState;
-use crate::application::tracks::{self, NewTrack};
+use crate::application::tracks::{self, NewTrack, TrackRevision};
 use crate::domain::track::{LicensingState, Track};
+use crate::infrastructure::track_repository::{StoredEvent, TrackWithSong};
 
 /// The representation returned by every track endpoint.
 ///
@@ -81,6 +88,245 @@ pub async fn create_track(
     .await?;
 
     Ok((StatusCode::CREATED, Json(track.into())))
+}
+
+/// A track plus the song it uses, as returned by list endpoints.
+///
+/// The song summary is embedded so a client rendering a scene's tracks does not
+/// have to fetch and join the song catalogue itself.
+#[derive(Debug, Serialize)]
+pub struct TrackWithSongDto {
+    #[serde(flatten)]
+    pub track: TrackDto,
+    pub song: SongSummaryDto,
+}
+
+#[derive(Debug, Serialize)]
+pub struct SongSummaryDto {
+    pub id: Uuid,
+    pub title: String,
+    pub artist_name: String,
+}
+
+impl From<TrackWithSong> for TrackWithSongDto {
+    fn from(row: TrackWithSong) -> Self {
+        Self {
+            track: row.track.into(),
+            song: SongSummaryDto {
+                id: row.song.id,
+                title: row.song.title,
+                artist_name: row.song.artist_name,
+            },
+        }
+    }
+}
+
+/// A complete desired definition for an existing track.
+#[derive(Debug, Deserialize)]
+pub struct ReviseTrackRequest {
+    pub scene_id: Uuid,
+    pub song_id: Uuid,
+    pub scene_start_ms: i32,
+    pub scene_end_ms: i32,
+    pub expected_version: i32,
+}
+
+/// `PUT /tracks/{track_id}` — sets the track's complete definition.
+///
+/// Any material change resets licensing to `Pending`, **including from
+/// `Licensed`, `Rejected`, or `Cancelled`**. Permission was granted for a
+/// specific use; a revised track is a different use and needs its own
+/// permission. Revising a cancelled track revives it. The previous outcome
+/// stays visible in the track's history.
+pub async fn revise_track(
+    State(state): State<AppState>,
+    AuthenticatedActor(actor): AuthenticatedActor,
+    Path(track_id): Path<Uuid>,
+    Json(request): Json<ReviseTrackRequest>,
+) -> Result<Json<TrackDto>, ApiError> {
+    let track = tracks::revise_track(
+        &state.pool,
+        &actor,
+        track_id,
+        TrackRevision {
+            scene_id: request.scene_id,
+            song_id: request.song_id,
+            scene_start_ms: request.scene_start_ms,
+            scene_end_ms: request.scene_end_ms,
+        },
+        request.expected_version,
+    )
+    .await?;
+
+    Ok(Json(track.into()))
+}
+
+/// Query parameters accepted by the track collections.
+#[derive(Debug, Deserialize)]
+pub struct TrackListQuery {
+    pub limit: Option<u32>,
+    pub cursor: Option<String>,
+    /// Comma-separated licensing states. Absent means every state, cancelled
+    /// tracks included.
+    pub licensing_state: Option<String>,
+}
+
+impl TrackListQuery {
+    fn page(&self) -> PageQuery {
+        PageQuery {
+            limit: self.limit,
+            cursor: self.cursor.clone(),
+        }
+    }
+
+    /// Parses the state filter, rejecting unknown names rather than silently
+    /// dropping them, which would return a page that quietly means something
+    /// else than the client asked for.
+    fn states(&self) -> Result<Option<Vec<LicensingState>>, ApiError> {
+        let Some(raw) = self.licensing_state.as_deref() else {
+            return Ok(None);
+        };
+
+        let mut states = Vec::new();
+        for name in raw.split(',').map(str::trim).filter(|s| !s.is_empty()) {
+            let state = LicensingState::parse(name).ok_or_else(|| {
+                ApiError::new(
+                    ProblemCode::ValidationFailed,
+                    format!(
+                        "`{name}` is not a licensing state. Expected one of: {}.",
+                        LICENSING_STATE_NAMES.join(", ")
+                    ),
+                )
+            })?;
+            states.push(state);
+        }
+
+        if states.is_empty() {
+            return Err(ApiError::new(
+                ProblemCode::ValidationFailed,
+                "`licensing_state` must name at least one state.",
+            ));
+        }
+
+        Ok(Some(states))
+    }
+}
+
+/// Sort key for both track collections: creation order.
+#[derive(Debug, Serialize, Deserialize)]
+struct TrackCursor {
+    created_at: DateTime<Utc>,
+    id: Uuid,
+}
+
+fn track_page(rows: Vec<TrackWithSong>, limit: u32) -> Page<TrackWithSongDto> {
+    Page::from_lookahead(
+        rows.into_iter().map(TrackWithSongDto::from).collect(),
+        limit,
+        |row| TrackCursor {
+            created_at: row.track.created_at,
+            id: row.track.id,
+        },
+    )
+}
+
+/// `GET /scenes/{scene_id}/tracks`.
+pub async fn list_scene_tracks(
+    State(state): State<AppState>,
+    _actor: AuthenticatedActor,
+    Path(scene_id): Path<Uuid>,
+    Query(query): Query<TrackListQuery>,
+) -> Result<Json<Page<TrackWithSongDto>>, ApiError> {
+    let page = query.page();
+    let limit = page.limit()?;
+    let after = page
+        .key::<TrackCursor>()?
+        .map(|cursor| (cursor.created_at, cursor.id));
+
+    let rows =
+        tracks::list_scene_tracks(&state.pool, scene_id, query.states()?, after, limit).await?;
+
+    Ok(Json(track_page(rows, limit)))
+}
+
+/// `GET /movies/{movie_id}/tracks` — every track in the movie, across scenes.
+pub async fn list_movie_tracks(
+    State(state): State<AppState>,
+    _actor: AuthenticatedActor,
+    Path(movie_id): Path<Uuid>,
+    Query(query): Query<TrackListQuery>,
+) -> Result<Json<Page<TrackWithSongDto>>, ApiError> {
+    let page = query.page();
+    let limit = page.limit()?;
+    let after = page
+        .key::<TrackCursor>()?
+        .map(|cursor| (cursor.created_at, cursor.id));
+
+    let rows =
+        tracks::list_movie_tracks(&state.pool, movie_id, query.states()?, after, limit).await?;
+
+    Ok(Json(track_page(rows, limit)))
+}
+
+/// One entry of a track's history.
+#[derive(Debug, Serialize)]
+pub struct TrackEventDto {
+    pub id: i64,
+    pub track_id: Uuid,
+    pub track_version: i32,
+    pub event_type: String,
+    pub payload: serde_json::Value,
+    pub actor_id: Uuid,
+    pub actor_name: String,
+    pub occurred_at: DateTime<Utc>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub previous_scene_id: Option<Uuid>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub new_scene_id: Option<Uuid>,
+}
+
+impl From<StoredEvent> for TrackEventDto {
+    fn from(event: StoredEvent) -> Self {
+        Self {
+            id: event.id,
+            track_id: event.track_id,
+            track_version: event.track_version,
+            event_type: event.event_type,
+            payload: event.payload,
+            actor_id: event.actor_id,
+            actor_name: event.actor_name,
+            occurred_at: event.occurred_at,
+            previous_scene_id: event.previous_scene_id,
+            new_scene_id: event.new_scene_id,
+        }
+    }
+}
+
+/// `GET /tracks/{track_id}/history` — the immutable audit trail, oldest first.
+///
+/// Paginated by event id rather than timestamp: ids are unique and follow this
+/// track's commit order, while timestamps can tie.
+pub async fn list_track_history(
+    State(state): State<AppState>,
+    _actor: AuthenticatedActor,
+    Path(track_id): Path<Uuid>,
+    Query(page): Query<PageQuery>,
+) -> Result<Json<Page<TrackEventDto>>, ApiError> {
+    let limit = page.limit()?;
+    let after_id = page.key::<HistoryCursor>()?.map(|cursor| cursor.event_id);
+
+    let events = tracks::list_track_history(&state.pool, track_id, after_id, limit).await?;
+
+    Ok(Json(Page::from_lookahead(
+        events.into_iter().map(TrackEventDto::from).collect(),
+        limit,
+        |event| HistoryCursor { event_id: event.id },
+    )))
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct HistoryCursor {
+    event_id: i64,
 }
 
 /// The desired licensing state, plus the version it was decided against.

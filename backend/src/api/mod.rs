@@ -83,7 +83,16 @@ pub fn router(state: AppState, config: &Config) -> Router {
         .route("/movies/{movie_id}/scenes", get(catalog::list_scenes))
         .route("/songs", get(catalog::list_songs))
         .route("/tracks", post(tracks::create_track))
-        .route("/tracks/{track_id}", get(tracks::get_track))
+        .route(
+            "/tracks/{track_id}",
+            get(tracks::get_track).put(tracks::revise_track),
+        )
+        .route(
+            "/tracks/{track_id}/history",
+            get(tracks::list_track_history),
+        )
+        .route("/scenes/{scene_id}/tracks", get(tracks::list_scene_tracks))
+        .route("/movies/{movie_id}/tracks", get(tracks::list_movie_tracks))
         .route(
             "/tracks/{track_id}/licensing-state",
             put(tracks::set_licensing_state),

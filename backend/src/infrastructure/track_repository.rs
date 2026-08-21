@@ -18,6 +18,7 @@
 use sqlx::{PgPool, Postgres, Transaction};
 use uuid::Uuid;
 
+use crate::domain::catalog::Song;
 use crate::domain::event::NewTrackEvent;
 use crate::domain::track::{LicensingState, SceneInterval, Track};
 
@@ -239,6 +240,41 @@ pub async fn update_licensing_state(
     row.into_domain()
 }
 
+/// Applies a revised definition, resetting licensing and bumping the version.
+pub async fn update_definition(
+    transaction: &mut Transaction<'static, Postgres>,
+    track_id: Uuid,
+    scene_id: Uuid,
+    song_id: Uuid,
+    interval: SceneInterval,
+    licensing_state: LicensingState,
+) -> Result<Track, sqlx::Error> {
+    let row = sqlx::query_as!(
+        TrackRow,
+        r#"UPDATE tracks
+           SET scene_id = $2,
+               song_id = $3,
+               scene_start_ms = $4,
+               scene_end_ms = $5,
+               licensing_state = $6,
+               version = version + 1,
+               updated_at = clock_timestamp()
+           WHERE id = $1
+           RETURNING id, scene_id, song_id, scene_start_ms, scene_end_ms,
+                     licensing_state, version, created_at, updated_at"#,
+        track_id,
+        scene_id,
+        song_id,
+        interval.start_ms(),
+        interval.end_ms(),
+        licensing_state.as_str(),
+    )
+    .fetch_one(&mut **transaction)
+    .await?;
+
+    row.into_domain()
+}
+
 /// Appends an event. Nothing ever updates or deletes these rows.
 pub async fn insert_event(
     transaction: &mut Transaction<'static, Postgres>,
@@ -264,6 +300,203 @@ pub async fn insert_event(
     .await?;
 
     Ok(id)
+}
+
+/// A track together with the song it uses, as returned by list endpoints.
+pub struct TrackWithSong {
+    pub track: Track,
+    pub song: Song,
+}
+
+/// Row shape for the list queries, which join the song summary.
+struct TrackWithSongRow {
+    id: Uuid,
+    scene_id: Uuid,
+    song_id: Uuid,
+    scene_start_ms: i32,
+    scene_end_ms: i32,
+    licensing_state: String,
+    version: i32,
+    created_at: chrono::DateTime<chrono::Utc>,
+    updated_at: chrono::DateTime<chrono::Utc>,
+    song_title: String,
+    song_artist_name: String,
+}
+
+impl TrackWithSongRow {
+    fn into_domain(self) -> Result<TrackWithSong, sqlx::Error> {
+        let song = Song {
+            id: self.song_id,
+            title: self.song_title,
+            artist_name: self.song_artist_name,
+        };
+
+        let track = TrackRow {
+            id: self.id,
+            scene_id: self.scene_id,
+            song_id: self.song_id,
+            scene_start_ms: self.scene_start_ms,
+            scene_end_ms: self.scene_end_ms,
+            licensing_state: self.licensing_state,
+            version: self.version,
+            created_at: self.created_at,
+            updated_at: self.updated_at,
+        }
+        .into_domain()?;
+
+        Ok(TrackWithSong { track, song })
+    }
+}
+
+/// Lists the tracks of one scene, ordered by `(created_at, id)`.
+pub async fn list_scene_tracks(
+    pool: &PgPool,
+    scene_id: Uuid,
+    states: Option<Vec<String>>,
+    after: Option<(chrono::DateTime<chrono::Utc>, Uuid)>,
+    limit: i64,
+) -> Result<Vec<TrackWithSong>, sqlx::Error> {
+    // One statement with optional predicates, rather than four hand-written
+    // permutations: `$2::text[] IS NULL` and the tuple comparison both remain
+    // index-friendly against tracks(scene_id, created_at, id).
+    let rows = sqlx::query_as!(
+        TrackWithSongRow,
+        r#"SELECT t.id, t.scene_id, t.song_id, t.scene_start_ms, t.scene_end_ms,
+                  t.licensing_state, t.version, t.created_at, t.updated_at,
+                  s.title AS song_title, s.artist_name AS song_artist_name
+           FROM tracks t
+           JOIN songs s ON s.id = t.song_id
+           WHERE t.scene_id = $1
+             AND ($2::text[] IS NULL OR t.licensing_state = ANY($2))
+             AND ($3::timestamptz IS NULL OR (t.created_at, t.id) > ($3, $4))
+           ORDER BY t.created_at, t.id
+           LIMIT $5"#,
+        scene_id,
+        states.as_deref(),
+        after.map(|(created_at, _)| created_at),
+        after.map(|(_, id)| id),
+        limit,
+    )
+    .fetch_all(pool)
+    .await?;
+
+    rows.into_iter()
+        .map(TrackWithSongRow::into_domain)
+        .collect()
+}
+
+/// Lists every track in a movie, across all of its scenes.
+pub async fn list_movie_tracks(
+    pool: &PgPool,
+    movie_id: Uuid,
+    states: Option<Vec<String>>,
+    after: Option<(chrono::DateTime<chrono::Utc>, Uuid)>,
+    limit: i64,
+) -> Result<Vec<TrackWithSong>, sqlx::Error> {
+    let rows = sqlx::query_as!(
+        TrackWithSongRow,
+        r#"SELECT t.id, t.scene_id, t.song_id, t.scene_start_ms, t.scene_end_ms,
+                  t.licensing_state, t.version, t.created_at, t.updated_at,
+                  s.title AS song_title, s.artist_name AS song_artist_name
+           FROM tracks t
+           JOIN scenes sc ON sc.id = t.scene_id
+           JOIN songs s ON s.id = t.song_id
+           WHERE sc.movie_id = $1
+             AND ($2::text[] IS NULL OR t.licensing_state = ANY($2))
+             AND ($3::timestamptz IS NULL OR (t.created_at, t.id) > ($3, $4))
+           ORDER BY t.created_at, t.id
+           LIMIT $5"#,
+        movie_id,
+        states.as_deref(),
+        after.map(|(created_at, _)| created_at),
+        after.map(|(_, id)| id),
+        limit,
+    )
+    .fetch_all(pool)
+    .await?;
+
+    rows.into_iter()
+        .map(TrackWithSongRow::into_domain)
+        .collect()
+}
+
+/// One recorded event, as history returns it.
+pub struct StoredEvent {
+    pub id: i64,
+    pub track_id: Uuid,
+    pub track_version: i32,
+    pub event_type: String,
+    pub payload: serde_json::Value,
+    pub actor_id: Uuid,
+    pub actor_name: String,
+    pub occurred_at: chrono::DateTime<chrono::Utc>,
+    pub previous_scene_id: Option<Uuid>,
+    pub new_scene_id: Option<Uuid>,
+}
+
+/// Reads a track's history oldest-first, paginated by event id.
+///
+/// Ordering by `id` is exact rather than approximate: operations on one track
+/// serialise on its row lock, so that track's event ids follow its commit
+/// order. Timestamps could tie; ids cannot.
+pub async fn list_track_events(
+    pool: &PgPool,
+    track_id: Uuid,
+    after_id: Option<i64>,
+    limit: i64,
+) -> Result<Vec<StoredEvent>, sqlx::Error> {
+    sqlx::query_as!(
+        StoredEvent,
+        r#"SELECT id, track_id, track_version, event_type, payload,
+                  actor_id, actor_name, occurred_at,
+                  previous_scene_id, new_scene_id
+           FROM track_events
+           WHERE track_id = $1
+             AND ($2::bigint IS NULL OR id > $2)
+           ORDER BY id
+           LIMIT $3"#,
+        track_id,
+        after_id,
+        limit,
+    )
+    .fetch_all(pool)
+    .await
+}
+
+/// Whether a scene exists, for distinguishing an empty listing from a bad path.
+pub async fn scene_exists(pool: &PgPool, scene_id: Uuid) -> Result<bool, sqlx::Error> {
+    let exists = sqlx::query_scalar!(
+        r#"SELECT EXISTS (SELECT 1 FROM scenes WHERE id = $1) AS "exists!""#,
+        scene_id,
+    )
+    .fetch_one(pool)
+    .await?;
+
+    Ok(exists)
+}
+
+/// Whether a movie exists.
+pub async fn movie_exists(pool: &PgPool, movie_id: Uuid) -> Result<bool, sqlx::Error> {
+    let exists = sqlx::query_scalar!(
+        r#"SELECT EXISTS (SELECT 1 FROM movies WHERE id = $1) AS "exists!""#,
+        movie_id,
+    )
+    .fetch_one(pool)
+    .await?;
+
+    Ok(exists)
+}
+
+/// Whether a track exists, for distinguishing "no history" from "no track".
+pub async fn track_exists(pool: &PgPool, track_id: Uuid) -> Result<bool, sqlx::Error> {
+    let exists = sqlx::query_scalar!(
+        r#"SELECT EXISTS (SELECT 1 FROM tracks WHERE id = $1) AS "exists!""#,
+        track_id,
+    )
+    .fetch_one(pool)
+    .await?;
+
+    Ok(exists)
 }
 
 /// Fetches a single track.

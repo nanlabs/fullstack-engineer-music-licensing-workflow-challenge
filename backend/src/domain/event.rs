@@ -80,6 +80,41 @@ impl NewTrackEvent {
         }
     }
 
+    /// Builds the event recorded when a track's definition is revised.
+    ///
+    /// Both definitions are kept. That is what preserves a former terminal
+    /// outcome after a revision resets licensing to `Pending`: the history
+    /// still shows the track was once `Licensed`, and what it was licensed for.
+    ///
+    /// When the revision moved the track between scenes, both scene IDs are
+    /// recorded so the event can be delivered to the old and the new scene's
+    /// subscribers.
+    pub fn revised(
+        track_id: Uuid,
+        movie_id: Uuid,
+        track_version: i32,
+        actor: Actor,
+        previous: TrackDefinition,
+        current: TrackDefinition,
+    ) -> Self {
+        let relocated = previous.scene_id != current.scene_id;
+
+        Self {
+            track_id,
+            movie_id,
+            track_version,
+            event_type: TrackEventType::TrackRevised,
+            actor,
+            previous_scene_id: relocated.then_some(previous.scene_id),
+            new_scene_id: relocated.then_some(current.scene_id),
+            payload: serde_json::json!({
+                "payload_schema_version": PAYLOAD_SCHEMA_VERSION,
+                "previous_definition": definition_json(&previous),
+                "definition": definition_json(&current),
+            }),
+        }
+    }
+
     /// Builds the event recorded when licensing moves between states.
     ///
     /// Both the previous and the new state are recorded, so history reads as a

@@ -169,6 +169,16 @@ impl From<crate::application::tracks::TrackError> for ApiError {
             TrackError::TrackNotFound(id) => {
                 Self::not_found(format!("Track `{id}` does not exist."))
             }
+            TrackError::MovieNotFound(id) => {
+                Self::not_found(format!("Movie `{id}` does not exist."))
+            }
+            TrackError::SceneOutsideMovie { scene_id, movie_id } => Self::new(
+                ProblemCode::SceneOutsideMovie,
+                format!(
+                    "Scene `{scene_id}` does not belong to movie `{movie_id}`. A track can only \
+                     move between scenes of its own movie; create a new track instead."
+                ),
+            ),
             TrackError::InvalidInterval(invalid) => {
                 // Bounds problems get their own code because a client can fix
                 // them by adjusting the interval, unlike a generic validation
