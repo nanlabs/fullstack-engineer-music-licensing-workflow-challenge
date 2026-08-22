@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Track event stream viewer</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --line: #262b36;
+    --text: #e6e8ee;
+    --muted: #8b94a7;
+    --accent: #7aa2f7;
+    --ok: #7cc47f;
+    --warn: #e0af68;
+    --err: #f7768e;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.5 system-ui, -apple-system, sans-serif;
+  }
+  header {
+    padding: 14px 18px; border-bottom: 1px solid var(--line);
+    background: var(--panel); position: sticky; top: 0; z-index: 2;
+  }
+  h1 { margin: 0 0 10px; font-size: 15px; font-weight: 600; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  input, select, button {
+    font: inherit; padding: 7px 10px; border-radius: 6px;
+    border: 1px solid var(--line); background: var(--bg); color: var(--text);
+  }
+  input { font-family: var(--mono); font-size: 12px; }
+  #base { width: 190px; } #id { width: 330px; } #token { flex: 1; min-width: 240px; }
+  button { cursor: pointer; border-color: var(--accent); color: var(--accent); }
+  button:hover:not(:disabled) { background: #1c2333; }
+  button:disabled { opacity: .45; cursor: default; }
+  #status { margin-left: auto; font-size: 12px; color: var(--muted); }
+  #status.on  { color: var(--ok); }
+  #status.err { color: var(--err); }
+  main { padding: 14px 18px; display: flex; flex-direction: column-reverse; gap: 10px; }
+  .ev {
+    border: 1px solid var(--line); border-left: 3px solid var(--accent);
+    border-radius: 6px; background: var(--panel); padding: 10px 12px;
+  }
+  .ev.note { border-left-color: var(--muted); }
+  .ev.warn { border-left-color: var(--warn); }
+  .ev.err  { border-left-color: var(--err); }
+  .head { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+  .type { font-weight: 600; font-family: var(--mono); font-size: 12px; }
+  .meta { color: var(--muted); font-size: 12px; font-family: var(--mono); }
+  .pill {
+    font-family: var(--mono); font-size: 11px; padding: 1px 7px;
+    border-radius: 999px; border: 1px solid var(--line);
+  }
+  .pending { color: var(--muted); } .in_negotiation { color: var(--accent); }
+  .licensed { color: var(--ok); } .rejected, .cancelled { color: var(--err); }
+  pre {
+    margin: 8px 0 0; padding: 9px; background: var(--bg); border-radius: 5px;
+    font-family: var(--mono); font-size: 11.5px; overflow-x: auto; color: var(--muted);
+  }
+  details summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+  .empty { color: var(--muted); text-align: center; padding: 40px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Track event stream</h1>
+  <div class="row">
+    <input id="base"  value="http://localhost:8080" placeholder="API base URL">
+    <select id="scope">
+      <option value="movies">movies</option>
+      <option value="scenes">scenes</option>
+    </select>
+    <input id="id" value="2be7da9d-1699-59aa-9253-94cb1c8642be" placeholder="movie or scene id">
+  </div>
+  <div class="row" style="margin-top:8px">
+    <input id="token" placeholder="bearer token — or leave empty and click Get token">
+    <button id="mint">Get token</button>
+    <button id="go">Connect</button>
+    <button id="stop" disabled>Disconnect</button>
+    <span id="status">idle</span>
+  </div>
+</header>
+
+<main id="log"><div class="empty" id="empty">Not connected.</div></main>
+
+<script>
+// EventSource cannot set an Authorization header, and these routes require a
+// bearer token, so the stream is read with fetch + a ReadableReader instead and
+// the SSE frames are parsed by hand. That is the same constraint any real client
+// of this API has.
+const $ = id => document.getElementById(id);
+let controller = null;
+
+const setStatus = (text, cls = '') => { $('status').textContent = text; $('status').className = cls; };
+
+// Every string rendered below comes from the server, so nodes are built and
+// filled with textContent rather than innerHTML: a `<script>` smuggled into a
+// song title would otherwise execute in this page.
+function el(tag, cls, text) {
+  const node = document.createElement(tag);
+  if (cls) node.className = cls;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+const pre = text => el('pre', '', text);
+
+function add(type, body = [], cls = '', extra = []) {
+  $('empty')?.remove();
+  const node = el('div', 'ev ' + cls);
+  const head = el('div', 'head');
+  head.append(el('span', 'type', type), ...extra, el('span', 'meta', new Date().toLocaleTimeString()));
+  node.append(head, ...body);
+  $('log').appendChild(node);
+}
+
+function addEvent(type, data) {
+  let json;
+  try { json = JSON.parse(data); } catch { return add(type, [pre(data)], 'warn'); }
+
+  const t = json.track ?? {};
+  const state = t.licensing_state ?? '';
+  const extra = [
+    el('span', 'pill ' + state, state),
+    el('span', 'meta', 'v' + (t.version ?? '?')),
+    el('span', 'meta', 'event #' + (json.event_id ?? '?')),
+  ];
+
+  let line = `track ${t.id ?? '?'} · scene ${t.scene_id ?? '?'}`;
+  if (t.song) line += ` · ${t.song.title} — ${t.song.artist_name}`;
+
+  const details = el('details');
+  details.append(el('summary', '', 'payload'), pre(JSON.stringify(json, null, 2)));
+
+  add(type, [el('div', 'meta', line), details], '', extra);
+}
+
+async function getToken() {
+  const res = await fetch($('base').value + '/auth/dev-token', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ name: 'Viewer' }),
+  });
+  if (!res.ok) throw new Error('dev-token returned ' + res.status);
+  const body = await res.json();
+  $('token').value = body.access_token;
+  return body.access_token;
+}
+
+$('mint').onclick = async () => {
+  try { await getToken(); setStatus('token ready'); }
+  catch (e) { setStatus(e.message, 'err'); }
+};
+
+$('go').onclick = async () => {
+  const token = $('token').value.trim() || await getToken().catch(e => {
+    setStatus(e.message, 'err'); return null;
+  });
+  if (!token) return;
+
+  const url = `${$('base').value}/${$('scope').value}/${$('id').value.trim()}/track-events`;
+  controller = new AbortController();
+  $('go').disabled = true; $('stop').disabled = false;
+  setStatus('connecting…');
+
+  try {
+    const res = await fetch(url, {
+      headers: { Authorization: 'Bearer ' + token, Accept: 'text/event-stream' },
+      signal: controller.signal,
+    });
+
+    if (!res.ok) {
+      // Errors are problem+json — show the machine-readable code, which is what
+      // a real client branches on.
+      const problem = await res.json().catch(() => ({}));
+      add(`HTTP ${res.status}`, [pre(JSON.stringify(problem, null, 2))], 'err');
+      setStatus(problem.code || ('HTTP ' + res.status), 'err');
+      return;
+    }
+
+    setStatus('connected', 'on');
+    add('connected', [el('div', 'meta', url)], 'note');
+
+    // SSE frames are separated by a blank line; fields are `event:` and `data:`.
+    // A line starting with `:` is a comment — that is what a heartbeat is.
+    const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
+    let buffer = '';
+
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += value;
+
+      let split;
+      while ((split = buffer.indexOf('\n\n')) !== -1) {
+        const frame = buffer.slice(0, split);
+        buffer = buffer.slice(split + 2);
+
+        let type = 'message', data = '';
+        for (const line of frame.split('\n')) {
+          if (line.startsWith(':')) { add('heartbeat', [], 'note'); }
+          else if (line.startsWith('event:')) type = line.slice(6).trim();
+          else if (line.startsWith('data:')) data += line.slice(5).trim();
+        }
+        if (data) addEvent(type, data);
+      }
+    }
+
+    // The server closes the stream on shutdown, on a lagging subscriber, and on
+    // a lost listener connection. Reaching here means one of those happened.
+    add('stream closed', [el('div', 'meta', 'the server ended the stream — re-read via REST before resubscribing')], 'warn');
+    setStatus('closed by server', 'err');
+  } catch (e) {
+    if (e.name !== 'AbortError') { add('error', [pre(e.message)], 'err'); setStatus(e.message, 'err'); }
+  } finally {
+    $('go').disabled = false; $('stop').disabled = true;
+  }
+};
+
+$('stop').onclick = () => {
+  controller?.abort();
+  add('disconnected', [], 'note');
+  setStatus('idle');
+};
+</script>
+</body>
+</html>

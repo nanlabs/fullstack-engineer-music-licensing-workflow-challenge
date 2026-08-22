@@ -136,7 +136,37 @@ for (;;) {
 // bounded exponential backoff. Do not assume the stream can replay a gap.
 ```
 
-A browser test page is available at [docs/sse-viewer.html](docs/sse-viewer.html).
+### Test real-time events in a browser
+
+The standalone [SSE viewer](docs/sse-viewer.html) connects to either a Movie or
+Scene event stream, shows heartbeat frames, and renders each Track event with its
+complete JSON payload.
+
+1. Start the API with `docker compose up --build`.
+2. In another terminal, serve the `docs` directory from the origin allowed by
+   the development CORS configuration:
+
+   ```bash
+   python3 -m http.server 3000 --directory docs
+   ```
+
+3. Open `http://localhost:3000/sse-viewer.html` in a browser. Do not open the
+   HTML file directly with a `file://` URL; that origin is not in the CORS
+   allowlist.
+4. Keep the default API URL (`http://localhost:8080`), choose a `movies` or
+   `scenes` scope, and enter the corresponding ID. The seeded Movie ID is filled
+   in by default; other IDs can be copied from Swagger UI or the catalog routes.
+5. Click **Get token**, then **Connect**. With the development token endpoint
+   enabled, **Connect** also obtains a token automatically when the token field
+   is empty.
+6. Create or update a Track in Swagger UI, Postman, or another terminal. Matching
+   events appear immediately in the viewer; expand **payload** to inspect the
+   complete event body.
+
+Use two viewer tabs with different Scene IDs to test relocation: moving a Track
+between those Scenes emits the change to both streams. If a stream closes, reload
+the authoritative REST state before reconnecting because SSE delivery has no
+replay or cursor.
 
 ## Errors
 
