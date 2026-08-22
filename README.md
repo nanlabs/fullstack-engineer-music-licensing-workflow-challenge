@@ -78,7 +78,6 @@ When development mode is enabled:
 - Swagger UI: `http://localhost:8080/swagger-ui`
 - OpenAPI JSON: `http://localhost:8080/api-docs/openapi.json`
 - Postman collection: [docs/postman/music-licensing.postman_collection.json](docs/postman/music-licensing.postman_collection.json)
-- Manual walkthrough: [docs/manual-testing.md](docs/manual-testing.md)
 
 Core routes:
 
@@ -106,35 +105,13 @@ Each process owns one PostgreSQL listener connection and fans committed notifica
 
 The guarantee is deliberately narrow: a connected client receives matching changes in near real time under normal operation. There is no replay, cursor, gap event, or recovery for time spent disconnected. REST is authoritative. After disconnecting, a client must explicitly reload REST state before subscribing again; otherwise it may remain stale indefinitely. Durable replay is a future extension for consumers that require every intermediate event.
 
-Native browser `EventSource` cannot attach the required bearer header, so browser clients must use a fetch-based reader. Tokens are never accepted in query strings because URLs leak into logs and history.
+Native browser `EventSource` cannot attach the required bearer token. Browser
+clients must instead use `fetch` with an `Authorization` header and read the
+event stream from the response body. Tokens are never accepted in query strings
+because URLs can leak into logs and browser history.
 
-```js
-const response = await fetch(`${baseUrl}/movies/${movieId}/track-events`, {
-  headers: { Authorization: `Bearer ${accessToken}` },
-});
-
-if (!response.ok || !response.body) throw new Error(`SSE failed: ${response.status}`);
-
-const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
-let buffer = "";
-
-for (;;) {
-  const { value, done } = await reader.read();
-  if (done) break;
-  buffer += value;
-
-  let boundary;
-  while ((boundary = buffer.indexOf("\n\n")) !== -1) {
-    const frame = buffer.slice(0, boundary);
-    buffer = buffer.slice(boundary + 2);
-    const data = frame.split("\n").find((line) => line.startsWith("data:"));
-    if (data) applyCompleteTrack(JSON.parse(data.slice(5)).track);
-  }
-}
-
-// On disconnect: reload the relevant REST collection, then reconnect with
-// bounded exponential backoff. Do not assume the stream can replay a gap.
-```
+The runnable viewer below implements this fetch-based approach and displays the
+received events without requiring any client setup.
 
 ### Test real-time events in a browser
 
@@ -235,8 +212,6 @@ The critical concurrency acceptance case sends two different valid commands with
 
 ## Further documentation
 
-- [Initial implementation plan](INITIAL_IMPLEMENTATION_PLAN.md)
 - [ADR 0001: PUT for Track mutations](docs/adr/0001-put-for-track-mutations.md)
 - [ADR 0002: SSE fan-out on Tokio](docs/adr/0002-sse-fan-out-on-tokio.md)
 - [ADR 0003: Current state with immutable Track events](docs/adr/0003-current-state-with-immutable-track-events.md)
-- [Manual API and SSE testing](docs/manual-testing.md)
