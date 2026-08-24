@@ -25,7 +25,6 @@ Record the exact commands run and any environmental limitations.
 
 - [ ] Relevant ADRs are linked in the description.
 - [ ] API or operational behavior changes are reflected in `README.md`.
-- [ ] New domain terms are reflected in `CONTEXT.md`.
 
 ## Checklist
 

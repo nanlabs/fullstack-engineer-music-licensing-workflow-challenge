@@ -41,8 +41,6 @@ pending ───────► in_negotiation ───────► license
 - No-op writes increment nothing and append no event.
 - Competing commands from one Version allow at most one conflicting material result to commit.
 
-See [CONTEXT.md](CONTEXT.md) for the domain vocabulary without implementation detail.
-
 ## Run with Docker Compose
 
 Requirements: Docker with Compose support.
