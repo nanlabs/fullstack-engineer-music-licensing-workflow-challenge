@@ -1,132 +1,215 @@
-# 🚀 Fullstack Engineer Challenge – Music Licensing Workflow
+# Music Licensing Workflow API
 
-Welcome to the **Fullstack Engineer Challenge!** 🎸🎬  
-In this challenge, you'll help the fictional company **ACME BROS PICTURES** build a system to manage the **music licensing process** for their movies.
+A backend-only implementation of the ACME Bros Pictures music-licensing challenge. It models movies, scenes, songs, timed track uses, licensing negotiations, immutable history, and live updates for connected collaborators.
 
-## 🎯 Context
+The backend-only Rust scope was explicitly approved. It trades away the challenge's general full-stack/React evaluation criterion to go deeper on backend domain modeling, concurrency, transactional consistency, operational behavior, and testing.
 
-Each movie scene can contain **multiple music tracks**, and each track requires licensing. The licensing process involves back-and-forth negotiations with rights holders (artists or labels), which makes tracking each license's progress essential.
+## What is included
 
-Your task is to create a simple system to:
+- REST endpoints for catalog reads and the complete Track lifecycle.
+- PostgreSQL persistence, deterministic development seed data, and immutable audit events.
+- Optimistic concurrency with retry-safe `PUT` behavior.
+- JWT bearer validation plus clearly isolated development-only token issuance.
+- Movie- and Scene-scoped Server-Sent Events (SSE).
+- RFC 9457 `application/problem+json` errors with stable machine-readable codes.
+- Generated OpenAPI and Swagger UI in development.
+- Docker Compose, structured JSON logs, health probes, graceful shutdown, and GitHub Actions CI.
+- Unit, PostgreSQL integration, and Axum end-to-end tests.
 
-- Manage **tracks** for each movie scene.
-- Associate a **song** to each track, specifying its start and end time.
-- Track the **licensing status** of each song via a stateful workflow.
-- Provide a way for other users to **immediately see updates** in licensing status (real-time or near real-time visibility).
+## Technology decisions
 
-## 📌 Requirements
+Rust was selected even though it is not one of the challenge's suggested stacks. It matches the backend role, makes domain invariants and failure paths explicit in types, and provides a mature asynchronous stack through Tokio, Axum, and SQLx.
 
-### ⚙️ Tech Stack
+The API is REST-only. Resources and commands map naturally onto HTTP, and GraphQL would add another schema and runtime without solving a requirement this workflow has. Live changes use SSE because traffic is one-directional: clients mutate through REST and observe through a stream. WebSockets would add bidirectional capability and a separate upgraded-connection protocol without a matching use case.
 
-> ⚡ **Must Include** - Use the following technologies, aligned with our tech stack:
+Track mutations use `PUT`, not `PATCH`. Each request states the complete desired value of one concern and includes `expected_version`. Repeating a successful request is a no-op; a stale request also succeeds when another writer already produced the same desired result. Stale conflicting intent receives `409 version_conflict`. See [ADR 0001](docs/adr/0001-put-for-track-mutations.md).
 
-- **Backend:** You can use any stack you're comfortable with, but we recommend using any of the following:
-  - TypeScript + NestJS (you can use Fastify or Koa if you prefer)
-  - Python + FastAPI (you can use Flask or Django if you prefer)
-  - Go + Fiber (you can use Gin or Echo if you prefer)
-- **API:** REST and/or GraphQL (you choose, and justify your choice if you only use one)
-- **Frontend:** React (using any framework such as Next.js, Remix, or bare metal with Vite)
-- **Database:** PostgreSQL (primary), MongoDB (optional if needed)
-- **Containerization:** Docker (required)
-- **Bonus:** Kafka, Redis, ArgoCD, Kubernetes (if you want to go further)
+## Domain workflow and invariants
 
-### 📦 Deliverables
-
-> 📥 **Your submission must be a Pull Request that includes:**
-
-- A **backend** exposing the required APIs.
-- A **data model** to manage:
-  - Movies, scenes, tracks, songs, and their licensing states.
-- Endpoints or queries/mutations to:
-  - Create a track and associate a song.
-  - Update the licensing state of a track.
-  - Query all tracks for a given scene/movie, including licensing status.
-- A **frontend built with React** to:
-  - Visualize the movie scenes and associated tracks.
-  - Show licensing status.
-  - Allow status updates (basic UI).
-- Suggest a real-time implementation using WebSockets, GraphQL Subscriptions, or Server-Sent Events.
-- Docker setup to run the entire app locally.
-- A `README.md` with:
-  - Setup instructions
-  - Tech decisions and tradeoffs
-  - If applicable, your reasoning for using REST, GraphQL, or both
-
-> [!TIP]
-> Use the `docs` folder to store any additional documentation or diagrams that help explain your solution.
-> Mention any assumptions or constraints in your `README.md`.
-
-### 📂 Folder Suggestions
-
-You can organize your project like this (suggested but not mandatory):
-
-```txt
-/
-├── .github/
-│   ├── workflows/
-│   └── PULL_REQUEST_TEMPLATE.md
-├── docs/
-├── backend/
-│   ├── src/
-│   ├── test/
-│   └── Dockerfile
-├── frontend/
-│   ├── src/
-│   ├── public/
-│   └── Dockerfile
-├── compose.yml
-├── .env.example
-├── README.md
-├── .prettierrc.js
-├── eslint.config.mjs
-└── . . .
+```text
+pending ───────► in_negotiation ───────► licensed
+   │                   ├───────────────► rejected
+   │                   └───────────────► cancelled
+   └───────────────────────────────────► cancelled
 ```
 
-## 🌟 Nice to Have
+- `licensed`, `rejected`, and `cancelled` are terminal through the state endpoint.
+- A material Track revision resets any state to `pending`, because permission applied to the previous definition. History preserves that former outcome.
+- A Track interval must be non-empty and fit inside its Scene.
+- A Track may move only between Scenes of its existing Movie.
+- Material writes increment the Track Version and append exactly one event in the same transaction.
+- No-op writes increment nothing and append no event.
+- Competing commands from one Version allow at most one conflicting material result to commit.
 
-> 💡 **Bonus Points For:**
+## Run with Docker Compose
 
-- Automated testing and CI pipeline using GitHub Actions.
-- Unit or integration tests for API or key logic.
-- Use of MongoDB for unstructured metadata (if justified).
-- Real-time suggestion implemented (e.g., via GraphQL subscriptions or WebSockets).
-- Basic usage of **Kafka or Redis** (e.g., async event messaging).
-- Usage of ArgoCD or Kubernetes (not expected, but definitely cool).
+Requirements: Docker with Compose support.
 
-> [!TIP]
-> Looking for inspiration or additional ideas to earn extra points? Check out our **[Awesome NaNLABS repository](https://github.com/nanlabs/awesome-nan)** for reference projects and best practices! 🚀
+```bash
+docker compose up --build
+```
 
-## 🧪 Submission Guidelines
+Startup is ordered as PostgreSQL → migrations → deterministic seed → API. The API listens at `http://localhost:8080`. Stop it with Ctrl-C or:
 
-> 📌 **Follow these steps to submit your solution:**
+```bash
+docker compose down
+```
 
-1. **Fork this repository.**
-2. **Create a feature branch** for your implementation.
-3. **Commit your changes** with meaningful commit messages.
-4. **Open a Pull Request** following the provided template.
-5. **Our team will review** and provide feedback.
+The checked-in `.env.example` contains safe local defaults and explains which settings must change in production. In particular, replace `JWT_SECRET`, disable `DEV_TOKEN_ENDPOINT_ENABLED`, and set an explicit CORS allowlist.
 
-## ✅ Evaluation Criteria
+## Development authentication
 
-> 🔍 **What we'll be looking at:**
+`POST /auth/dev-token` is intentionally not production authentication. It accepts a display name without credentials and returns a signed JWT so the workflow can be exercised locally. The route—and Swagger UI—exist only when `DEV_TOKEN_ENDPOINT_ENABLED=true`.
 
-- Ability to **work across the stack** (NestJS, PostgreSQL, React/Next.js/. . .).
-- Clean, modular and maintainable code with proper Git usage.
-- A good understanding of **data modeling and workflow management**.
-- Clear written communication in your README.
-- Ability to **propose real-time solutions**, even if not implemented.
+```bash
+curl -sS -X POST http://localhost:8080/auth/dev-token \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"Ada Lovelace"}'
+```
 
-## 💬 Final Notes
+Use the returned `access_token` as `Authorization: Bearer <token>`. In production, disable this endpoint and configure `JWT_SECRET`, `JWT_ISSUER`, and `JWT_AUDIENCE` to match the trusted issuer.
 
-> [!TIP]
-> This challenge is designed to be flexible!
+## API and interactive documentation
 
-Here are some tips to help you succeed:
+When development mode is enabled:
 
-- If you feel confident on the backend but less on the frontend, focus there—but try to show some basic UI.
-- Likewise, if you're stronger on the frontend, make sure your backend has clean structure and endpoints.
-- Time-box it: we don’t expect perfection. We want to see **how you think and solve problems**.
+- Swagger UI: `http://localhost:8080/swagger-ui`
+- OpenAPI JSON: `http://localhost:8080/api-docs/openapi.json`
+- Postman collection: [docs/postman/music-licensing.postman_collection.json](docs/postman/music-licensing.postman_collection.json)
 
-## 🏁 Good luck and have fun building
+Core routes:
 
-If you have any questions, feel free to reach out.
+| Method | Route | Purpose |
+|---|---|---|
+| `GET` | `/health/live` | Process liveness |
+| `GET` | `/health/ready` | Database readiness and event-listener status |
+| `POST` | `/auth/dev-token` | Development-only JWT issuance |
+| `GET` | `/movies`, `/songs` | Paginated catalog reads |
+| `GET` | `/movies/{movie_id}/scenes` | Ordered Scenes |
+| `POST` | `/tracks` | Create a Track |
+| `GET`, `PUT` | `/tracks/{track_id}` | Read or replace a Track definition |
+| `PUT` | `/tracks/{track_id}/licensing-state` | Set desired licensing state |
+| `GET` | `/scenes/{scene_id}/tracks` | Filtered, paginated Scene Tracks |
+| `GET` | `/movies/{movie_id}/tracks` | Filtered, paginated Movie Tracks |
+| `GET` | `/tracks/{track_id}/history` | Immutable audit history |
+| `GET` | `/movies/{movie_id}/track-events` | Movie-scoped SSE |
+| `GET` | `/scenes/{scene_id}/track-events` | Scene-scoped SSE |
+
+Collections use opaque keyset cursors. Return `next_cursor` as `?cursor=...`; do not interpret it. Track lists accept a comma-separated `licensing_state` filter.
+
+## Real-time delivery
+
+Each process owns one PostgreSQL listener connection and fans committed notifications out through a bounded Tokio broadcast channel. Client count does not consume request-pool connections. Slow subscribers and streams affected by a listener reset close instead of silently skipping updates. Heartbeats keep idle connections alive, and a semaphore caps streams per process. See [ADR 0002](docs/adr/0002-sse-fan-out-on-tokio.md).
+
+The guarantee is deliberately narrow: a connected client receives matching changes in near real time under normal operation. There is no replay, cursor, gap event, or recovery for time spent disconnected. REST is authoritative. After disconnecting, a client must explicitly reload REST state before subscribing again; otherwise it may remain stale indefinitely. Durable replay is a future extension for consumers that require every intermediate event.
+
+Native browser `EventSource` cannot attach the required bearer token. Browser
+clients must instead use `fetch` with an `Authorization` header and read the
+event stream from the response body. Tokens are never accepted in query strings
+because URLs can leak into logs and browser history.
+
+The runnable viewer below implements this fetch-based approach and displays the
+received events without requiring any client setup.
+
+### Test real-time events in a browser
+
+The standalone [SSE viewer](docs/sse-viewer.html) connects to either a Movie or
+Scene event stream, shows heartbeat frames, and renders each Track event with its
+complete JSON payload.
+
+1. Start the API with `docker compose up --build`.
+2. In another terminal, serve the `docs` directory from the origin allowed by
+   the development CORS configuration:
+
+   ```bash
+   python3 -m http.server 3000 --directory docs
+   ```
+
+3. Open `http://localhost:3000/sse-viewer.html` in a browser. Do not open the
+   HTML file directly with a `file://` URL; that origin is not in the CORS
+   allowlist.
+4. Keep the default API URL (`http://localhost:8080`), choose a `movies` or
+   `scenes` scope, and enter the corresponding ID. The seeded Movie ID is filled
+   in by default; other IDs can be copied from Swagger UI or the catalog routes.
+5. Click **Get token**, then **Connect**. With the development token endpoint
+   enabled, **Connect** also obtains a token automatically when the token field
+   is empty.
+6. Create or update a Track in Swagger UI, Postman, or another terminal. Matching
+   events appear immediately in the viewer; expand **payload** to inspect the
+   complete event body.
+
+Use two viewer tabs with different Scene IDs to test relocation: moving a Track
+between those Scenes emits the change to both streams. If a stream closes, reload
+the authoritative REST state before reconnecting because SSE delivery has no
+replay or cursor.
+
+## Errors
+
+API failures use `application/problem+json` with `title`, `status`, `detail`, and stable `code` fields. Authentication failures also send `WWW-Authenticate`; retryable `503` responses send `Retry-After`. Clients should branch on `code`, never prose.
+
+Important codes include `invalid_token`, `resource_not_found`, `invalid_state_transition`, `version_conflict`, `database_unavailable`, `sse_temporarily_unavailable`, `sse_connection_limit_reached`, `track_interval_out_of_bounds`, `scene_outside_movie`, and `validation_failed`.
+
+## Local Rust workflow
+
+Requirements: pinned Rust 1.96 toolchain, Docker, and PostgreSQL when running the binary outside Compose.
+
+```bash
+cd backend
+cargo fmt --all --check
+cargo clippy --all-targets --all-features --locked -- -D warnings
+cargo test --all-features --locked
+```
+
+Integration and end-to-end tests use Testcontainers to start isolated real PostgreSQL databases; they do not use mocks or SQLite.
+
+To verify SQLx metadata against the expected schema:
+
+```bash
+docker compose up -d postgres
+cd backend
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/music_licensing cargo sqlx migrate run
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/music_licensing cargo sqlx prepare --check
+```
+
+GitHub Actions runs formatting, Clippy with warnings denied, the complete Rust test suite, SQLx metadata validation, and a production Docker build. The Rust toolchain and SQLx CLI version are pinned; Docker compilation uses committed `.sqlx` metadata with `SQLX_OFFLINE=true`.
+
+## Architecture and operations
+
+```text
+HTTP/SSE → Axum routes and DTOs → application use cases → SQLx repositories → PostgreSQL
+                                        │                         │
+                                        └── immutable event ──────┴── NOTIFY
+                                                                       │
+                                      connected SSE clients ◄── Tokio fan-out
+```
+
+- Configuration is read and validated once at startup; secrets are redacted from debug output.
+- Migrations and seed are explicit one-shot commands used by Compose.
+- Liveness never touches PostgreSQL. Readiness fails only when PostgreSQL cannot serve reads and writes and separately reports whether the event listener is `connected` or `reconnecting`.
+- Logs are structured JSON. Request spans carry request ID, method, route, response status, latency, and relevant resource IDs emitted by use cases.
+- Shutdown closes long-lived streams first, stops accepting requests, waits within a hard grace period, releases the listener connection, then drains the pool.
+- The runtime image is multi-stage and runs as a non-root user.
+
+## Testing strategy
+
+- Domain unit tests pin transitions, terminal states, interval rules, revision reset behavior, serialization, cursor validation, and stream state-machine behavior.
+- PostgreSQL integration tests cover migrations, constraints, transactions, event atomicity, ordering, pagination, concurrency, and notifications.
+- Axum end-to-end tests cover authentication, catalog and Track routes, RFC 9457 problems, history, SSE scoping, lag closure, heartbeats, limits, listener resets, and shutdown behavior.
+
+The critical concurrency acceptance case sends two different valid commands with the same Track Version: exactly one material change commits, the loser receives `409`, and exactly one event is appended. Agreeing retries all succeed but still produce one change.
+
+## Assumptions, exclusions, and future extensions
+
+- Catalog data is read-only and deterministically seeded for the exercise.
+- There are no per-Actor authorization rules beyond valid authentication.
+- Track creation has no idempotency key; retrying an ambiguous `POST` can create another legitimate Track.
+- Event history is retained indefinitely, but live delivery is not durable messaging.
+- The SSE connection limit is per process, not global across replicas.
+- No frontend is included under the approved backend-only scope.
+- Production identity-provider integration, durable event replay, distributed stream quotas, rate limiting, and audit-retention policy are future work.
+
+## Further documentation
+
+- [ADR 0001: PUT for Track mutations](docs/adr/0001-put-for-track-mutations.md)
+- [ADR 0002: SSE fan-out on Tokio](docs/adr/0002-sse-fan-out-on-tokio.md)
+- [ADR 0003: Current state with immutable Track events](docs/adr/0003-current-state-with-immutable-track-events.md)

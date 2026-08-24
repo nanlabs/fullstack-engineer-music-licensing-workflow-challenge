@@ -1,0 +1,86 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT t.id, t.scene_id, t.song_id, t.scene_start_ms, t.scene_end_ms,\n                  t.licensing_state, t.version, t.created_at, t.updated_at,\n                  s.title AS song_title, s.artist_name AS song_artist_name\n           FROM tracks t\n           JOIN scenes sc ON sc.id = t.scene_id\n           JOIN songs s ON s.id = t.song_id\n           WHERE sc.movie_id = $1\n             AND ($2::text[] IS NULL OR t.licensing_state = ANY($2))\n             AND ($3::timestamptz IS NULL OR (t.created_at, t.id) > ($3, $4))\n           ORDER BY t.created_at, t.id\n           LIMIT $5",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "scene_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "song_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
+        "name": "scene_start_ms",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "scene_end_ms",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 5,
+        "name": "licensing_state",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "version",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 7,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 8,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 9,
+        "name": "song_title",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 10,
+        "name": "song_artist_name",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "TextArray",
+        "Timestamptz",
+        "Uuid",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "29065ecf8a92b1e0fbe8588f57b25eee57c717035b2db93d89a8f22501d23b1f"
+}

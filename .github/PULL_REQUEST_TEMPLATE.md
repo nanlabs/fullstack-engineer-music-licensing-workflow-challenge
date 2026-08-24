@@ -13,17 +13,24 @@ Fixes # (issue)
 
 ## How Has This Been Tested?
 
-Please describe the tests that you ran to verify your changes. Provide instructions so we can reproduce.
+Record the exact commands run and any environmental limitations.
 
-- [ ] Test A
-- [ ] Test B
+- [ ] `cargo fmt --all --check`
+- [ ] `cargo clippy --all-targets --all-features --locked -- -D warnings`
+- [ ] `cargo test --all-features --locked`
+- [ ] `cargo sqlx prepare --check`
+- [ ] `docker build --file Dockerfile .`
+
+## Architecture and documentation
+
+- [ ] Relevant ADRs are linked in the description.
+- [ ] API or operational behavior changes are reflected in `README.md`.
 
 ## Checklist
 
 - [ ] My code follows the style guidelines of this project
 - [ ] I have performed a self-review of my code
-- [ ] I have commented my code, particularly in hard-to-understand areas
+- [ ] Non-obvious decisions are documented in code or an ADR
 - [ ] I have made corresponding changes to the documentation
 - [ ] My changes generate no new warnings
-- [ ] Any dependent changes have been merged and published in downstream modules
 - [ ] I have checked my code and corrected any misspellings

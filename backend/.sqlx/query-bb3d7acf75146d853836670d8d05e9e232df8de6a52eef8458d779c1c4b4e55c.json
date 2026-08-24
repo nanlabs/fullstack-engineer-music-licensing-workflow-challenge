@@ -1,0 +1,75 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO tracks\n               (id, scene_id, song_id, scene_start_ms, scene_end_ms, licensing_state)\n           VALUES ($1, $2, $3, $4, $5, $6)\n           RETURNING id, scene_id, song_id, scene_start_ms, scene_end_ms,\n                     licensing_state, version, created_at, updated_at",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "scene_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "song_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
+        "name": "scene_start_ms",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "scene_end_ms",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 5,
+        "name": "licensing_state",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "version",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 7,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 8,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Uuid",
+        "Int4",
+        "Int4",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "bb3d7acf75146d853836670d8d05e9e232df8de6a52eef8458d779c1c4b4e55c"
+}

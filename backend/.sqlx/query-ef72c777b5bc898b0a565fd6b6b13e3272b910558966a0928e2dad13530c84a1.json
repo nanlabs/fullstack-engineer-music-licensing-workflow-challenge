@@ -1,0 +1,78 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, track_id, track_version, event_type, payload,\n                  actor_id, actor_name, occurred_at,\n                  previous_scene_id, new_scene_id\n           FROM track_events\n           WHERE track_id = $1\n             AND ($2::bigint IS NULL OR id > $2)\n           ORDER BY id\n           LIMIT $3",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "track_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "track_version",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "event_type",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "payload",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 5,
+        "name": "actor_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 6,
+        "name": "actor_name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 7,
+        "name": "occurred_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 8,
+        "name": "previous_scene_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 9,
+        "name": "new_scene_id",
+        "type_info": "Uuid"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "ef72c777b5bc898b0a565fd6b6b13e3272b910558966a0928e2dad13530c84a1"
+}

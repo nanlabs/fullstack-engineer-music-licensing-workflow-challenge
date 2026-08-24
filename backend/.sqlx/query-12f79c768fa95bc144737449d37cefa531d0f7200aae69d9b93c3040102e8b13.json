@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO scenes (id, movie_id, sequence_number, title, duration_ms)\n                   VALUES ($1, $2, $3, $4, $5)\n                   ON CONFLICT (id) DO UPDATE\n                   SET movie_id = EXCLUDED.movie_id,\n                       sequence_number = EXCLUDED.sequence_number,\n                       title = EXCLUDED.title,\n                       duration_ms = EXCLUDED.duration_ms",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Int4",
+        "Text",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "12f79c768fa95bc144737449d37cefa531d0f7200aae69d9b93c3040102e8b13"
+}

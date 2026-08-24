@@ -1,0 +1,88 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT t.id, t.scene_id, t.song_id, t.scene_start_ms, t.scene_end_ms,\n                  t.licensing_state, t.version, t.created_at, t.updated_at,\n                  sc.movie_id,\n                  so.title AS song_title, so.artist_name AS song_artist_name\n           FROM tracks t\n           JOIN scenes sc ON sc.id = t.scene_id\n           JOIN songs so ON so.id = t.song_id\n           WHERE t.id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "scene_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "song_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
+        "name": "scene_start_ms",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "scene_end_ms",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 5,
+        "name": "licensing_state",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "version",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 7,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 8,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 9,
+        "name": "movie_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 10,
+        "name": "song_title",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 11,
+        "name": "song_artist_name",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "d895ea4ad5323274246b12537b13f07db4626f8a958f06db34c456edfa9d5e1c"
+}

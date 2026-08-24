@@ -1,0 +1,50 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: music_licensing
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d music_licensing"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+  migrate:
+    build:
+      context: ./backend
+    command: ["migrate"]
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/music_licensing
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  seed:
+    build:
+      context: ./backend
+    command: ["seed"]
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/music_licensing
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: "no"
+
+  api:
+    build:
+      context: ./backend
+    command: ["serve"]
+    env_file:
+      - .env.example
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/music_licensing
+    ports:
+      - "8080:8080"
+    depends_on:
+      seed:
+        condition: service_completed_successfully
