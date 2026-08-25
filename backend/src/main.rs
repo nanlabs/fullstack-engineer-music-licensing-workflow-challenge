@@ -23,6 +23,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app = Router::new()
         .route("/health", get(health_check))
         .route("/tracks", post(handlers::create_track))
+        .route("/movies/{id}/tracks", get(handlers::get_movie_tracks))
         .with_state(db);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await?;

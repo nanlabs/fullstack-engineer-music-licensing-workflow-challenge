@@ -1,9 +1,15 @@
-use axum::{Json, extract::State};
-use sea_orm::{ActiveModelTrait, DatabaseConnection, Set};
+use axum::{
+    Json,
+    extract::{Path, State},
+};
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QuerySelect, Set,
+};
 use serde::{Deserialize, Serialize};
+
 use uuid::Uuid;
 
-use crate::entities::tracks;
+use crate::entities::{prelude::*, scenes, tracks};
 
 #[derive(Deserialize)]
 pub struct CreateTrackPayload {
@@ -32,4 +38,18 @@ pub async fn create_track(
         .map_err(|e| format!("Error inserting the new track: {}", e))?;
 
     Ok(Json(inserted_track))
+}
+
+pub async fn get_movie_tracks(
+    State(db): State<DatabaseConnection>,
+    Path(movie_id): Path<Uuid>,
+) -> Result<Json<Vec<tracks::Model>>, String> {
+    let tracks = tracks::Entity::find()
+        .inner_join(scenes::Entity)
+        .filter(scenes::Column::MovieId.eq(movie_id))
+        .all(&db)
+        .await
+        .map_err(|e| format!("Error fetching tracks: {}", e))?;
+
+    Ok(Json(tracks))
 }
