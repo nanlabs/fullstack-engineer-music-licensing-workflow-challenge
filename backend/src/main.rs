@@ -1,6 +1,12 @@
-use axum::{Router, routing::get};
-use sqlx::postgres::PgPoolOptions;
+use axum::{
+    Router,
+    routing::{get, post},
+};
+use sea_orm::{Database, DatabaseConnection};
 use std::env;
+
+mod entities;
+mod handlers;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -10,16 +16,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     print!("Conectando con la base de datos...");
 
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect(&db_url) //Borrowing de db_url
-        .await?;
+    let db: DatabaseConnection = Database::connect(&db_url).await?;
 
     println!("Conexión a la base de datos exitosa!");
 
     let app = Router::new()
         .route("/health", get(health_check))
-        .with_state(pool);
+        .route("/tracks", post(handlers::create_track))
+        .with_state(db);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await?;
     println!("Servidor corriendo en http://localhost:3000");
