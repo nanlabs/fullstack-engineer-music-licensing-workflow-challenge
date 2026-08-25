@@ -7,7 +7,7 @@ use crate::entities::tracks;
 
 #[derive(Deserialize)]
 pub struct CreateTrackPayload {
-    //Contrato que el cliente va a enviar en formato json
+    // Contract that the client will send in JSON format
     pub scene_id: Uuid,
     pub song_id: Uuid,
     pub start_time_seconds: i32,
@@ -29,7 +29,7 @@ pub async fn create_track(
     let inserted_track = new_track
         .insert(&db)
         .await
-        .map_err(|e| format!("Error al insertar la nueva canción: {}", e))?;
+        .map_err(|e| format!("Error inserting the new track: {}", e))?;
 
     Ok(Json(inserted_track))
 }
