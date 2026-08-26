@@ -117,3 +117,16 @@ pub async fn sse_handler(
     });
     Sse::new(stream).keep_alive(axum::response::sse::KeepAlive::default())
 }
+
+pub async fn get_scene_tracks(
+    State(state): State<AppState>,
+    Path(scene_id): Path<Uuid>,
+) -> Result<Json<Vec<tracks::Model>>, String> {
+    let tracks = tracks::Entity::find()
+        .filter(tracks::Column::SceneId.eq(scene_id))
+        .all(&state.db)
+        .await
+        .map_err(|e| format!("Error fetching scene tracks: {}", e))?;
+
+    Ok(Json(tracks))
+}

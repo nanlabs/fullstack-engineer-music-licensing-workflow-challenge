@@ -34,6 +34,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/health", get(health_check))
         .route("/tracks", post(handlers::create_track))
         .route("/movies/{id}/tracks", get(handlers::get_movie_tracks))
+        .route("/scenes/{id}/tracks", get(handlers::get_scene_tracks))
         .route("/tracks/{id}/status", patch(handlers::update_track_status))
         .route("/events", get(handlers::sse_handler))
         .with_state(state);
