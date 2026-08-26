@@ -9,7 +9,14 @@ use serde::{Deserialize, Serialize};
 
 use uuid::Uuid;
 
-use crate::entities::{prelude::*, scenes, tracks};
+use crate::entities::{prelude::*, scenes, sea_orm_active_enums::LicensingStatus, tracks};
+
+use crate::AppState;
+
+use axum::response::sse::{Event, Sse};
+use std::convert::Infallible;
+use tokio_stream::StreamExt;
+use tokio_stream::wrappers::BroadcastStream;
 
 #[derive(Deserialize)]
 pub struct CreateTrackPayload {
@@ -21,7 +28,7 @@ pub struct CreateTrackPayload {
 }
 
 pub async fn create_track(
-    State(db): State<DatabaseConnection>,
+    State(state): State<AppState>,
     Json(payload): Json<CreateTrackPayload>,
 ) -> Result<Json<tracks::Model>, String> {
     let new_track = tracks::ActiveModel {
@@ -33,7 +40,7 @@ pub async fn create_track(
     };
 
     let inserted_track = new_track
-        .insert(&db)
+        .insert(&state.db)
         .await
         .map_err(|e| format!("Error inserting the new track: {}", e))?;
 
@@ -41,15 +48,72 @@ pub async fn create_track(
 }
 
 pub async fn get_movie_tracks(
-    State(db): State<DatabaseConnection>,
+    State(state): State<AppState>,
     Path(movie_id): Path<Uuid>,
 ) -> Result<Json<Vec<tracks::Model>>, String> {
     let tracks = tracks::Entity::find()
         .inner_join(scenes::Entity)
         .filter(scenes::Column::MovieId.eq(movie_id))
-        .all(&db)
+        .all(&state.db)
         .await
         .map_err(|e| format!("Error fetching tracks: {}", e))?;
 
     Ok(Json(tracks))
+}
+
+#[derive(Deserialize)]
+pub struct UpdateTrackStatusPayload {
+    pub new_status: LicensingStatus,
+}
+
+pub async fn update_track_status(
+    State(state): State<AppState>,
+    Path(track_id): Path<Uuid>,
+    Json(payload): Json<UpdateTrackStatusPayload>,
+) -> Result<Json<tracks::Model>, String> {
+    let track = tracks::Entity::find_by_id(track_id)
+        .one(&state.db)
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "Track not found".to_string())?;
+    let is_valid_transition = match (&track.status, &payload.new_status) {
+        (LicensingStatus::Draft, LicensingStatus::Negotiating) => true,
+        (LicensingStatus::Negotiating, LicensingStatus::Approved) => true,
+        (LicensingStatus::Negotiating, LicensingStatus::Rejected) => true,
+        (LicensingStatus::Rejected, LicensingStatus::Negotiating) => true,
+        _ => false,
+    };
+    if !is_valid_transition {
+        return Err(format!(
+            "Invalid transition: Cannot move from {:?} to {:?}",
+            track.status, payload.new_status
+        ));
+    }
+    let mut active_track: tracks::ActiveModel = track.into();
+    active_track.status = Set(payload.new_status.clone());
+
+    let updated_track = active_track
+        .update(&state.db)
+        .await
+        .map_err(|e| e.to_string())?;
+    let event_message = format!(
+        r#"{{"track_id": "{}", "new_status": "{:?}"}}"#,
+        track_id, payload.new_status
+    );
+
+    let _ = state.tx.send(event_message);
+    Ok(Json(updated_track))
+}
+
+pub async fn sse_handler(
+    State(state): State<AppState>,
+) -> Sse<impl tokio_stream::Stream<Item = Result<Event, Infallible>>> {
+    let rx = state.tx.subscribe();
+    let stream = BroadcastStream::new(rx).filter_map(|res| {
+        match res {
+            Ok(msg) => Some(Ok(Event::default().data(msg))),
+            Err(_) => None, // Ignoramos errores si nos quedamos atrás
+        }
+    });
+    Sse::new(stream).keep_alive(axum::response::sse::KeepAlive::default())
 }

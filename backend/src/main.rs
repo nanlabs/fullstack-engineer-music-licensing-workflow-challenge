@@ -1,12 +1,19 @@
 use axum::{
     Router,
-    routing::{get, post},
+    routing::{get, patch, post},
 };
 use sea_orm::{Database, DatabaseConnection};
 use std::env;
 
 mod entities;
 mod handlers;
+
+use tokio::sync::broadcast;
+#[derive(Clone)]
+struct AppState {
+    pub db: DatabaseConnection,
+    pub tx: broadcast::Sender<String>,
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -20,11 +27,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Database connection successful!");
 
+    let (tx, _rx) = broadcast::channel(100);
+    let state = AppState { db, tx };
+
     let app = Router::new()
         .route("/health", get(health_check))
         .route("/tracks", post(handlers::create_track))
         .route("/movies/{id}/tracks", get(handlers::get_movie_tracks))
-        .with_state(db);
+        .route("/tracks/{id}/status", patch(handlers::update_track_status))
+        .route("/events", get(handlers::sse_handler))
+        .with_state(state);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await?;
     println!("Server running on http://localhost:3000");
