@@ -9,9 +9,12 @@ use serde::{Deserialize, Serialize};
 
 use uuid::Uuid;
 
-use crate::entities::{prelude::*, scenes, sea_orm_active_enums::LicensingStatus, tracks};
+use crate::entities::prelude::*;
+use crate::entities::sea_orm_active_enums::LicensingStatus;
+use crate::entities::{movies, scenes, songs, tracks};
 
 use crate::AppState;
+use sea_orm::FromQueryResult;
 
 use axum::response::sse::{Event, Sse};
 use std::convert::Infallible;
@@ -25,6 +28,23 @@ pub struct CreateTrackPayload {
     pub song_id: Uuid,
     pub start_time_seconds: i32,
     pub end_time_seconds: i32,
+}
+
+#[derive(Deserialize)]
+pub struct UpdateTrackStatusPayload {
+    pub new_status: LicensingStatus,
+}
+
+#[derive(Serialize, FromQueryResult)]
+pub struct TrackDto {
+    pub id: Uuid,
+    pub scene_id: Uuid,
+    pub start_time_seconds: i32,
+    pub end_time_seconds: i32,
+    pub status: LicensingStatus,
+    pub song_title: String,
+    pub song_artist: String,
+    pub scene_name: String,
 }
 
 pub async fn create_track(
@@ -50,20 +70,26 @@ pub async fn create_track(
 pub async fn get_movie_tracks(
     State(state): State<AppState>,
     Path(movie_id): Path<Uuid>,
-) -> Result<Json<Vec<tracks::Model>>, String> {
+) -> Result<Json<Vec<TrackDto>>, String> {
     let tracks = tracks::Entity::find()
         .inner_join(scenes::Entity)
+        .inner_join(songs::Entity)
         .filter(scenes::Column::MovieId.eq(movie_id))
+        .select_only()
+        .column(tracks::Column::Id)
+        .column(tracks::Column::SceneId)
+        .column(tracks::Column::StartTimeSeconds)
+        .column(tracks::Column::EndTimeSeconds)
+        .column(tracks::Column::Status)
+        .column_as(songs::Column::Title, "song_title")
+        .column_as(songs::Column::Artist, "song_artist")
+        .column_as(scenes::Column::Name, "scene_name")
+        .into_model::<TrackDto>()
         .all(&state.db)
         .await
         .map_err(|e| format!("Error fetching tracks: {}", e))?;
 
     Ok(Json(tracks))
-}
-
-#[derive(Deserialize)]
-pub struct UpdateTrackStatusPayload {
-    pub new_status: LicensingStatus,
 }
 
 pub async fn update_track_status(
@@ -109,11 +135,9 @@ pub async fn sse_handler(
     State(state): State<AppState>,
 ) -> Sse<impl tokio_stream::Stream<Item = Result<Event, Infallible>>> {
     let rx = state.tx.subscribe();
-    let stream = BroadcastStream::new(rx).filter_map(|res| {
-        match res {
-            Ok(msg) => Some(Ok(Event::default().data(msg))),
-            Err(_) => None, // Ignoramos errores si nos quedamos atrás
-        }
+    let stream = BroadcastStream::new(rx).filter_map(|res| match res {
+        Ok(msg) => Some(Ok(Event::default().data(msg))),
+        Err(_) => None,
     });
     Sse::new(stream).keep_alive(axum::response::sse::KeepAlive::default())
 }
@@ -121,9 +145,21 @@ pub async fn sse_handler(
 pub async fn get_scene_tracks(
     State(state): State<AppState>,
     Path(scene_id): Path<Uuid>,
-) -> Result<Json<Vec<tracks::Model>>, String> {
+) -> Result<Json<Vec<TrackDto>>, String> {
     let tracks = tracks::Entity::find()
+        .inner_join(scenes::Entity)
+        .inner_join(songs::Entity)
         .filter(tracks::Column::SceneId.eq(scene_id))
+        .select_only()
+        .column(tracks::Column::Id)
+        .column(tracks::Column::SceneId)
+        .column(tracks::Column::StartTimeSeconds)
+        .column(tracks::Column::EndTimeSeconds)
+        .column(tracks::Column::Status)
+        .column_as(songs::Column::Title, "song_title")
+        .column_as(songs::Column::Artist, "song_artist")
+        .column_as(scenes::Column::Name, "scene_name")
+        .into_model::<TrackDto>()
         .all(&state.db)
         .await
         .map_err(|e| format!("Error fetching scene tracks: {}", e))?;
