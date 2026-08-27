@@ -3,13 +3,13 @@ use axum::{
     extract::{Path, State},
 };
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QuerySelect, Set,
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QuerySelect,
+    Select, Set,
 };
 use serde::{Deserialize, Serialize};
 
 use uuid::Uuid;
 
-use crate::entities::prelude::*;
 use crate::entities::sea_orm_active_enums::LicensingStatus;
 use crate::entities::{movies, scenes, songs, tracks};
 
@@ -39,6 +39,7 @@ pub struct UpdateTrackStatusPayload {
 pub struct TrackDto {
     pub id: Uuid,
     pub scene_id: Uuid,
+    pub song_id: Uuid,
     pub start_time_seconds: i32,
     pub end_time_seconds: i32,
     pub status: LicensingStatus,
@@ -47,10 +48,64 @@ pub struct TrackDto {
     pub scene_name: String,
 }
 
+// Helpers
+
+fn base_track_query() -> Select<tracks::Entity> {
+    tracks::Entity::find()
+        .inner_join(scenes::Entity)
+        .inner_join(songs::Entity)
+        .select_only()
+        .column(tracks::Column::Id)
+        .column(tracks::Column::SceneId)
+        .column(tracks::Column::SongId)
+        .column(tracks::Column::StartTimeSeconds)
+        .column(tracks::Column::EndTimeSeconds)
+        .column(tracks::Column::Status)
+        .column_as(songs::Column::Title, "song_title")
+        .column_as(songs::Column::Artist, "song_artist")
+        .column_as(scenes::Column::Name, "scene_name")
+}
+
+async fn get_track_dto(db: &DatabaseConnection, track_id: Uuid) -> Result<TrackDto, AppError> {
+    base_track_query()
+        .filter(tracks::Column::Id.eq(track_id))
+        .into_model::<TrackDto>()
+        .one(db)
+        .await?
+        .ok_or_else(|| AppError::Internal(format!("Track {track_id} vanished after write")))
+}
+
+// Endpoints
+
 pub async fn create_track(
     State(state): State<AppState>,
     Json(payload): Json<CreateTrackPayload>,
-) -> Result<Json<tracks::Model>, AppError> {
+) -> Result<Json<TrackDto>, AppError> {
+    if payload.start_time_seconds < 0 || payload.end_time_seconds < 0 {
+        return Err(AppError::Validation("Times cannot be negative".to_string()));
+    }
+    if payload.start_time_seconds >= payload.end_time_seconds {
+        return Err(AppError::Validation(
+            "start_time_seconds must be less than end_time_seconds".to_string(),
+        ));
+    }
+
+    let scene_exists = scenes::Entity::find_by_id(payload.scene_id)
+        .one(&state.db)
+        .await?
+        .is_some();
+    if !scene_exists {
+        return Err(AppError::NotFound("Scene not found".to_string()));
+    }
+
+    let song_exists = songs::Entity::find_by_id(payload.song_id)
+        .one(&state.db)
+        .await?
+        .is_some();
+    if !song_exists {
+        return Err(AppError::NotFound("Song not found".to_string()));
+    }
+
     let new_track = tracks::ActiveModel {
         scene_id: Set(payload.scene_id),
         song_id: Set(payload.song_id),
@@ -61,26 +116,24 @@ pub async fn create_track(
 
     let inserted_track = new_track.insert(&state.db).await?;
 
-    Ok(Json(inserted_track))
+    let dto = get_track_dto(&state.db, inserted_track.id).await?;
+    Ok(Json(dto))
 }
 
 pub async fn get_movie_tracks(
     State(state): State<AppState>,
     Path(movie_id): Path<Uuid>,
 ) -> Result<Json<Vec<TrackDto>>, AppError> {
-    let tracks = tracks::Entity::find()
-        .inner_join(scenes::Entity)
-        .inner_join(songs::Entity)
+    let movie_exists = movies::Entity::find_by_id(movie_id)
+        .one(&state.db)
+        .await?
+        .is_some();
+    if !movie_exists {
+        return Err(AppError::NotFound("Movie not found".to_string()));
+    }
+
+    let tracks = base_track_query()
         .filter(scenes::Column::MovieId.eq(movie_id))
-        .select_only()
-        .column(tracks::Column::Id)
-        .column(tracks::Column::SceneId)
-        .column(tracks::Column::StartTimeSeconds)
-        .column(tracks::Column::EndTimeSeconds)
-        .column(tracks::Column::Status)
-        .column_as(songs::Column::Title, "song_title")
-        .column_as(songs::Column::Artist, "song_artist")
-        .column_as(scenes::Column::Name, "scene_name")
         .into_model::<TrackDto>()
         .all(&state.db)
         .await?;
@@ -92,7 +145,7 @@ pub async fn update_track_status(
     State(state): State<AppState>,
     Path(track_id): Path<Uuid>,
     Json(payload): Json<UpdateTrackStatusPayload>,
-) -> Result<Json<tracks::Model>, AppError> {
+) -> Result<Json<TrackDto>, AppError> {
     let track = tracks::Entity::find_by_id(track_id)
         .one(&state.db)
         .await?
@@ -118,13 +171,16 @@ pub async fn update_track_status(
 
     let updated_track = active_track.update(&state.db).await?;
 
-    let event_message = format!(
-        r#"{{"track_id": "{}", "new_status": "{:?}"}}"#,
-        track_id, payload.new_status
-    );
+    let dto = get_track_dto(&state.db, updated_track.id).await?;
 
-    let _ = state.tx.send(event_message);
-    Ok(Json(updated_track))
+    match serde_json::to_string(&dto) {
+        Ok(event_message) => {
+            let _ = state.tx.send(event_message);
+        }
+        Err(err) => tracing::error!("Failed to serialize SSE event for track {track_id}: {err}"),
+    }
+
+    Ok(Json(dto))
 }
 
 pub async fn sse_handler(
@@ -142,19 +198,16 @@ pub async fn get_scene_tracks(
     State(state): State<AppState>,
     Path(scene_id): Path<Uuid>,
 ) -> Result<Json<Vec<TrackDto>>, AppError> {
-    let tracks = tracks::Entity::find()
-        .inner_join(scenes::Entity)
-        .inner_join(songs::Entity)
+    let scene_exists = scenes::Entity::find_by_id(scene_id)
+        .one(&state.db)
+        .await?
+        .is_some();
+    if !scene_exists {
+        return Err(AppError::NotFound("Scene not found".to_string()));
+    }
+
+    let tracks = base_track_query()
         .filter(tracks::Column::SceneId.eq(scene_id))
-        .select_only()
-        .column(tracks::Column::Id)
-        .column(tracks::Column::SceneId)
-        .column(tracks::Column::StartTimeSeconds)
-        .column(tracks::Column::EndTimeSeconds)
-        .column(tracks::Column::Status)
-        .column_as(songs::Column::Title, "song_title")
-        .column_as(songs::Column::Artist, "song_artist")
-        .column_as(scenes::Column::Name, "scene_name")
         .into_model::<TrackDto>()
         .all(&state.db)
         .await?;

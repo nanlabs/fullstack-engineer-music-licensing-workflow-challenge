@@ -4,6 +4,7 @@ use axum::{
 };
 use sea_orm::{Database, DatabaseConnection};
 use std::env;
+use tracing_subscriber::EnvFilter;
 
 mod entities;
 mod error;
@@ -20,13 +21,19 @@ struct AppState {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenvy::dotenv().ok();
 
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")),
+        )
+        .init();
+
     let db_url = env::var("DATABASE_URL").expect("DATABASE_URL is not defined in the .env file");
 
-    print!("Connecting to the database...");
+    tracing::info!("Connecting to the database...");
 
     let db: DatabaseConnection = Database::connect(&db_url).await?;
 
-    println!("Database connection successful!");
+    tracing::info!("Database connection successful!");
 
     let (tx, _rx) = broadcast::channel(100);
     let state = AppState { db, tx };
@@ -41,7 +48,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_state(state);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await?;
-    println!("Server running on http://localhost:3000");
+    tracing::info!("Server running on http://localhost:3000");
 
     axum::serve(listener, app).await?;
     Ok(())

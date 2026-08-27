@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum, Serialize, Deserialize)]
 #[sea_orm(rs_type = "Enum", db_type = "Enum", enum_name = "licensing_status")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum LicensingStatus {
     #[sea_orm(string_value = "DRAFT")]
     Draft,

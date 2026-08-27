@@ -14,6 +14,12 @@ pub enum AppError {
     #[error("Conflict - Invalid Transition: {0}")]
     InvalidTransition(String),
 
+    #[error("Validation Error: {0}")]
+    Validation(String),
+
+    #[error("Internal error: {0}")]
+    Internal(String),
+
     #[error("Database error: {0}")]
     DatabaseError(#[from] sea_orm::DbErr),
 }
@@ -23,7 +29,21 @@ impl IntoResponse for AppError {
         let (status, error_message) = match self {
             AppError::NotFound(msg) => (StatusCode::NOT_FOUND, msg),
             AppError::InvalidTransition(msg) => (StatusCode::CONFLICT, msg),
-            AppError::DatabaseError(err) => (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()),
+            AppError::Validation(msg) => (StatusCode::UNPROCESSABLE_ENTITY, msg),
+            AppError::Internal(msg) => {
+                tracing::error!("Internal error: {}", msg);
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Internal server error".to_string(),
+                )
+            }
+            AppError::DatabaseError(err) => {
+                tracing::error!("Database error: {}", err);
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Internal server error".to_string(),
+                )
+            }
         };
 
         let body = Json(json!({
