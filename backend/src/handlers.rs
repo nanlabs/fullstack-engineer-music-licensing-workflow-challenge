@@ -15,6 +15,8 @@ use crate::entities::{movies, scenes, songs, tracks};
 
 use crate::AppState;
 use crate::error::AppError;
+use crate::validation::validate_track_times;
+use crate::workflow::is_valid_transition;
 use sea_orm::FromQueryResult;
 
 use axum::response::sse::{Event, Sse};
@@ -81,14 +83,7 @@ pub async fn create_track(
     State(state): State<AppState>,
     Json(payload): Json<CreateTrackPayload>,
 ) -> Result<Json<TrackDto>, AppError> {
-    if payload.start_time_seconds < 0 || payload.end_time_seconds < 0 {
-        return Err(AppError::Validation("Times cannot be negative".to_string()));
-    }
-    if payload.start_time_seconds >= payload.end_time_seconds {
-        return Err(AppError::Validation(
-            "start_time_seconds must be less than end_time_seconds".to_string(),
-        ));
-    }
+    validate_track_times(payload.start_time_seconds, payload.end_time_seconds)?;
 
     let scene_exists = scenes::Entity::find_by_id(payload.scene_id)
         .one(&state.db)
@@ -151,15 +146,7 @@ pub async fn update_track_status(
         .await?
         .ok_or_else(|| AppError::NotFound("Track not found".to_string()))?;
 
-    let is_valid_transition = match (&track.status, &payload.new_status) {
-        (LicensingStatus::Draft, LicensingStatus::Negotiating) => true,
-        (LicensingStatus::Negotiating, LicensingStatus::Approved) => true,
-        (LicensingStatus::Negotiating, LicensingStatus::Rejected) => true,
-        (LicensingStatus::Rejected, LicensingStatus::Negotiating) => true,
-        _ => false,
-    };
-
-    if !is_valid_transition {
+    if !is_valid_transition(&track.status, &payload.new_status) {
         return Err(AppError::InvalidTransition(format!(
             "Invalid transition: Cannot move from {} to {}",
             track.status, payload.new_status
