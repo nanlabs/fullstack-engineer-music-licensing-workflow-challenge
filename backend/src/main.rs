@@ -6,6 +6,7 @@ use sea_orm::{Database, DatabaseConnection};
 use std::env;
 
 mod entities;
+mod error;
 mod handlers;
 
 use tokio::sync::broadcast;

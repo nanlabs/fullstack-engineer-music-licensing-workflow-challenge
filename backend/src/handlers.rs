@@ -14,6 +14,7 @@ use crate::entities::sea_orm_active_enums::LicensingStatus;
 use crate::entities::{movies, scenes, songs, tracks};
 
 use crate::AppState;
+use crate::error::AppError;
 use sea_orm::FromQueryResult;
 
 use axum::response::sse::{Event, Sse};
@@ -23,7 +24,6 @@ use tokio_stream::wrappers::BroadcastStream;
 
 #[derive(Deserialize)]
 pub struct CreateTrackPayload {
-    // Contract that the client will send in JSON format
     pub scene_id: Uuid,
     pub song_id: Uuid,
     pub start_time_seconds: i32,
@@ -50,7 +50,7 @@ pub struct TrackDto {
 pub async fn create_track(
     State(state): State<AppState>,
     Json(payload): Json<CreateTrackPayload>,
-) -> Result<Json<tracks::Model>, String> {
+) -> Result<Json<tracks::Model>, AppError> {
     let new_track = tracks::ActiveModel {
         scene_id: Set(payload.scene_id),
         song_id: Set(payload.song_id),
@@ -59,10 +59,7 @@ pub async fn create_track(
         ..Default::default()
     };
 
-    let inserted_track = new_track
-        .insert(&state.db)
-        .await
-        .map_err(|e| format!("Error inserting the new track: {}", e))?;
+    let inserted_track = new_track.insert(&state.db).await?;
 
     Ok(Json(inserted_track))
 }
@@ -70,7 +67,7 @@ pub async fn create_track(
 pub async fn get_movie_tracks(
     State(state): State<AppState>,
     Path(movie_id): Path<Uuid>,
-) -> Result<Json<Vec<TrackDto>>, String> {
+) -> Result<Json<Vec<TrackDto>>, AppError> {
     let tracks = tracks::Entity::find()
         .inner_join(scenes::Entity)
         .inner_join(songs::Entity)
@@ -86,8 +83,7 @@ pub async fn get_movie_tracks(
         .column_as(scenes::Column::Name, "scene_name")
         .into_model::<TrackDto>()
         .all(&state.db)
-        .await
-        .map_err(|e| format!("Error fetching tracks: {}", e))?;
+        .await?;
 
     Ok(Json(tracks))
 }
@@ -96,12 +92,12 @@ pub async fn update_track_status(
     State(state): State<AppState>,
     Path(track_id): Path<Uuid>,
     Json(payload): Json<UpdateTrackStatusPayload>,
-) -> Result<Json<tracks::Model>, String> {
+) -> Result<Json<tracks::Model>, AppError> {
     let track = tracks::Entity::find_by_id(track_id)
         .one(&state.db)
-        .await
-        .map_err(|e| e.to_string())?
-        .ok_or_else(|| "Track not found".to_string())?;
+        .await?
+        .ok_or_else(|| AppError::NotFound("Track not found".to_string()))?;
+
     let is_valid_transition = match (&track.status, &payload.new_status) {
         (LicensingStatus::Draft, LicensingStatus::Negotiating) => true,
         (LicensingStatus::Negotiating, LicensingStatus::Approved) => true,
@@ -109,19 +105,19 @@ pub async fn update_track_status(
         (LicensingStatus::Rejected, LicensingStatus::Negotiating) => true,
         _ => false,
     };
+
     if !is_valid_transition {
-        return Err(format!(
+        return Err(AppError::InvalidTransition(format!(
             "Invalid transition: Cannot move from {:?} to {:?}",
             track.status, payload.new_status
-        ));
+        )));
     }
+
     let mut active_track: tracks::ActiveModel = track.into();
     active_track.status = Set(payload.new_status.clone());
 
-    let updated_track = active_track
-        .update(&state.db)
-        .await
-        .map_err(|e| e.to_string())?;
+    let updated_track = active_track.update(&state.db).await?;
+
     let event_message = format!(
         r#"{{"track_id": "{}", "new_status": "{:?}"}}"#,
         track_id, payload.new_status
@@ -145,7 +141,7 @@ pub async fn sse_handler(
 pub async fn get_scene_tracks(
     State(state): State<AppState>,
     Path(scene_id): Path<Uuid>,
-) -> Result<Json<Vec<TrackDto>>, String> {
+) -> Result<Json<Vec<TrackDto>>, AppError> {
     let tracks = tracks::Entity::find()
         .inner_join(scenes::Entity)
         .inner_join(songs::Entity)
@@ -161,8 +157,7 @@ pub async fn get_scene_tracks(
         .column_as(scenes::Column::Name, "scene_name")
         .into_model::<TrackDto>()
         .all(&state.db)
-        .await
-        .map_err(|e| format!("Error fetching scene tracks: {}", e))?;
+        .await?;
 
     Ok(Json(tracks))
 }
