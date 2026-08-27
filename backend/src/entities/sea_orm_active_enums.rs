@@ -16,3 +16,15 @@ pub enum LicensingStatus {
     #[sea_orm(string_value = "REJECTED")]
     Rejected,
 }
+
+impl std::fmt::Display for LicensingStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let label = match self {
+            LicensingStatus::Draft => "DRAFT",
+            LicensingStatus::Negotiating => "NEGOTIATING",
+            LicensingStatus::Approved => "APPROVED",
+            LicensingStatus::Rejected => "REJECTED",
+        };
+        f.write_str(label)
+    }
+}

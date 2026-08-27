@@ -1,16 +1,36 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:15-alpine
     environment:
-      POSTGRES_USER: acme_user
-      POSTGRES_PASSWORD: acme_password
-      POSTGRES_DB: acme_music_db
+      POSTGRES_USER: ${POSTGRES_USER:-acme_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-acme_password}
+      POSTGRES_DB: ${POSTGRES_DB:-acme_music_db}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      # Scripts in this directory run once, in alphabetical order, the first
+      # time the data volume is initialized. Reset with `docker compose down -v`.
+      - ./backend/migrations/20260825204317_init_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ./backend/seeds/seed.sql:/docker-entrypoint-initdb.d/02_seed.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-acme_user} -d ${POSTGRES_DB:-acme_music_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-acme_user}:${POSTGRES_PASSWORD:-acme_password}@postgres:5432/${POSTGRES_DB:-acme_music_db}
+      RUST_LOG: ${RUST_LOG:-info}
+    ports:
+      - "${BACKEND_PORT:-3000}:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   postgres_data:

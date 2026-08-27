@@ -161,7 +161,7 @@ pub async fn update_track_status(
 
     if !is_valid_transition {
         return Err(AppError::InvalidTransition(format!(
-            "Invalid transition: Cannot move from {:?} to {:?}",
+            "Invalid transition: Cannot move from {} to {}",
             track.status, payload.new_status
         )));
     }
