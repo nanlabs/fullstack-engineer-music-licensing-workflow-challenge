@@ -1,0 +1,14 @@
+/target
+node_modules/
+dist/
+.env
+backend/scripts/flow-demo.sh
+
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+backend-config.hcl
+crash.log
+crash.*.log

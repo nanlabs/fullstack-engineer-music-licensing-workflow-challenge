@@ -1,0 +1,207 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/inter";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+    --font-heading: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+    --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+    --font-mono: 'Berkeley Mono', ui-monospace, 'Menlo', 'Consolas', monospace;
+
+    --color-sidebar-ring: var(--sidebar-ring);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar: var(--sidebar);
+    --color-chart-5: var(--chart-5);
+    --color-chart-4: var(--chart-4);
+    --color-chart-3: var(--chart-3);
+    --color-chart-2: var(--chart-2);
+    --color-chart-1: var(--chart-1);
+    --color-ring: var(--ring);
+    --color-input: var(--input);
+    --color-border: var(--border);
+    --color-destructive: var(--destructive);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent: var(--accent);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-muted: var(--muted);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-secondary: var(--secondary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-primary: var(--primary);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-popover: var(--popover);
+    --color-card-foreground: var(--card-foreground);
+    --color-card: var(--card);
+    --color-foreground: var(--foreground);
+    --color-background: var(--background);
+
+    /* Semantic status colors */
+    --color-success: var(--success);
+    --color-success-foreground: var(--success-foreground);
+    --color-warning: var(--warning);
+    --color-warning-foreground: var(--warning-foreground);
+    --color-info: var(--info);
+    --color-info-foreground: var(--info-foreground);
+
+    /* Radii — strict scale: 4px, 6px, 12px, 9999px (Linear pattern) */
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --radius-2xl: 20px;
+    --radius-3xl: 24px;
+    --radius-4xl: 9999px;
+}
+
+/*
+ * Music Licensing Platform — Design Tokens
+ * Inspired by: Linear (density, dark-first), Spotify (content-focus), Musicbed (music licensing UX)
+ *
+ * Philosophy:
+ *   - Dark-first: deep surfaces let content (album art, data) be the hero
+ *   - Depth via borders, not shadows (Linear pattern)
+ *   - Accent color reserved for interactivity only
+ *   - Status colors for license negotiation states
+ *   - 4px base spacing scale
+ *   - Tight typography for information density
+ */
+
+:root {
+    /* Surface hierarchy — light mode */
+    --background: #ffffff;
+    --foreground: #0f1011;
+    --card: #f9fafb;
+    --card-foreground: #0f1011;
+    --popover: #ffffff;
+    --popover-foreground: #0f1011;
+
+    /* Brand — indigo accent (interactive only) */
+    --primary: #5e6ad2;
+    --primary-foreground: #ffffff;
+
+    /* Secondary — subtle, receding */
+    --secondary: #f1f3f5;
+    --secondary-foreground: #374151;
+
+    /* Muted — metadata, captions */
+    --muted: #f3f4f6;
+    --muted-foreground: #6b7280;
+
+    /* Accent — hover states */
+    --accent: #eef0ff;
+    --accent-foreground: #4338ca;
+
+    /* Destructive */
+    --destructive: #ef4444;
+
+    /* Borders — 1px solid, not shadows */
+    --border: #e5e7eb;
+    --input: #e5e7eb;
+    --ring: #5e6ad2;
+
+    /* Status — license negotiation */
+    --success: #10b981;
+    --success-foreground: #ffffff;
+    --warning: #f59e0b;
+    --warning-foreground: #ffffff;
+    --info: #3b82f6;
+    --info-foreground: #ffffff;
+
+    /* Charts */
+    --chart-1: #5e6ad2;
+    --chart-2: #8b5cf6;
+    --chart-3: #10b981;
+    --chart-4: #f59e0b;
+    --chart-5: #ef4444;
+
+    --radius: 0.625rem;
+
+    /* Sidebar */
+    --sidebar: #f9fafb;
+    --sidebar-foreground: #0f1011;
+    --sidebar-primary: #5e6ad2;
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: #f1f3f5;
+    --sidebar-accent-foreground: #374151;
+    --sidebar-border: #e5e7eb;
+    --sidebar-ring: #5e6ad2;
+}
+
+.dark {
+    /* Surface hierarchy — dark mode (Linear-inspired) */
+    --background: #0f1011;
+    --foreground: #f7f8f8;
+    --card: #161718;
+    --card-foreground: #f7f8f8;
+    --popover: #1a1b1d;
+    --popover-foreground: #f7f8f8;
+
+    /* Brand — same indigo accent */
+    --primary: #5e6ad2;
+    --primary-foreground: #f7f8f8;
+
+    /* Secondary */
+    --secondary: #1e2022;
+    --secondary-foreground: #d0d6e0;
+
+    /* Muted */
+    --muted: #1e2022;
+    --muted-foreground: #8a8f98;
+
+    /* Accent */
+    --accent: rgba(94, 106, 210, 0.12);
+    --accent-foreground: #a5b4fc;
+
+    /* Destructive */
+    --destructive: #ef4444;
+
+    /* Borders */
+    --border: #2a2e33;
+    --input: #2a2e33;
+    --ring: #5e6ad2;
+
+    /* Status */
+    --success: #10b981;
+    --success-foreground: #ffffff;
+    --warning: #f59e0b;
+    --warning-foreground: #ffffff;
+    --info: #3b82f6;
+    --info-foreground: #ffffff;
+
+    /* Charts */
+    --chart-1: #818cf8;
+    --chart-2: #a78bfa;
+    --chart-3: #34d399;
+    --chart-4: #fbbf24;
+    --chart-5: #f87171;
+
+    /* Sidebar */
+    --sidebar: #0a0b0c;
+    --sidebar-foreground: #f7f8f8;
+    --sidebar-primary: #5e6ad2;
+    --sidebar-primary-foreground: #f7f8f8;
+    --sidebar-accent: #1e2022;
+    --sidebar-accent-foreground: #d0d6e0;
+    --sidebar-border: #2a2e33;
+    --sidebar-ring: #5e6ad2;
+}
+
+@layer base {
+    * {
+        @apply border-border outline-ring/50;
+    }
+    body {
+        @apply bg-background text-foreground antialiased;
+        font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    }
+    html {
+        @apply font-sans;
+    }
+}

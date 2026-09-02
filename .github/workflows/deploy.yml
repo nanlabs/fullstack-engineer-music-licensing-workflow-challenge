@@ -1,0 +1,152 @@
+name: Deploy to AWS (production)
+
+# Manual only — never runs automatically. Merging to main does NOT deploy.
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "deploy" to confirm a production deployment'
+        required: true
+
+permissions:
+  id-token: write # for OIDC auth to AWS
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  TF_DIR: infra/terraform
+
+jobs:
+  guard:
+    name: Confirm intent
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check confirmation input
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "deploy" ]; then
+            echo "Confirmation text did not match 'deploy'. Aborting." >&2
+            exit 1
+          fi
+
+  # Re-run the same checks as CI as a safety net, in case this is ever
+  # triggered from a branch/commit that never went through a PR.
+  test:
+    name: Backend tests
+    needs: guard
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: backend
+      - run: cargo test --all-targets
+
+  deploy:
+    name: Build, push, and deploy
+    needs: test
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.8"
+          terraform_wrapper: false
+
+      - name: Terraform init
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
+            -backend-config="key=music-licensing/production.tfstate" \
+            -backend-config="region=${{ env.AWS_REGION }}" \
+            -backend-config="dynamodb_table=${{ secrets.TF_STATE_LOCK_TABLE }}"
+
+      # Ensure the ECR repo + rest of the infra exist before we try to push
+      # an image into it. Safe to run repeatedly (no-op if unchanged).
+      - name: Terraform apply (infra, excluding new backend image)
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform apply -auto-approve
+
+      - name: Get ECR repository URL
+        id: ecr
+        working-directory: ${{ env.TF_DIR }}
+        run: echo "url=$(terraform output -raw backend_ecr_repository_url)" >> "$GITHUB_OUTPUT"
+
+      - name: Login to ECR
+        run: |
+          aws ecr get-login-password --region "$AWS_REGION" \
+            | docker login --username AWS --password-stdin "${{ steps.ecr.outputs.url }}"
+
+      - name: Build and push backend image
+        working-directory: backend
+        run: |
+          IMAGE="${{ steps.ecr.outputs.url }}:${{ github.sha }}"
+          docker build -t "$IMAGE" -t "${{ steps.ecr.outputs.url }}:latest" .
+          docker push "$IMAGE"
+          docker push "${{ steps.ecr.outputs.url }}:latest"
+
+      - name: Terraform apply (pin backend image tag, roll out ECS)
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform apply -auto-approve -var="backend_image_tag=${{ github.sha }}"
+
+      - name: Force new ECS deployment
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          aws ecs update-service \
+            --cluster "$(terraform output -raw ecs_cluster_name)" \
+            --service "$(terraform output -raw ecs_service_name)" \
+            --force-new-deployment
+
+      - name: Get backend URL for frontend build
+        id: backend_url
+        working-directory: ${{ env.TF_DIR }}
+        run: echo "url=$(terraform output -raw backend_url)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build frontend
+        working-directory: frontend
+        env:
+          VITE_API_URL: ${{ steps.backend_url.outputs.url }}/api
+        run: |
+          npm ci
+          npm run build
+
+      - name: Sync frontend to S3
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          aws s3 sync ../../frontend/dist "s3://$(terraform output -raw frontend_bucket_name)" --delete
+
+      - name: Invalidate CloudFront cache
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "$(terraform output -raw cloudfront_distribution_id)" \
+            --paths "/*"
+
+      - name: Summary
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          {
+            echo "### Deployed"
+            echo "- Frontend: $(terraform output -raw frontend_url)"
+            echo "- Backend:  $(terraform output -raw backend_url)"
+            echo "- Image:    ${{ steps.ecr.outputs.url }}:${{ github.sha }}"
+          } >> "$GITHUB_STEP_SUMMARY"

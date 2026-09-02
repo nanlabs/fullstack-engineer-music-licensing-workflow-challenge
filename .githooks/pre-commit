@@ -1,0 +1,26 @@
+#!/bin/sh
+
+# Run rustfmt on staged Rust files before committing
+# If rustfmt modifies any file, the commit is aborted so you can review and re-stage.
+
+STAGED_RS_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.rs$')
+
+if [ -z "$STAGED_RS_FILES" ]; then
+    exit 0
+fi
+
+# Format only staged Rust files
+echo "$STAGED_RS_FILES" | xargs rustfmt --edition 2024 2>/dev/null
+
+# Check if rustfmt changed anything
+CHANGED=$(echo "$STAGED_RS_FILES" | xargs git diff --name-only)
+
+if [ -n "$CHANGED" ]; then
+    echo "rustfmt modified the following files:"
+    echo "$CHANGED"
+    echo ""
+    echo "Changes have been applied. Please review, stage, and commit again."
+    exit 1
+fi
+
+exit 0
