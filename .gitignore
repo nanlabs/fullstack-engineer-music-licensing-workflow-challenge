@@ -1,0 +1,16 @@
+# Rust
+backend/target/
+**/*.rs.bk
+
+# Local environment (keep .env.example)
+.env
+
+# Editors / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Frontend (later)
+node_modules/
+dist/

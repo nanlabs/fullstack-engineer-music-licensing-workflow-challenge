@@ -1,0 +1,18 @@
+[package]
+name = "licensing"
+description = "Music licensing bounded context: movies, scenes, tracks, songs and the licensing workflow (scaffold)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[dependencies]
+kernel = { workspace = true }
+errx = { workspace = true }
+iam = { workspace = true }
+
+actix-web = { workspace = true }
+sqlx = { workspace = true }
+tokio-util = { workspace = true }
+tracing = { workspace = true }

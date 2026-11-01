@@ -1,0 +1,62 @@
+name: music-licensing
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-licensing}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-licensing}
+      POSTGRES_DB: ${POSTGRES_DB:-licensing}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-licensing} -d ${POSTGRES_DB:-licensing}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+    env_file:
+      - .env
+    environment:
+      # Inside the compose network the database host is the service name.
+      DATABASE_URL: postgres://${POSTGRES_USER:-licensing}:${POSTGRES_PASSWORD:-licensing}@postgres:5432/${POSTGRES_DB:-licensing}
+      HOST: 0.0.0.0
+      PORT: "8080"
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Optional: `docker compose --profile datadog up`. Needs DD_API_KEY in .env and
+  # OTEL_EXPORTER_OTLP_ENDPOINT=http://datadog-agent:4317 so the backend ships
+  # traces and logs through OTLP to the agent.
+  datadog-agent:
+    image: gcr.io/datadoghq/agent:7
+    profiles: ["datadog"]
+    environment:
+      DD_API_KEY: ${DD_API_KEY:-}
+      DD_SITE: ${DD_SITE:-datadoghq.com}
+      DD_ENV: ${DD_ENV:-development}
+      DD_HOSTNAME: ${DD_HOSTNAME:-music-licensing-local}
+      DD_APM_ENABLED: "true"
+      DD_APM_NON_LOCAL_TRAFFIC: "true"
+      DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_GRPC_ENDPOINT: 0.0.0.0:4317
+      DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_HTTP_ENDPOINT: 0.0.0.0:4318
+      DD_OTLP_CONFIG_LOGS_ENABLED: "true"
+      DD_LOGS_ENABLED: "true"
+      DD_CONTAINER_EXCLUDE: "name:datadog-agent"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
