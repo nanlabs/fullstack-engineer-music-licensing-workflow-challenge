@@ -29,8 +29,9 @@ docker compose up --build -d
 curl localhost:8080/health
 ```
 
-That starts PostgreSQL, Redis and the backend. The API listens on
-`localhost:8080`. OTP codes and invitations are printed to the backend log as
+That starts PostgreSQL, Redis, the backend and the frontend. The API
+listens on `localhost:8080` and the web client on `http://localhost:5173`
+(see `../frontend/README.md`). OTP codes and invitations are printed to the backend log as
 fully rendered emails (`docker compose logs -f backend`) because no email
 provider is wired; see `../docs/notifications.md`.
 

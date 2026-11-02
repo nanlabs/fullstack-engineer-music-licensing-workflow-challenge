@@ -327,6 +327,20 @@ advisory lock so it follows commit order (`licensing.md`, "Resuming from
 the service tests cover replay, stale and out-of-order notices, lag and
 tenant filtering without a database.
 
+## Frontend
+
+The client lives in `frontend/` and is documented in `frontend.md`. It is
+a React single-page application that consumes `/api/v1` as a browser would
+consume any third-party API: same-origin through a proxy (Vite in
+development, nginx in the image), HttpOnly cookies for the session,
+`EventSource` for the stream. Its own layering mirrors this document in
+spirit: wire types and per-domain interfaces (`lib/api/contracts.ts`) are
+the contract, `lib/api/<domain>.ts` the adapters over one HTTP client,
+`lib/queries` the use-case layer the screens call, and routes the
+transport. The backend's error codes are the only vocabulary the two sides
+share for failures; the frontend maps them to text and keeps the code and
+the request id for support.
+
 ## Intentionally not here yet
 
 - API keys and OAuth providers as additional `Actor`/credential types.
