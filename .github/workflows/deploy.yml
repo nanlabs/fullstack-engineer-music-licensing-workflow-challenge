@@ -1,0 +1,225 @@
+# The only path that applies Terraform. On every push to main: build the
+# backend image (skipped when the backend/ tree is unchanged), build the
+# frontend, deploy dev, then deploy prod behind the approval configured on the
+# `prod` GitHub environment. Manual runs can target one environment, reuse an
+# existing image tag, or destroy an environment.
+#
+# Every job that touches AWS is skipped until the repository variable
+# INFRA_ENABLED is "true" (see infra/README.md for the whole setup).
+name: deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - "infra/**"
+      - ".github/workflows/deploy.yml"
+      - ".github/actions/deploy-environment/**"
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment
+        type: choice
+        options: [dev, prod]
+        default: dev
+      action:
+        description: apply or destroy
+        type: choice
+        options: [apply, destroy]
+        default: apply
+      image_tag:
+        description: Existing ECR tag to deploy (empty builds this commit)
+        type: string
+        required: false
+        default: ""
+
+env:
+  TF_IN_AUTOMATION: "1"
+  TF_INPUT: "0"
+
+jobs:
+  backend-image:
+    name: backend image (arm64)
+    if: >-
+      vars.INFRA_ENABLED == 'true' &&
+      (github.event_name == 'push' ||
+       (inputs.action == 'apply' && inputs.image_tag == ''))
+    runs-on: ubuntu-24.04-arm
+    environment: dev
+    permissions:
+      id-token: write
+      contents: read
+    outputs:
+      image_tag: ${{ steps.tag.outputs.image_tag }}
+    steps:
+      - uses: actions/checkout@v4
+      # The tag is the hash of the backend/ tree: unchanged backend, same tag,
+      # no rebuild and no redeployment of the service.
+      - name: Image tag from the backend tree
+        id: tag
+        run: echo "image_tag=$(git rev-parse HEAD:backend | cut -c1-12)" >> "$GITHUB_OUTPUT"
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - uses: aws-actions/amazon-ecr-login@v2
+        id: ecr
+      - name: Check whether the tag already exists
+        id: exists
+        env:
+          ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+          IMAGE_TAG: ${{ steps.tag.outputs.image_tag }}
+        run: |
+          if aws ecr describe-images --repository-name "$ECR_REPOSITORY" --image-ids "imageTag=$IMAGE_TAG" > /dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: docker/setup-buildx-action@v3
+        if: steps.exists.outputs.exists == 'false'
+      - uses: docker/build-push-action@v6
+        if: steps.exists.outputs.exists == 'false'
+        with:
+          context: backend
+          platforms: linux/arm64
+          push: true
+          provenance: false
+          tags: ${{ steps.ecr.outputs.registry }}/${{ vars.ECR_REPOSITORY }}:${{ steps.tag.outputs.image_tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  frontend-build:
+    name: frontend build
+    if: >-
+      vars.INFRA_ENABLED == 'true' &&
+      (github.event_name == 'push' || inputs.action == 'apply')
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      # The same bundle serves every environment: the API is same-origin.
+      - run: bun run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist
+          if-no-files-found: error
+          retention-days: 7
+
+  deploy-dev:
+    name: deploy dev
+    needs: [backend-image, frontend-build]
+    if: >-
+      !cancelled() &&
+      vars.INFRA_ENABLED == 'true' &&
+      needs.frontend-build.result == 'success' &&
+      needs.backend-image.result != 'failure' &&
+      needs.backend-image.result != 'cancelled' &&
+      (github.event_name == 'push' ||
+       (inputs.environment == 'dev' && inputs.action == 'apply'))
+    runs-on: ubuntu-latest
+    environment: dev
+    concurrency:
+      group: terraform-dev
+      cancel-in-progress: false
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - uses: ./.github/actions/deploy-environment
+        with:
+          environment: dev
+          image_tag: ${{ inputs.image_tag || needs.backend-image.outputs.image_tag }}
+          state_bucket: ${{ vars.TF_STATE_BUCKET }}
+
+  deploy-prod:
+    name: deploy prod
+    needs: [backend-image, frontend-build, deploy-dev]
+    # Same image as dev; the `prod` environment holds the approval gate.
+    if: >-
+      !cancelled() &&
+      vars.INFRA_ENABLED == 'true' &&
+      needs.frontend-build.result == 'success' &&
+      needs.backend-image.result != 'failure' &&
+      needs.backend-image.result != 'cancelled' &&
+      needs.deploy-dev.result != 'failure' &&
+      needs.deploy-dev.result != 'cancelled' &&
+      (github.event_name == 'push' ||
+       (inputs.environment == 'prod' && inputs.action == 'apply'))
+    runs-on: ubuntu-latest
+    environment: prod
+    concurrency:
+      group: terraform-prod
+      cancel-in-progress: false
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - uses: ./.github/actions/deploy-environment
+        with:
+          environment: prod
+          image_tag: ${{ inputs.image_tag || needs.backend-image.outputs.image_tag }}
+          state_bucket: ${{ vars.TF_STATE_BUCKET }}
+
+  destroy:
+    name: destroy ${{ inputs.environment }}
+    if: >-
+      vars.INFRA_ENABLED == 'true' &&
+      github.event_name == 'workflow_dispatch' &&
+      inputs.action == 'destroy'
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    # CloudFront and the VPC origin take a while to go away.
+    timeout-minutes: 90
+    concurrency:
+      group: terraform-${{ inputs.environment }}
+      cancel-in-progress: false
+    permissions:
+      id-token: write
+      contents: read
+    defaults:
+      run:
+        working-directory: infra/envs/${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read the pinned Terraform version
+        id: tf
+        run: echo "version=$(cat "$GITHUB_WORKSPACE/infra/.terraform-version")" >> "$GITHUB_OUTPUT"
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ steps.tf.outputs.version }}
+          terraform_wrapper: false
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - run: terraform init -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}"
+      # prod needs deletion_protection = false and force_destroy = true in its
+      # tfvars first (and an applied run with them), see infra/README.md.
+      - run: terraform destroy -auto-approve -var skip_image_check=true

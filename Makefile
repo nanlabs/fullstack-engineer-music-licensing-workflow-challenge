@@ -3,17 +3,21 @@
 # `backend/`, where `rust-toolchain.toml` pins the compiler) or `bun` (run
 # from `frontend/`). `make` alone lists the targets. Override a variable on the command line, for example
 # `make test-all DATABASE_URL=postgres://...` or `make up COMPOSE=docker-compose`.
+# The `tf-*` targets wrap Terraform for `infra/` (see infra/README.md).
 
 COMPOSE      ?= docker compose
 BACKEND      := backend
 FRONTEND     := frontend
+INFRA        := infra
+ENV          ?= dev
+TF_ROOTS     := $(INFRA)/bootstrap $(INFRA)/envs/dev $(INFRA)/envs/prod
 API          ?= http://localhost:8080
 DATABASE_URL ?= postgres://licensing:licensing@localhost:5432/licensing
 REDIS_URL    ?= redis://localhost:6379
 
 .DEFAULT_GOAL := help
 .PHONY: help env up up-datadog down reset build logs ps health psql infra dev fmt check test test-all clean \
-        fe-install fe-dev fe-check fe-build fe-logs
+        fe-install fe-dev fe-check fe-build fe-logs tf-fmt tf-validate tf-lint tf-plan
 
 help: ## List the targets
 	@grep -hE '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "} {printf "  \033[36m%-11s\033[0m %s\n", $$1, $$2}'
@@ -72,3 +76,17 @@ fe-check: ## Lint, typecheck and unit tests, as CI runs them
 	cd $(FRONTEND) && bun run lint && bun run typecheck && bun run test
 fe-build: ## Production build into frontend/dist
 	cd $(FRONTEND) && bun run build
+
+##@ Infrastructure (Terraform, AWS; see infra/README.md)
+tf-fmt: ## Format the Terraform files
+	terraform fmt -recursive $(INFRA)
+tf-validate: ## fmt check, init without backend and validate the three roots, as CI runs them
+	terraform fmt -check -recursive -diff $(INFRA)
+	@for root in $(TF_ROOTS); do echo "== $$root"; terraform -chdir=$$root init -backend=false -input=false > /dev/null && terraform -chdir=$$root validate || exit 1; done
+tf-lint: ## tflint over infra/ (local binary, or the Docker image when it is not installed)
+	@if command -v tflint > /dev/null; then cd $(INFRA) && tflint --init && tflint --recursive --config "$$PWD/.tflint.hcl"; \
+	else docker run --rm -e GITHUB_TOKEN -v "$$PWD/$(INFRA):/data" -w /data ghcr.io/terraform-linters/tflint:latest --init && docker run --rm -v "$$PWD/$(INFRA):/data" -w /data ghcr.io/terraform-linters/tflint:latest --recursive --config /data/.tflint.hcl; fi
+tf-plan: ## Plan one environment (ENV=dev|prod); needs AWS credentials and TF_STATE_BUCKET
+	@test -n "$$TF_STATE_BUCKET" || { echo "set TF_STATE_BUCKET to the bucket printed by infra/bootstrap"; exit 1; }
+	terraform -chdir=$(INFRA)/envs/$(ENV) init -input=false -backend-config="bucket=$$TF_STATE_BUCKET"
+	terraform -chdir=$(INFRA)/envs/$(ENV) plan -input=false -var skip_image_check=true

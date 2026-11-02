@@ -1,0 +1,140 @@
+# Terraform checks. `validate` needs no credentials and always runs; `plan`
+# talks to AWS and is skipped until the repository variable INFRA_ENABLED is
+# "true" (see infra/README.md). Applies happen only in deploy.yml.
+name: infra
+
+on:
+  pull_request:
+    paths:
+      - "infra/**"
+      - ".github/workflows/infra.yml"
+  push:
+    branches: [main]
+    paths:
+      - "infra/**"
+      - ".github/workflows/infra.yml"
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment to plan
+        type: choice
+        options: [dev, prod]
+        default: dev
+
+env:
+  TF_IN_AUTOMATION: "1"
+  TF_INPUT: "0"
+
+jobs:
+  validate:
+    name: fmt + validate + tflint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read the pinned Terraform version
+        id: tf
+        run: echo "version=$(cat infra/.terraform-version)" >> "$GITHUB_OUTPUT"
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ steps.tf.outputs.version }}
+          terraform_wrapper: false
+      - run: terraform fmt -check -recursive -diff infra
+      - name: Validate every root
+        run: |
+          for root in infra/bootstrap infra/envs/dev infra/envs/prod; do
+            echo "::group::$root"
+            terraform -chdir="$root" init -backend=false
+            terraform -chdir="$root" validate
+            echo "::endgroup::"
+          done
+      - uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: latest
+      - name: tflint
+        working-directory: infra
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          tflint --init
+          tflint --recursive --config "$PWD/.tflint.hcl"
+
+  plan:
+    name: plan (${{ matrix.environment }})
+    needs: validate
+    # Same-repository pull requests only: forks get no OIDC token. No
+    # `environment:` here on purpose, so the OIDC subject stays `pull_request`
+    # and only the read-only plan role trusts it.
+    if: >-
+      vars.INFRA_ENABLED == 'true' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event_name == 'pull_request' &&
+        github.event.pull_request.head.repo.full_name == github.repository))
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
+    strategy:
+      fail-fast: false
+      matrix:
+        environment: ${{ github.event_name == 'workflow_dispatch' && fromJSON(format('["{0}"]', inputs.environment)) || fromJSON('["dev", "prod"]') }}
+    defaults:
+      run:
+        working-directory: infra/envs/${{ matrix.environment }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read the pinned Terraform version
+        id: tf
+        run: echo "version=$(cat "$GITHUB_WORKSPACE/infra/.terraform-version")" >> "$GITHUB_OUTPUT"
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ steps.tf.outputs.version }}
+          terraform_wrapper: false
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_PLAN_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - run: terraform init -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}"
+      # -lock=false: the plan role cannot write the lockfile and must not block
+      # a deploy. skip_image_check: the image for this commit is not built yet.
+      - name: terraform plan
+        run: |
+          terraform plan -lock=false -var skip_image_check=true -out=tfplan
+          terraform show -no-color tfplan > plan.txt
+      # Only the rendered text is shared; the binary plan embeds the state.
+      - name: Comment the plan on the pull request
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        env:
+          PLAN_PATH: infra/envs/${{ matrix.environment }}/plan.txt
+          ENVIRONMENT: ${{ matrix.environment }}
+        with:
+          script: |
+            const fs = require('fs');
+            const limit = 60000;
+            let plan = fs.readFileSync(process.env.PLAN_PATH, 'utf8');
+            if (plan.length > limit) {
+              plan = plan.slice(0, limit) + '\n... (truncated; see the workflow log for the rest)';
+            }
+            const marker = `<!-- terraform-plan:${process.env.ENVIRONMENT} -->`;
+            const body = [
+              marker,
+              `### Terraform plan: \`${process.env.ENVIRONMENT}\``,
+              '',
+              '<details><summary>Show plan</summary>',
+              '',
+              '```hcl',
+              plan,
+              '```',
+              '',
+              '</details>',
+            ].join('\n');
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number, per_page: 100 });
+            const existing = comments.find((c) => c.body && c.body.startsWith(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }

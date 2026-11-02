@@ -15,3 +15,13 @@ backend/target/
 node_modules/
 frontend/dist/
 frontend/coverage/
+
+# Terraform (infra/)
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+infra/**/plan.txt
+infra/**/backend.hcl
+infra/**/backend_override.tf
+infra/bootstrap/backend.tf

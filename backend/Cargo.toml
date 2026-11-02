@@ -36,7 +36,7 @@ tokio-util = "0.7"
 futures-util = "0.3"
 
 # Messaging
-redis = { version = "1.8", default-features = false, features = ["tokio-comp", "connection-manager"] }
+redis = { version = "1.8", default-features = false, features = ["tokio-comp", "connection-manager", "tokio-rustls-comp"] }
 
 # Persistence
 sqlx = { version = "0.8.6", features = ["runtime-tokio", "tls-rustls-ring", "postgres", "uuid", "chrono"] }

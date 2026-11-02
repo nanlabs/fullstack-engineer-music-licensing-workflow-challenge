@@ -1,0 +1,78 @@
+# One environment, end to end: terraform apply with the chosen backend image,
+# record the tag in SSM, publish the frontend build and invalidate CloudFront.
+# The caller configures AWS credentials and downloads the frontend artifact.
+name: Deploy environment
+description: terraform apply for one environment, then publish the frontend build
+
+inputs:
+  environment:
+    description: dev or prod
+    required: true
+  image_tag:
+    description: ECR tag of the backend image to deploy
+    required: true
+  state_bucket:
+    description: S3 bucket holding the Terraform state
+    required: true
+  project:
+    description: Resource name prefix (matches the Terraform `project` variable)
+    required: false
+    default: music-licensing
+  dist_path:
+    description: Frontend build directory, relative to the workspace
+    required: false
+    default: frontend/dist
+
+runs:
+  using: composite
+  steps:
+    - name: Read the pinned Terraform version
+      id: tf
+      shell: bash
+      run: echo "version=$(cat "$GITHUB_WORKSPACE/infra/.terraform-version")" >> "$GITHUB_OUTPUT"
+
+    - uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ steps.tf.outputs.version }}
+        terraform_wrapper: false
+
+    - name: terraform init
+      shell: bash
+      working-directory: infra/envs/${{ inputs.environment }}
+      env:
+        STATE_BUCKET: ${{ inputs.state_bucket }}
+      run: terraform init -backend-config="bucket=$STATE_BUCKET"
+
+    # Fails if the tag is missing in ECR or if ECS rolls the deployment back.
+    - name: terraform apply
+      shell: bash
+      working-directory: infra/envs/${{ inputs.environment }}
+      env:
+        IMAGE_TAG: ${{ inputs.image_tag }}
+      run: terraform apply -auto-approve -var "backend_image_tag=$IMAGE_TAG"
+
+    - name: Record the deployed image tag
+      shell: bash
+      env:
+        PARAMETER: /${{ inputs.project }}/${{ inputs.environment }}/backend-image-tag
+        IMAGE_TAG: ${{ inputs.image_tag }}
+      run: aws ssm put-parameter --name "$PARAMETER" --type String --value "$IMAGE_TAG" --overwrite
+
+    # Hashed assets first (immutable), then the entry points (never cached), so
+    # a new index.html only ever references assets that are already there. Old
+    # assets are kept: a tab holding the previous index.html still loads.
+    - name: Publish the frontend
+      shell: bash
+      working-directory: infra/envs/${{ inputs.environment }}
+      env:
+        DIST: ${{ github.workspace }}/${{ inputs.dist_path }}
+      run: |
+        bucket="$(terraform output -raw web_bucket)"
+        distribution="$(terraform output -raw distribution_id)"
+        aws s3 sync "$DIST/assets/" "s3://$bucket/assets/" \
+          --cache-control "public, max-age=31536000, immutable"
+        for file in index.html favicon.svg; do
+          aws s3 cp "$DIST/$file" "s3://$bucket/$file" --cache-control "no-cache"
+        done
+        aws cloudfront create-invalidation --distribution-id "$distribution" --paths "/*" > /dev/null
+        echo "Deployed backend image tag $(terraform output -raw image_tag 2>/dev/null || true) to $(terraform output -raw public_url)"

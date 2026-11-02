@@ -341,6 +341,21 @@ transport. The backend's error codes are the only vocabulary the two sides
 share for failures; the frontend maps them to text and keeps the code and
 the request id for support.
 
+## Deployment on AWS
+
+[`infra/`](../infra) holds the Terraform for AWS and [`infra.md`](infra.md) the design: one
+CloudFront distribution serves the SPA from a private S3 bucket and proxies
+`/api/*` to a private ALB through a VPC origin (same origin, so the HttpOnly
+cookies stay first-party); the backend runs as ARM64 tasks on ECS Fargate
+with rolling deployments and a circuit breaker; PostgreSQL on RDS and Valkey
+on ElastiCache Serverless sit in private subnets. Two environments (`dev`,
+`prod`) are separate roots with separate state, and the GitHub Actions
+workflows that build the image, deploy `dev` and promote the same image to
+`prod` behind an approval stay disabled until the repository variable
+`INFRA_ENABLED` is set. The only backend change it required was the
+`tokio-rustls-comp` feature of the `redis` crate, because ElastiCache
+Serverless always speaks TLS (`rediss://`).
+
 ## Intentionally not here yet
 
 - API keys and OAuth providers as additional `Actor`/credential types.
