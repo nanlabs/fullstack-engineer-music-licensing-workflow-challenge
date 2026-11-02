@@ -10,6 +10,7 @@ use actix_web::dev::{ServiceRequest, ServiceResponse};
 use actix_web::http::header::{HeaderName, HeaderValue};
 use actix_web::middleware::{from_fn, Next};
 use actix_web::{web, App, HttpMessage, HttpRequest, HttpResponse, HttpServer};
+use errx::AppError;
 use serde_json::json;
 use tracing_actix_web::{RequestId, TracingLogger};
 
@@ -27,6 +28,16 @@ pub async fn run(container: Arc<Container>, config: &AppConfig) -> anyhow::Resul
 
         App::new()
             .app_data(web::Data::new(container.clone()))
+            // Malformed query strings and path parameters (`?status=bogus`,
+            // `/movies/not-a-uuid`) get the same JSON error shape as the rest.
+            .app_data(
+                web::QueryConfig::default()
+                    .error_handler(|err, _| AppError::validation(format!("Invalid query string: {err}")).into()),
+            )
+            .app_data(
+                web::PathConfig::default()
+                    .error_handler(|err, _| AppError::validation(format!("Invalid path parameter: {err}")).into()),
+            )
             .wrap(from_fn(propagate_request_id))
             .wrap(TracingLogger::default())
             .wrap(cors)
@@ -55,6 +66,10 @@ fn build_cors(origins: &[String]) -> Cors {
             actix_web::http::header::AUTHORIZATION,
             actix_web::http::header::ACCEPT,
             actix_web::http::header::CONTENT_TYPE,
+            // `EventSource` reconnects with `Last-Event-ID`, which browsers
+            // do not safelist for CORS yet, and some add `Cache-Control`.
+            actix_web::http::header::CACHE_CONTROL,
+            HeaderName::from_static("last-event-id"),
             HeaderName::from_static("x-request-id"),
         ])
         .expose_headers(vec![HeaderName::from_static("x-request-id")])

@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
 use errx::AppResult;
 use kernel::OtpId;
 
@@ -16,9 +17,19 @@ pub trait OtpRepository: Send + Sync {
     async fn delete_expired(&self) -> AppResult<u64>;
 }
 
-/// Delivery channel for codes. The console adapter lives in the application
-/// crate; an email adapter implements the same trait.
+/// Everything a channel needs to deliver a code. The raw code exists only
+/// here and in the message that leaves the system; the store keeps a hash.
+#[derive(Debug, Clone)]
+pub struct OtpDelivery {
+    pub contact: String,
+    pub code: String,
+    pub purpose: OtpPurpose,
+    pub expires_at: DateTime<Utc>,
+}
+
+/// Delivery channel for codes. The adapters live in the `notifx` crate
+/// (console today; email implements the same trait).
 #[async_trait]
 pub trait OtpNotifier: Send + Sync {
-    async fn send_otp(&self, contact: &str, code: &str, purpose: OtpPurpose) -> AppResult<()>;
+    async fn send_otp(&self, delivery: &OtpDelivery) -> AppResult<()>;
 }

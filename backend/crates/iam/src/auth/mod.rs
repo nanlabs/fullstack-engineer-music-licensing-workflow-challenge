@@ -110,6 +110,14 @@ pub struct MembershipsResponse {
     pub count: usize,
 }
 
+/// Public lookup of an invitation by its raw token (sent in the body, never
+/// in the URL, so it stays out of access logs).
+#[derive(Debug, Deserialize, Validate)]
+pub struct LookupInvitationRequest {
+    #[validate(length(min = 16, max = 256))]
+    pub invitation_token: String,
+}
+
 #[derive(Debug, Deserialize, Validate)]
 pub struct InitiateSignupRequest {
     #[validate(email)]

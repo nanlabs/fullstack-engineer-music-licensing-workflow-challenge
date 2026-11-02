@@ -7,6 +7,7 @@
 pub mod actor;
 pub mod auth_context;
 pub mod ids;
+pub mod json;
 pub mod page;
 pub mod scope;
 

@@ -12,12 +12,13 @@ use super::session::port::{RefreshTokenRepository, SessionRepository};
 use super::session::{generate_refresh_token, hash_refresh_token, RefreshToken, Session, SessionResponse};
 use super::{
     AuthError, AuthMethods, ClientInfo, InitiateLoginRequest, InitiateLoginResponse, InitiateSignupRequest,
-    InitiateSignupResponse, MeResponse, MembershipOption, MembershipsRequest, MembershipsResponse, RefreshResponse,
-    ResendOtpRequest, ResendOtpResponse, SessionsResponse, TokenResponse, VerifyLoginRequest, VerifySignupRequest,
-    VerifySignupResponse,
+    InitiateSignupResponse, LookupInvitationRequest, MeResponse, MembershipOption, MembershipsRequest,
+    MembershipsResponse, RefreshResponse, ResendOtpRequest, ResendOtpResponse, SessionsResponse, TokenResponse,
+    VerifyLoginRequest, VerifySignupRequest, VerifySignupResponse,
 };
 use crate::config::IamConfig;
 use crate::invitation::service::InvitationService;
+use crate::invitation::InvitationPreview;
 use crate::otp::service::OtpService;
 use crate::otp::OtpPurpose;
 use crate::role::port::RoleRepository;
@@ -103,6 +104,12 @@ impl PasswordlessService {
     // ---------------------------------------------------------------------
     // Signup (invitation + OTP)
     // ---------------------------------------------------------------------
+
+    /// What the acceptance page shows before asking for the mailbox proof.
+    pub async fn lookup_invitation(&self, req: LookupInvitationRequest) -> Result<InvitationPreview, AuthError> {
+        req.validate().map_err(AppError::from)?;
+        Ok(self.invitations.preview(&req.invitation_token).await?)
+    }
 
     /// Validates the invitation and sends proof-of-email only. Nothing about
     /// membership changes until verification.
@@ -252,7 +259,11 @@ impl PasswordlessService {
     // ---------------------------------------------------------------------
 
     /// Refresh token rotation. Presenting an already-revoked token means it
-    /// leaked: the whole session is revoked.
+    /// leaked: the whole session is revoked. The rotation itself is a
+    /// conditional consume: when two requests race with the same token, only
+    /// the one whose `revoke_by_hash` flips the row gets new tokens; the other
+    /// is treated exactly like a replay (RFC 9700 §4.14.2: the server cannot
+    /// tell which copy was the legitimate one, so it ends the session).
     pub async fn refresh(&self, raw_refresh_token: &str, client: &ClientInfo) -> Result<RefreshResponse, AuthError> {
         let hash = hash_refresh_token(raw_refresh_token);
         let now = Utc::now();
@@ -292,7 +303,15 @@ impl PasswordlessService {
         let tenant = self.load_active_tenant(token.tenant_id).await?;
 
         // Rotate: the presented token is spent, a new one takes its place.
-        self.refresh_tokens.revoke_by_hash(&hash).await?;
+        // Consume and issue are not one transaction on purpose: if issuing
+        // fails after the consume, the client holds no valid refresh token and
+        // logs in again. Failing closed never leaves two valid tokens.
+        if !self.refresh_tokens.revoke_by_hash(&hash).await? {
+            tracing::warn!(session_id = %token.session_id, user_id = %token.user_id, ip = %client.ip_address, "refresh token consumed concurrently; revoking session");
+            self.refresh_tokens.revoke_by_session(token.session_id).await?;
+            self.sessions.revoke(token.session_id).await?;
+            return Err(AuthError::InvalidRefreshToken);
+        }
         let issued = self.issue_tokens(&user, &tenant, session.id).await?;
         self.sessions.touch(session.id).await?;
         tracing::info!(user_id = %user.id, session_id = %session.id, "tokens refreshed");

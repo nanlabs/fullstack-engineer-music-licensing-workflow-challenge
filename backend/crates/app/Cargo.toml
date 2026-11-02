@@ -16,11 +16,11 @@ kernel = { workspace = true }
 errx = { workspace = true }
 iam = { workspace = true }
 licensing = { workspace = true }
+notifx = { workspace = true }
 
 actix-cors = { workspace = true }
 actix-web = { workspace = true }
 anyhow = { workspace = true }
-async-trait = { workspace = true }
 dotenvy = { workspace = true }
 humantime = { workspace = true }
 opentelemetry = { workspace = true }
@@ -28,6 +28,7 @@ opentelemetry-appender-tracing = { workspace = true }
 opentelemetry-otlp = { workspace = true }
 opentelemetry-semantic-conventions = { workspace = true }
 opentelemetry_sdk = { workspace = true }
+redis = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sqlx = { workspace = true }

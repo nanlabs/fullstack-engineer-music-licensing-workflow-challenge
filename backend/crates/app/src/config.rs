@@ -8,13 +8,18 @@ use std::time::Duration;
 use anyhow::{anyhow, Context};
 use iam::config::{parse_same_site, CookieConfig, InvitationConfig, JwtConfig, OtpConfig, SessionConfig};
 use iam::IamConfig;
+use licensing::{EventsConfig, LicensingConfig};
+use notifx::{NotifxConfig, Provider};
 
 #[derive(Debug, Clone)]
 pub struct AppConfig {
     pub server: ServerConfig,
     pub database: DatabaseConfig,
+    pub redis: RedisConfig,
     pub telemetry: TelemetryConfig,
     pub iam: IamConfig,
+    pub licensing: LicensingConfig,
+    pub notify: NotifxConfig,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -89,6 +94,13 @@ pub struct DatabaseConfig {
     pub acquire_timeout: Duration,
 }
 
+/// Optional Redis, used to fan license events out between instances. Unset
+/// means a single instance with an in-process bus.
+#[derive(Debug, Clone)]
+pub struct RedisConfig {
+    pub url: Option<String>,
+}
+
 #[derive(Debug, Clone)]
 pub struct TelemetryConfig {
     pub service_name: String,
@@ -117,12 +129,24 @@ impl AppConfig {
                 max_connections: env_or("DATABASE_MAX_CONNECTIONS", "10")?,
                 acquire_timeout: env_duration("DATABASE_ACQUIRE_TIMEOUT", "5s")?,
             },
+            redis: RedisConfig {
+                url: env_optional("REDIS_URL"),
+            },
             telemetry: TelemetryConfig {
                 service_name: env_or("SERVICE_NAME", "music-licensing-backend")?,
                 service_version: env!("CARGO_PKG_VERSION").to_string(),
                 otlp_endpoint: env_optional("OTEL_EXPORTER_OTLP_ENDPOINT"),
             },
             iam: load_iam_config(env)?,
+            notify: load_notify_config()?,
+            licensing: LicensingConfig {
+                expiry_sweep_interval: env_duration("LICENSE_EXPIRY_SWEEP_INTERVAL", "5m")?,
+                events: EventsConfig {
+                    keep_alive_interval: env_duration("SSE_KEEP_ALIVE_INTERVAL", "15s")?,
+                    max_connection_age: env_duration("SSE_MAX_CONNECTION_AGE", "15m")?,
+                    replay_limit: env_or("SSE_REPLAY_LIMIT", "500")?,
+                },
+            },
         })
     }
 }
@@ -158,6 +182,19 @@ fn load_iam_config(env: Environment) -> anyhow::Result<IamConfig> {
             domain: env_optional("COOKIE_DOMAIN"),
             path: env_or("COOKIE_PATH", "/")?,
         },
+    };
+    config.validate()?;
+    Ok(config)
+}
+
+fn load_notify_config() -> anyhow::Result<NotifxConfig> {
+    let config = NotifxConfig {
+        provider: env_or::<Provider>("NOTIFY_PROVIDER", "console")?,
+        from_address: env_or("NOTIFY_FROM_ADDRESS", "no-reply@music-licensing.local")?,
+        from_name: env_or("NOTIFY_FROM_NAME", "Music Licensing")?,
+        app_public_url: env_or::<String>("APP_PUBLIC_URL", "http://localhost:5173")?
+            .trim_end_matches('/')
+            .to_string(),
     };
     config.validate()?;
     Ok(config)

@@ -138,6 +138,7 @@ impl Container {
                 .service(
                     web::scope("/passwordless")
                         .route("/tenants", web::post().to(auth_h::memberships))
+                        .route("/signup/invitation", web::post().to(auth_h::lookup_invitation))
                         .route("/signup/initiate", web::post().to(auth_h::initiate_signup))
                         .route("/signup/verify", web::post().to(auth_h::verify_signup))
                         .route("/login/initiate", web::post().to(auth_h::initiate_login))

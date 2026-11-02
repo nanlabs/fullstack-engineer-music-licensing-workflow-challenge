@@ -8,154 +8,18 @@
 //!   cargo test -p iam -- --include-ignored
 //! ```
 
-use std::fmt::Debug;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
-use actix_web::body::MessageBody;
-use actix_web::dev::{Service, ServiceResponse};
-use actix_web::http::header::SET_COOKIE;
 use actix_web::http::StatusCode;
 use actix_web::{test, web, App};
-use async_trait::async_trait;
-use errx::AppResult;
-use iam::invitation::port::InvitationNotifier;
-use iam::otp::port::OtpNotifier;
 use iam::otp::OtpPurpose;
+use iam::testing::{
+    call, get_as, login_with_otp, post, post_as, Outbox, ACME_TENANT as TENANT, LOGIN_INITIATE, LOGIN_VERIFY,
+    ROLE_LICENSING_MANAGER, SIGNUP_INITIATE, SIGNUP_INVITATION, SIGNUP_VERIFY,
+};
 use iam::{Container, Deps, IamConfig};
-use kernel::{TenantId, UserId};
 use serde_json::{json, Value};
 use sqlx::PgPool;
-
-const TENANT: &str = "11111111-1111-4111-8111-111111111111";
-const ROLE_LICENSING_MANAGER: &str = "33333333-3333-4333-8333-333333333331";
-const LOGIN_INITIATE: &str = "/api/v1/auth/passwordless/login/initiate";
-const LOGIN_VERIFY: &str = "/api/v1/auth/passwordless/login/verify";
-const SIGNUP_INITIATE: &str = "/api/v1/auth/passwordless/signup/initiate";
-const SIGNUP_VERIFY: &str = "/api/v1/auth/passwordless/signup/verify";
-
-/// Captures what the console notifiers would print.
-#[derive(Default)]
-struct Outbox {
-    otps: Mutex<Vec<(String, String, OtpPurpose)>>,
-    invitations: Mutex<Vec<(String, String)>>,
-}
-
-impl Outbox {
-    fn last_otp(&self, contact: &str, purpose: OtpPurpose) -> String {
-        self.otps
-            .lock()
-            .unwrap()
-            .iter()
-            .rev()
-            .find(|(c, _, p)| c == contact && *p == purpose)
-            .map(|(_, code, _)| code.clone())
-            .expect("otp was delivered")
-    }
-
-    fn last_invitation(&self, email: &str) -> String {
-        self.invitations
-            .lock()
-            .unwrap()
-            .iter()
-            .rev()
-            .find(|(e, _)| e == email)
-            .map(|(_, token)| token.clone())
-            .expect("invitation was delivered")
-    }
-}
-
-#[async_trait]
-impl OtpNotifier for Outbox {
-    async fn send_otp(&self, contact: &str, code: &str, purpose: OtpPurpose) -> AppResult<()> {
-        self.otps
-            .lock()
-            .unwrap()
-            .push((contact.to_owned(), code.to_owned(), purpose));
-        Ok(())
-    }
-}
-
-#[async_trait]
-impl InvitationNotifier for Outbox {
-    async fn send_invitation(&self, email: &str, token: &str, _tenant: TenantId, _by: UserId) -> AppResult<()> {
-        self.invitations
-            .lock()
-            .unwrap()
-            .push((email.to_owned(), token.to_owned()));
-        Ok(())
-    }
-}
-
-struct Reply {
-    status: StatusCode,
-    body: Value,
-    cookies: Vec<String>,
-}
-
-impl Reply {
-    fn str(&self, pointer: &str) -> String {
-        self.body
-            .pointer(pointer)
-            .and_then(Value::as_str)
-            .unwrap_or_else(|| panic!("missing {pointer} in {}", self.body))
-            .to_owned()
-    }
-
-    fn code(&self) -> String {
-        self.str("/error/code")
-    }
-}
-
-/// Calls the app and renders middleware errors the same way the real server
-/// does (through `ResponseError`), so every reply has a status and a body.
-async fn call<S, R, B, E>(app: &S, req: R) -> Reply
-where
-    S: Service<R, Response = ServiceResponse<B>, Error = E>,
-    B: MessageBody,
-    E: Debug + Into<actix_web::Error>,
-{
-    let (status, cookies, bytes) = match test::try_call_service(app, req).await {
-        Ok(resp) => {
-            let status = resp.status();
-            let cookies = set_cookies(resp.headers());
-            (status, cookies, test::read_body(resp).await)
-        }
-        Err(err) => {
-            let resp = err.into().error_response();
-            let status = resp.status();
-            let cookies = set_cookies(resp.headers());
-            let bytes = actix_web::body::to_bytes(resp.into_body()).await.expect("error body");
-            (status, cookies, bytes)
-        }
-    };
-    let body = if bytes.is_empty() {
-        Value::Null
-    } else {
-        serde_json::from_slice(&bytes).unwrap_or_else(|_| Value::String(String::from_utf8_lossy(&bytes).into_owned()))
-    };
-    Reply { status, body, cookies }
-}
-
-fn set_cookies(headers: &actix_web::http::header::HeaderMap) -> Vec<String> {
-    headers
-        .get_all(SET_COOKIE)
-        .filter_map(|v| v.to_str().ok().map(str::to_owned))
-        .collect()
-}
-
-fn post(uri: &str, body: Value) -> test::TestRequest {
-    test::TestRequest::post().uri(uri).set_json(body)
-}
-
-fn post_as(uri: &str, body: Value, token: &str) -> test::TestRequest {
-    post(uri, body).insert_header(("authorization", format!("Bearer {token}")))
-}
-
-fn get_as(uri: &str, token: &str) -> test::TestRequest {
-    test::TestRequest::get()
-        .uri(uri)
-        .insert_header(("authorization", format!("Bearer {token}")))
-}
 
 #[sqlx::test(migrations = "../../migrations")]
 #[ignore = "needs DATABASE_URL; run with `cargo test -p iam -- --include-ignored`"]
@@ -245,8 +109,52 @@ async fn passwordless_flow_end_to_end(pool: PgPool) {
     assert_eq!(r.status, StatusCode::CONFLICT, "{}", r.body);
     assert_eq!(r.code(), "INVITATION_ALREADY_PENDING");
 
+    // The acceptance page previews the invitation by token (public; the token travels in the body).
+    let lookup = json!({ "invitation_token": &invitation_token });
+    let r = call(&app, post(SIGNUP_INVITATION, lookup.clone()).to_request()).await;
+    assert_eq!(r.status, StatusCode::OK, "{}", r.body);
+    assert_eq!(r.body["email"], "newbie@acme.test");
+    assert_eq!(r.body["tenant_id"], TENANT);
+    assert_eq!(r.body["tenant_name"], "ACME BROS PICTURES");
+    assert_eq!(r.body["invited_by_name"], "ACME Admin");
+    assert!(r.body["expires_at"].is_string());
+    assert!(r.body.get("scopes").is_none() && r.body.get("role_id").is_none());
+    let r = call(
+        &app,
+        post(
+            SIGNUP_INVITATION,
+            json!({ "invitation_token": "definitely-not-a-token-anyone-issued" }),
+        )
+        .to_request(),
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::BAD_REQUEST, "{}", r.body);
+    assert_eq!(r.code(), "INVITATION_INVALID");
+
+    // The listing filters by status.
+    let r = call(
+        &app,
+        get_as("/api/v1/invitations?status=pending", &admin_access).to_request(),
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::OK, "{}", r.body);
+    assert_eq!(r.body["pagination"]["total"], 1);
+    assert_eq!(r.body["items"][0]["id"], invitation_id);
+    let r = call(
+        &app,
+        get_as("/api/v1/invitations?status=accepted", &admin_access).to_request(),
+    )
+    .await;
+    assert_eq!(r.body["pagination"]["total"], 0, "{}", r.body);
+    let r = call(
+        &app,
+        get_as("/api/v1/invitations?status=bogus", &admin_access).to_request(),
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::BAD_REQUEST, "{}", r.body);
+
     // Signup: prove the mailbox, then the invitation is accepted in one transaction.
-    let signup = json!({ "email": "newbie@acme.test", "name": "New Person", "invitation_token": invitation_token });
+    let signup = json!({ "email": "newbie@acme.test", "name": "New Person", "invitation_token": &invitation_token });
     let r = call(&app, post(SIGNUP_INITIATE, signup.clone()).to_request()).await;
     assert_eq!(r.status, StatusCode::OK, "{}", r.body);
     assert_eq!(r.body["tenant_id"], TENANT);
@@ -268,30 +176,26 @@ async fn passwordless_flow_end_to_end(pool: PgPool) {
     let r = call(&app, post(SIGNUP_INITIATE, signup).to_request()).await;
     assert_eq!(r.status, StatusCode::BAD_REQUEST, "{}", r.body);
     assert_eq!(r.code(), "INVITATION_INVALID");
+    let r = call(&app, post(SIGNUP_INVITATION, lookup).to_request()).await;
+    assert_eq!(r.status, StatusCode::BAD_REQUEST, "{}", r.body);
+    assert_eq!(r.code(), "INVITATION_INVALID");
+    let r = call(
+        &app,
+        get_as("/api/v1/invitations?status=accepted", &admin_access).to_request(),
+    )
+    .await;
+    assert_eq!(r.body["pagination"]["total"], 1, "{}", r.body);
+    let r = call(
+        &app,
+        get_as("/api/v1/invitations?status=pending", &admin_access).to_request(),
+    )
+    .await;
+    assert_eq!(r.body["pagination"]["total"], 0, "{}", r.body);
 
     // The new member logs in and gets direct scopes plus role scopes.
-    let r = call(
-        &app,
-        post(
-            LOGIN_INITIATE,
-            json!({ "email": "newbie@acme.test", "tenant_id": TENANT }),
-        )
-        .to_request(),
-    )
-    .await;
-    assert_eq!(r.status, StatusCode::OK, "{}", r.body);
-    let code = outbox.last_otp("newbie@acme.test", OtpPurpose::Login);
-    let r = call(
-        &app,
-        post(
-            LOGIN_VERIFY,
-            json!({ "email": "newbie@acme.test", "tenant_id": TENANT, "code": code }),
-        )
-        .to_request(),
-    )
-    .await;
-    assert_eq!(r.status, StatusCode::OK, "{}", r.body);
-    let newbie_access = r.str("/access_token");
+    let newbie_access = login_with_otp(&app, &outbox, "newbie@acme.test", TENANT)
+        .await
+        .access_token;
 
     let r = call(&app, get_as("/api/v1/auth/me", &newbie_access).to_request()).await;
     assert_eq!(r.status, StatusCode::OK, "{}", r.body);

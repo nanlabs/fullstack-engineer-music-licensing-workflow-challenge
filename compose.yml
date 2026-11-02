@@ -12,7 +12,23 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-licensing} -d ${POSTGRES_DB:-licensing}"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-licensing} -d ${POSTGRES_DB:-licensing}",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Fan-out of license events between backend instances (pub/sub only, no
+  # persistence: the event log in Postgres is the source of truth).
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -23,14 +39,17 @@ services:
     env_file:
       - .env
     environment:
-      # Inside the compose network the database host is the service name.
+      # Inside the compose network the database and redis hosts are the service names.
       DATABASE_URL: postgres://${POSTGRES_USER:-licensing}:${POSTGRES_PASSWORD:-licensing}@postgres:5432/${POSTGRES_DB:-licensing}
+      REDIS_URL: redis://redis:6379
       HOST: 0.0.0.0
       PORT: "8080"
     ports:
       - "${BACKEND_PORT:-8080}:8080"
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     restart: unless-stopped
 

@@ -16,6 +16,9 @@ pub mod scopes;
 pub mod tenant;
 pub mod user;
 
+#[cfg(feature = "test-support")]
+pub mod testing;
+
 mod container;
 
 pub use config::IamConfig;

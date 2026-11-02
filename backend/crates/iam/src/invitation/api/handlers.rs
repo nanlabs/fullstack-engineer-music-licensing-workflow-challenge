@@ -3,16 +3,20 @@ use errx::{AppError, ValidatedJson};
 use kernel::{InvitationId, PageQuery};
 
 use crate::auth::extract::Auth;
-use crate::invitation::CreateInvitationRequest;
+use crate::invitation::{CreateInvitationRequest, InvitationFilter};
 use crate::Container;
 
-/// GET /invitations
+/// GET /invitations?status=
 pub async fn list_invitations(
     container: web::Data<Container>,
     auth: Auth,
+    filter: web::Query<InvitationFilter>,
     page: web::Query<PageQuery>,
 ) -> Result<HttpResponse, AppError> {
-    let invitations = container.invitation_service.list(&auth, page.into_inner()).await?;
+    let invitations = container
+        .invitation_service
+        .list(&auth, &filter, page.into_inner())
+        .await?;
     Ok(HttpResponse::Ok().json(invitations))
 }
 

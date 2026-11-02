@@ -4,15 +4,15 @@ use chrono::{Duration as ChronoDuration, Utc};
 use kernel::{AuthContext, InvitationId, PageQuery, Paginated, TenantId};
 use validator::Validate;
 
-use super::port::{InvitationNotifier, InvitationRepository};
+use super::port::{InvitationDelivery, InvitationNotifier, InvitationRepository};
 use super::{
     generate_token, hash_token, CreateInvitationRequest, CreateInvitationResponse, Invitation, InvitationError,
-    InvitationResponse, InvitationStatus,
+    InvitationFilter, InvitationPreview, InvitationResponse, InvitationStatus,
 };
 use crate::config::InvitationConfig;
 use crate::role::port::RoleRepository;
 use crate::tenant::port::TenantRepository;
-use crate::tenant::TenantError;
+use crate::tenant::{Tenant, TenantError};
 use crate::user::normalize_scopes;
 use crate::user::port::UserRepository;
 use crate::user::UserStatus;
@@ -106,11 +106,12 @@ impl InvitationService {
     pub async fn list(
         &self,
         ctx: &AuthContext,
+        filter: &InvitationFilter,
         page: PageQuery,
     ) -> Result<Paginated<InvitationResponse>, InvitationError> {
         authz::require(ctx, ctx.tenant_id, scopes::INVITATIONS_READ)?;
         let page = page.normalized();
-        let (items, total) = self.invitations.list(ctx.tenant_id, page).await?;
+        let (items, total) = self.invitations.list(ctx.tenant_id, filter, page).await?;
         Ok(Paginated::new(
             items.iter().map(InvitationResponse::from).collect(),
             page,
@@ -164,6 +165,22 @@ impl InvitationService {
         Ok(InvitationResponse::from(&invitation))
     }
 
+    /// Public preview by token, for the acceptance page: who invited whom to
+    /// where, and until when. Anything not usable is `Invalid`, without
+    /// saying why (same answer as `signup/initiate`).
+    pub async fn preview(&self, raw_token: &str) -> Result<InvitationPreview, InvitationError> {
+        let invitation = self.find_by_token(raw_token).await?;
+        let tenant = self.check_usable(&invitation).await?;
+        let invited_by_name = self.inviter_name(&invitation).await?;
+        Ok(InvitationPreview {
+            email: invitation.email,
+            tenant_id: tenant.id,
+            tenant_name: tenant.name,
+            invited_by_name,
+            expires_at: invitation.expires_at,
+        })
+    }
+
     /// Trusted check used by the signup flow before sending or verifying an OTP.
     /// Does not change anything; acceptance re-checks inside its transaction.
     pub async fn validate_for_signup(
@@ -172,16 +189,25 @@ impl InvitationService {
         email: &str,
         tenant_id: Option<TenantId>,
     ) -> Result<Invitation, InvitationError> {
-        let invitation = self
-            .invitations
+        let invitation = self.find_by_token(raw_token).await?;
+        if !invitation.matches_email(email) || tenant_id.is_some_and(|t| t != invitation.tenant_id) {
+            return Err(InvitationError::Invalid);
+        }
+        self.check_usable(&invitation).await?;
+        Ok(invitation)
+    }
+
+    async fn find_by_token(&self, raw_token: &str) -> Result<Invitation, InvitationError> {
+        self.invitations
             .get_by_token_hash(&hash_token(raw_token))
             .await?
-            .ok_or(InvitationError::Invalid)?;
-        let now = Utc::now();
-        if !invitation.can_be_accepted(now)
-            || !invitation.matches_email(email)
-            || tenant_id.is_some_and(|t| t != invitation.tenant_id)
-        {
+            .ok_or(InvitationError::Invalid)
+    }
+
+    /// Pending and not expired, tenant exists and is active, invitee not a
+    /// suspended member. Returns the tenant so callers can use its name.
+    async fn check_usable(&self, invitation: &Invitation) -> Result<Tenant, InvitationError> {
+        if !invitation.can_be_accepted(Utc::now()) {
             return Err(InvitationError::Invalid);
         }
         let tenant = self
@@ -197,7 +223,19 @@ impl InvitationService {
                 return Err(InvitationError::MemberNotEligible);
             }
         }
-        Ok(invitation)
+        Ok(tenant)
+    }
+
+    /// Name of the member who created the invitation (also on resend). The
+    /// row cascades with the user, so a missing inviter is a race, not a
+    /// state; the message still reads correctly.
+    async fn inviter_name(&self, invitation: &Invitation) -> Result<String, InvitationError> {
+        Ok(self
+            .users
+            .get_by_id(invitation.tenant_id, invitation.invited_by)
+            .await?
+            .map(|u| u.name)
+            .unwrap_or_else(|| "A teammate".to_string()))
     }
 
     async fn load(&self, ctx: &AuthContext, id: InvitationId) -> Result<Invitation, InvitationError> {
@@ -207,17 +245,30 @@ impl InvitationService {
             .ok_or(InvitationError::NotFound)
     }
 
+    /// Resolves the names the message needs and hands the raw token to the
+    /// notifier. A delivery failure is reported, not raised: the invitation
+    /// is stored and can be resent.
     async fn deliver(&self, invitation: &Invitation, raw_token: &str) -> bool {
-        match self
-            .notifier
-            .send_invitation(
-                &invitation.email,
-                raw_token,
-                invitation.tenant_id,
-                invitation.invited_by,
-            )
-            .await
-        {
+        let delivery = async {
+            let tenant_name = self
+                .tenants
+                .get_by_id(invitation.tenant_id)
+                .await?
+                .map(|t| t.name)
+                .unwrap_or_else(|| invitation.tenant_id.to_string());
+            let invited_by_name = self.inviter_name(invitation).await?;
+            let delivery = InvitationDelivery {
+                email: invitation.email.clone(),
+                token: raw_token.to_string(),
+                tenant_id: invitation.tenant_id,
+                tenant_name,
+                invited_by_name,
+                expires_at: invitation.expires_at,
+            };
+            self.notifier.send_invitation(&delivery).await?;
+            Ok::<(), InvitationError>(())
+        };
+        match delivery.await {
             Ok(()) => true,
             Err(err) => {
                 tracing::error!(invitation_id = %invitation.id, error = %err, "invitation delivery failed; it stays pending and can be resent");

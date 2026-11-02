@@ -88,6 +88,25 @@ define_id!(
     /// Identifies a one-time password record.
     OtpId
 );
+define_id!(
+    /// Identifies a movie (licensing domain).
+    MovieId
+);
+
+define_id!(
+    /// Identifies a scene of a movie (licensing domain).
+    SceneId
+);
+
+define_id!(
+    /// Identifies a song of the tenant catalogue (licensing domain).
+    SongId
+);
+
+define_id!(
+    /// Identifies a track: a song placed in a scene (licensing domain).
+    TrackId
+);
 
 #[cfg(test)]
 mod tests {
@@ -110,3 +129,8 @@ mod tests {
         assert!("not-a-uuid".parse::<TenantId>().is_err());
     }
 }
+
+define_id!(
+    /// Identifies one entry of a license's event log (licensing domain).
+    LicenseEventId
+);

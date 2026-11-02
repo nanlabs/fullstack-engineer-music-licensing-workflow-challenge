@@ -6,8 +6,8 @@ use errx::{AppError, ValidatedJson};
 
 use crate::auth::extract::Auth;
 use crate::auth::{
-    ClientInfo, InitiateLoginRequest, InitiateSignupRequest, MembershipsRequest, RefreshRequest, ResendOtpRequest,
-    VerifyLoginRequest, VerifySignupRequest,
+    ClientInfo, InitiateLoginRequest, InitiateSignupRequest, LookupInvitationRequest, MembershipsRequest,
+    RefreshRequest, ResendOtpRequest, VerifyLoginRequest, VerifySignupRequest,
 };
 use crate::config::CookieConfig;
 use crate::Container;
@@ -22,6 +22,15 @@ pub async fn memberships(
     body: ValidatedJson<MembershipsRequest>,
 ) -> Result<HttpResponse, AppError> {
     let res = container.auth_service.memberships(body.into_inner()).await?;
+    Ok(HttpResponse::Ok().json(res))
+}
+
+/// POST /auth/passwordless/signup/invitation
+pub async fn lookup_invitation(
+    container: web::Data<Container>,
+    body: ValidatedJson<LookupInvitationRequest>,
+) -> Result<HttpResponse, AppError> {
+    let res = container.auth_service.lookup_invitation(body.into_inner()).await?;
     Ok(HttpResponse::Ok().json(res))
 }
 

@@ -1,20 +1,21 @@
-//! Adapter invariants that need a real PostgreSQL. Run with
-//! `DATABASE_URL=... cargo test -p iam -- --include-ignored`.
+//! Adapter invariants that need a real PostgreSQL. Like every other
+//! database suite, `#[sqlx::test]` creates a throwaway database from
+//! `DATABASE_URL` and applies `migrations/` (seed included), so the test never
+//! depends on the base database having been migrated. Run with:
+//!
+//! ```text
+//! DATABASE_URL=postgres://licensing:licensing@localhost:5432/licensing \
+//!   cargo test -p iam -- --include-ignored
+//! ```
 
 use iam::otp::OtpPurpose;
 use iam::tenant::TenantStatus;
 use iam::user::UserStatus;
 use sqlx::PgPool;
 
-async fn pool() -> PgPool {
-    let url = std::env::var("DATABASE_URL").expect("DATABASE_URL is required for database tests");
-    PgPool::connect(&url).await.expect("connect")
-}
-
-#[tokio::test]
-#[ignore = "needs DATABASE_URL"]
-async fn text_backed_enums_round_trip() {
-    let pool = pool().await;
+#[sqlx::test(migrations = "../../migrations")]
+#[ignore = "needs DATABASE_URL; run with `cargo test -p iam -- --include-ignored`"]
+async fn text_backed_enums_round_trip(pool: PgPool) {
     let status: UserStatus = sqlx::query_scalar("SELECT 'suspended'::text")
         .fetch_one(&pool)
         .await

@@ -29,6 +29,17 @@ pub enum InvitationStatus {
     Expired,
 }
 
+impl InvitationStatus {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            InvitationStatus::Pending => "pending",
+            InvitationStatus::Accepted => "accepted",
+            InvitationStatus::Revoked => "revoked",
+            InvitationStatus::Expired => "expired",
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Invitation {
     pub id: InvitationId,
@@ -59,6 +70,23 @@ impl Invitation {
     pub fn matches_email(&self, email: &str) -> bool {
         self.email.eq_ignore_ascii_case(email.trim())
     }
+}
+
+/// `GET /invitations?status=` filter.
+#[derive(Debug, Clone, Copy, Default, Deserialize)]
+pub struct InvitationFilter {
+    pub status: Option<InvitationStatus>,
+}
+
+/// What the invitee sees before proving the mailbox (public, by token).
+/// Deliberately small: no scopes, no role, no ids beyond the tenant.
+#[derive(Debug, Clone, Serialize)]
+pub struct InvitationPreview {
+    pub email: String,
+    pub tenant_id: TenantId,
+    pub tenant_name: String,
+    pub invited_by_name: String,
+    pub expires_at: DateTime<Utc>,
 }
 
 /// Response DTO. Never includes the token.

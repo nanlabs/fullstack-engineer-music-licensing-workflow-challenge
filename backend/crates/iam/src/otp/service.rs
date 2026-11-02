@@ -5,7 +5,7 @@ use errx::AppError;
 use kernel::OtpId;
 use subtle::ConstantTimeEq;
 
-use super::port::{OtpNotifier, OtpRepository};
+use super::port::{OtpDelivery, OtpNotifier, OtpRepository};
 use super::{hash_code, normalize_contact, Otp, OtpError, OtpPurpose};
 use crate::config::OtpConfig;
 
@@ -21,20 +21,22 @@ impl OtpService {
     }
 
     /// Creates a code, stores its hash and hands the raw code to the notifier.
-    /// Rate limited per contact and purpose while a previous code is valid.
+    /// Rate limited per contact and purpose: no new code within
+    /// `rate_limit_window` of the previous one, whatever state that one is in.
+    /// Counting from `created_at` rather than from validity keeps the budget at
+    /// `max_attempts` guesses per window; otherwise exhausting the attempts
+    /// would be the fastest way to get a fresh code with a fresh budget.
     pub async fn generate(&self, contact: &str, purpose: OtpPurpose) -> Result<Otp, OtpError> {
         let contact = normalize_contact(contact);
         let now = Utc::now();
 
         if let Some(existing) = self.repo.latest_by_contact(&contact, purpose).await? {
-            if existing.is_valid(now) {
-                let window = ChronoDuration::from_std(self.config.rate_limit_window)
-                    .unwrap_or_else(|_| ChronoDuration::seconds(60));
-                let elapsed = now - existing.created_at;
-                if elapsed < window {
-                    let retry_after_secs = (window - elapsed).num_seconds().max(1) as u64;
-                    return Err(OtpError::TooManyRequests { retry_after_secs });
-                }
+            let window =
+                ChronoDuration::from_std(self.config.rate_limit_window).unwrap_or_else(|_| ChronoDuration::seconds(60));
+            let elapsed = now - existing.created_at;
+            if elapsed < window {
+                let retry_after_secs = (window - elapsed).num_seconds().max(1) as u64;
+                return Err(OtpError::TooManyRequests { retry_after_secs });
             }
         }
 
@@ -52,7 +54,13 @@ impl OtpService {
             created_at: now,
         };
         self.repo.insert(&otp).await?;
-        self.notifier.send_otp(&otp.contact, &code, purpose).await?;
+        let delivery = OtpDelivery {
+            contact: otp.contact.clone(),
+            code,
+            purpose,
+            expires_at: otp.expires_at,
+        };
+        self.notifier.send_otp(&delivery).await?;
         tracing::info!(contact = %otp.contact, purpose = purpose.as_str(), "otp issued");
         Ok(otp)
     }
@@ -192,11 +200,11 @@ mod tests {
 
     #[async_trait]
     impl OtpNotifier for FakeNotifier {
-        async fn send_otp(&self, contact: &str, code: &str, purpose: OtpPurpose) -> AppResult<()> {
+        async fn send_otp(&self, delivery: &OtpDelivery) -> AppResult<()> {
             self.sent
                 .lock()
                 .unwrap()
-                .push((contact.to_string(), code.to_string(), purpose));
+                .push((delivery.contact.clone(), delivery.code.clone(), delivery.purpose));
             Ok(())
         }
     }
@@ -262,6 +270,34 @@ mod tests {
         );
         // A different purpose has its own limit.
         assert!(svc.generate("a@b.co", OtpPurpose::Login).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn exhausted_codes_still_wait_for_the_window() {
+        let repo = Arc::new(FakeRepo::default());
+        let notifier = Arc::new(FakeNotifier::default());
+        let svc = service(&repo, &notifier);
+        svc.generate("a@b.co", OtpPurpose::Login).await.unwrap();
+        for _ in 0..config().max_attempts {
+            svc.verify("a@b.co", "000000", OtpPurpose::Login).await.unwrap_err();
+        }
+        // Burning the attempts must not buy a fresh code with a fresh budget.
+        let err = svc.generate("a@b.co", OtpPurpose::Login).await.unwrap_err();
+        assert!(matches!(err, OtpError::TooManyRequests { .. }));
+        assert_eq!(notifier.sent.lock().unwrap().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn consumed_codes_still_wait_for_the_window() {
+        let repo = Arc::new(FakeRepo::default());
+        let notifier = Arc::new(FakeNotifier::default());
+        let svc = service(&repo, &notifier);
+        svc.generate("a@b.co", OtpPurpose::Login).await.unwrap();
+        svc.verify("a@b.co", &notifier.last_code(), OtpPurpose::Login)
+            .await
+            .unwrap();
+        let err = svc.generate("a@b.co", OtpPurpose::Login).await.unwrap_err();
+        assert!(matches!(err, OtpError::TooManyRequests { .. }));
     }
 
     #[tokio::test]

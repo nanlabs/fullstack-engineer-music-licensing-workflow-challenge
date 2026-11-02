@@ -5,13 +5,14 @@ members = [
     "crates/errx",
     "crates/iam",
     "crates/licensing",
+    "crates/notifx",
     "crates/app",
 ]
 
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.88"
+rust-version = "1.95"
 publish = false
 license = "MIT"
 
@@ -21,15 +22,21 @@ kernel = { path = "crates/kernel" }
 errx = { path = "crates/errx" }
 iam = { path = "crates/iam" }
 licensing = { path = "crates/licensing" }
+notifx = { path = "crates/notifx" }
 
 # Web
 actix-web = "4.18"
+actix-http = "3"
 actix-cors = "0.7"
 tracing-actix-web = { version = "0.7.25", features = ["opentelemetry_0_32"] }
 
 # Async runtime
 tokio = { version = "1", features = ["full"] }
 tokio-util = "0.7"
+futures-util = "0.3"
+
+# Messaging
+redis = { version = "1.8", default-features = false, features = ["tokio-comp", "connection-manager"] }
 
 # Persistence
 sqlx = { version = "0.8.6", features = ["runtime-tokio", "tls-rustls-ring", "postgres", "uuid", "chrono"] }

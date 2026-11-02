@@ -5,7 +5,7 @@ use kernel::{InvitationId, PageQuery, RoleId, TenantId, UserId};
 use sqlx::PgPool;
 
 use crate::invitation::port::InvitationRepository;
-use crate::invitation::{Invitation, InvitationStatus};
+use crate::invitation::{Invitation, InvitationFilter, InvitationStatus};
 use crate::role::infra::postgres::map_unique_violation;
 
 pub const INVITATION_COLUMNS: &str =
@@ -111,20 +111,31 @@ impl InvitationRepository for PostgresInvitationRepository {
         Ok(row.map(Into::into))
     }
 
-    async fn list(&self, tenant_id: TenantId, page: PageQuery) -> AppResult<(Vec<Invitation>, u64)> {
+    async fn list(
+        &self,
+        tenant_id: TenantId,
+        filter: &InvitationFilter,
+        page: PageQuery,
+    ) -> AppResult<(Vec<Invitation>, u64)> {
+        let status = filter.status.map(|s| s.as_str());
         let rows = sqlx::query_as::<_, InvitationRow>(&format!(
-            "SELECT {INVITATION_COLUMNS} FROM invitations WHERE tenant_id = $1 \
-             ORDER BY created_at DESC, id LIMIT $2 OFFSET $3"
+            "SELECT {INVITATION_COLUMNS} FROM invitations \
+             WHERE tenant_id = $1 AND ($2::text IS NULL OR status = $2) \
+             ORDER BY created_at DESC, id LIMIT $3 OFFSET $4"
         ))
         .bind(tenant_id)
+        .bind(status)
         .bind(page.limit())
         .bind(page.offset())
         .fetch_all(&self.pool)
         .await?;
-        let total: i64 = sqlx::query_scalar("SELECT count(*) FROM invitations WHERE tenant_id = $1")
-            .bind(tenant_id)
-            .fetch_one(&self.pool)
-            .await?;
+        let total: i64 = sqlx::query_scalar(
+            "SELECT count(*) FROM invitations WHERE tenant_id = $1 AND ($2::text IS NULL OR status = $2)",
+        )
+        .bind(tenant_id)
+        .bind(status)
+        .fetch_one(&self.pool)
+        .await?;
         Ok((rows.into_iter().map(Into::into).collect(), total.max(0) as u64))
     }
 

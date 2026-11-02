@@ -2,7 +2,7 @@
 # Multi-stage build. cargo-chef caches dependency compilation so that only
 # changes to our own crates trigger a rebuild of the final layer.
 
-FROM lukemathwalker/cargo-chef:latest-rust-1 AS chef
+FROM lukemathwalker/cargo-chef:latest-rust-1.95.0 AS chef
 WORKDIR /build
 
 FROM chef AS planner
@@ -11,9 +11,9 @@ RUN cargo chef prepare --recipe-path recipe.json
 
 FROM chef AS builder
 COPY --from=planner /build/recipe.json recipe.json
-RUN cargo chef cook --release --recipe-path recipe.json
+RUN cargo chef cook --release --locked --recipe-path recipe.json
 COPY . .
-RUN cargo build --release --bin backend
+RUN cargo build --release --locked --bin backend
 
 FROM debian:bookworm-slim AS runtime
 RUN apt-get update \
