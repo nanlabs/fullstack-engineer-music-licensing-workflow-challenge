@@ -1,0 +1,21 @@
+[package]
+name = "notifx"
+description = "Notification delivery: the email message type, the transport port, the console sender and the adapters for the IAM notifier ports"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[dependencies]
+errx = { workspace = true }
+iam = { workspace = true }
+
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+chrono = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+kernel = { workspace = true }
+tokio = { workspace = true }

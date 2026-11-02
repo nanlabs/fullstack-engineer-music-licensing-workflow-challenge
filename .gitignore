@@ -1,0 +1,27 @@
+# Rust
+backend/target/
+**/*.rs.bk
+
+# Local environment (keep .env.example)
+.env
+
+# Editors / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Frontend
+node_modules/
+frontend/dist/
+frontend/coverage/
+
+# Terraform (infra/)
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+infra/**/plan.txt
+infra/**/backend.hcl
+infra/**/backend_override.tf
+infra/bootstrap/backend.tf

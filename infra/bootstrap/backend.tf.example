@@ -1,0 +1,12 @@
+# After the first `terraform apply` (local state): copy this file to
+# backend.tf, replace <account_id> with the bucket name printed in the
+# `state_bucket` output and run `terraform init -migrate-state`.
+terraform {
+  backend "s3" {
+    bucket       = "music-licensing-tfstate-<account_id>"
+    key          = "bootstrap/terraform.tfstate"
+    region       = "us-east-1"
+    use_lockfile = true
+    encrypt      = true
+  }
+}

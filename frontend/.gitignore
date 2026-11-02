@@ -1,0 +1,10 @@
+node_modules
+dist
+coverage
+*.local
+*.log
+
+# Editors
+.idea
+.DS_Store
+*.sw?
